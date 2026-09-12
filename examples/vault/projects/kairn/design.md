@@ -43,7 +43,7 @@ vault/ ──▶ resolve ──▶ render ──▶ sanitize ──▶ /d/<path>
 
 ## Tabs
 
-:::tabs
+::::tabs
 :::tab{label="macOS"}
 ```bash
 brew install bun
@@ -54,18 +54,18 @@ brew install bun
 curl -fsSL https://bun.sh/install | bash
 ```
 :::
-:::
+::::
 
 ## Grid
 
-:::grid{cols=2}
+::::grid{cols=2}
 :::col
 **ซ้าย** — อย่างแรก
 :::
 :::col
 **ขวา** — อย่างที่สอง
 :::
-:::
+::::
 
 ## Code
 

@@ -1,0 +1,17 @@
+{
+  "name": "@kairn/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "kairn": "./src/index.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@kairn/core": "workspace:*",
+    "@kairn/fs-node": "workspace:*",
+    "katex": "^0.16.0"
+  }
+}
