@@ -1,0 +1,130 @@
+# 07 — Roadmap
+
+หลัก: **ทุก milestone รันได้จริง** ไม่มี "โครงสร้างเสร็จแต่ใช้ไม่ได้"
+
+ล็อกแล้ว: ใช้เองในบ้าน · LAN ไม่มี auth · ไม่ publish · monorepo Bun+Hono+TS · vault ของตัวเอง
+· soft-delete (AI ลบถาวรไม่ได้) · port 7667 · dev บนเครื่อง ยังไม่ทำ docker
+
+---
+
+## M0 — Static render
+
+- [ ] workspace setup (`packages/core` + `tsconfig.base` + Biome)
+- [ ] `kairn render <path>` + `--stdin`
+- [ ] resolve path → md + optional meta.json (Zod schema)
+- [ ] unified: remark-parse + gfm + directive + rehype
+- [ ] rehype-slug + autolink + **rehype-sanitize**
+- [ ] **Shiki** (`@shikijs/rehype`) + **KaTeX** (rehype-katex)
+- [ ] layout HTML (Tailwind build) + typography
+- [ ] asset rewrite
+- [ ] `kairn check`
+
+**เสร็จ:** `kairn render projects/kairn/design > out.html` เปิด browser สวย มี code สี + สมการ
+
+---
+
+## M1 — Server + vault tree
+
+- [ ] Hono server: `/`, `/d/*path`, `/assets/*path`
+- [ ] **sidebar file tree** (collapsible) + Tailwind chrome
+- [ ] home: pinned / recent / tag filter
+- [ ] HTML cache ตาม content hash
+- [ ] watcher + **SSE** live-reload
+- [ ] `kairn serve` (default :7667)
+
+**เสร็จ:** วางโฟลเดอร์+ไฟล์ → tree ถูก → แก้ md แล้ว refresh เอง
+
+---
+
+## M2 — Design system + custom blocks
+
+- [ ] design tokens `tokens.css` + prose layer `.kairn-prose` (ตาม [03](03-blocks-and-design-system.md))
+- [ ] block registry `packages/core/src/blocks/` (data-block/data-variant)
+- [ ] callout, figure, motion
+- [ ] mark สี, badge, details, tabs, grid, card
+- [ ] kv, stats, progress, steps, timeline
+- [ ] diagram: Excalidraw SVG (figure) + ASCII
+- [ ] reading UX: progress bar, TOC active, heading anchor
+- [ ] `prefers-reduced-motion` + print styles
+- [ ] **`/styleguide`** render ทุก block (คุมดีไซน์ + ให้ AI ดู)
+- [ ] sanitize allowlist ครบ
+
+**เสร็จ:** เอกสารตัวอย่างใช้ทุก block ไม่มี warning + เทียบกับ styleguide ได้
+
+---
+
+## M3 — Folder mgmt + editor
+
+- [ ] create / rename / move / delete (UI + API)
+- [ ] `_folder.meta.json` (order/icon/color) + drag-drop
+- [ ] **trash**: soft-delete list / restore / empty (คนเท่านั้น)
+- [ ] revision ต่อ write + `kairn restore`
+- [ ] ETag / `If-Match` / 409
+- [ ] **web editor** (CodeMirror 6 + live preview) + meta form
+- [ ] reading UX เพิ่ม: **zen mode** + **command palette (Ctrl+K)**
+
+**เสร็จ:** จัดโฟลเดอร์ + เขียน/แก้เอกสารในเว็บได้ ไม่ต้องพึ่ง editor ภายนอก
+
+---
+
+## M4 — AI access
+
+- [ ] REST ครบ (docs/folders/assets/render/tree/trash)
+- [ ] `/context/*path`, `/schema` (จาก Zod)
+- [ ] audit log
+- [ ] `kairn mcp` (stdio) tools ตาม [05](05-api-and-agent-access.md) — ยกเว้น `doc_search` (รอ index ที่ M5)
+
+**เสร็จ:** Hermes สร้าง/แก้/จัดโฟลเดอร์ผ่าน MCP ได้ (ลบได้แค่ soft)
+
+---
+
+## M5 — Index, search, deploy structure
+
+- [ ] **Drizzle** schema + migration (bun:sqlite) + FTS5
+- [ ] incremental index ตาม file hash
+- [ ] `/api/search` + หน้า search + MCP `doc_search`
+- [ ] backlinks + wikilink resolve
+- [ ] `kairn build` export offline
+- [ ] **วางโครง docker** (`Dockerfile` + `docker-compose.yml` + volume) — ยังไม่ build
+- [ ] backup script (auto-git vault)
+
+**เสร็จ:** ค้นหาเร็ว, backlinks ทำงาน, โครง deploy พร้อมค่อยเปิดใช้
+
+---
+
+## M6 — (ว่าง)
+
+Obsidian plugin ถูกตัดออกจาก scope แล้ว — ดูเหตุผลใน [08](08-decisions.md)
+ถ้าจะกลับมาทำ ค่อยเปิด milestone ใหม่
+
+---
+
+## หลัง v1
+
+- D2 diagram code block (server-side SVG + cache)
+- Kroki gateway (ตอนมี docker)
+- graph view ของ backlinks
+- comments / annotations
+- kanban / task persist
+- semantic search (`sqlite-vec`)
+- PDF export
+- token auth (เมื่อออกนอก LAN)
+
+---
+
+## รอเคาะ
+
+ย้ายไปรวมที่ [08 — Decisions](08-decisions.md) ที่เดียว (ตอนนี้ยังไม่มีคำถามค้าง)
+
+## ประมาณการ
+
+| milestone | scope |
+|---|---|
+| M0 | ~1–1.5 วัน (unified + shiki + katex + tailwind setup) |
+| M1 | ~1.5–2 วัน |
+| M2 | ~2–3 วัน (blocks + CSS) |
+| M3 | ~3–4 วัน (folder mgmt + trash + editor) |
+| M4 | ~1.5–2 วัน |
+| M5 | ~2 วัน |
+
+MVP ใช้จริง = **M0 + M1 + M2**

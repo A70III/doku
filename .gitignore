@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# generated from Zod (see docs/04-tech-stack.md)
+schema/
+
+# runtime / disposable data
+var/
+*.log
+
+# personal vault content — do not commit
+# (examples/vault is committed as a fixture)
+/vault/
+
+# secrets / local config
+config/tokens.json
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
