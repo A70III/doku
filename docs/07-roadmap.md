@@ -4,6 +4,7 @@
 
 ล็อกแล้ว: ใช้เองในบ้าน · LAN ไม่มี auth · ไม่ publish · monorepo Bun+Hono+TS · vault ของตัวเอง
 · soft-delete (AI ลบถาวรไม่ได้) · port 7667 · dev บนเครื่อง ยังไม่ทำ docker
+· ทิศทาง UI = **Digital Archivist / Editorial Minimalism** ([08 ข้อ 31](08-decisions.md) · [03 Part B](03-blocks-and-design-system.md))
 
 ---
 
@@ -64,8 +65,11 @@
 - [ ] ETag / `If-Match` / 409
 - [ ] **web editor** (CodeMirror 6 + live preview) + meta form
 - [ ] reading UX เพิ่ม: **zen mode** + **command palette (Ctrl+K)**
+- [ ] **UI pass ตามทิศทาง Digital Archivist** — token warm neutral ([03 §1.1](03-blocks-and-design-system.md) · [08 ข้อ 33](08-decisions.md))
+      + รื้อ chrome ที่ยังเป็น "การ์ดลอย / เงา / มุมโค้งใหญ่" เป็น **hairline + whitespace** ([08 ข้อ 32](08-decisions.md))
+      + vendor subset **Lucide** + `<Icon>` (chrome) + icon ของ block ผ่าน CSS mask ([08 ข้อ 34–35](08-decisions.md))
 
-**เสร็จ:** จัดโฟลเดอร์ + เขียน/แก้เอกสารในเว็บได้ ไม่ต้องพึ่ง editor ภายนอก
+**เสร็จ:** จัดโฟลเดอร์ + เขียน/แก้เอกสารในเว็บได้ ไม่ต้องพึ่ง editor ภายนอก · หน้าตาตรงทิศทาง Digital Archivist (list แบบ catalogue · ไม่ใช่กริดการ์ด)
 
 ---
 

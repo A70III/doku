@@ -350,6 +350,39 @@ export const calloutDefinition: BlockDefinition = {
 
 ทำให้เนื้อหา markdown ดู "ออกแบบแล้ว" และทุก block หน้าตาสม่ำเสมอ
 
+## ทิศทาง — Digital Archivist / Editorial Minimalism
+
+Doku คือ **ห้องสมุดดิจิทัลร่วมสมัย** สำหรับคนที่จริงจังกับข้อมูล — ไม่ใช่ SaaS ทั่วไป และไม่ใช่ dashboard แห่งอนาคต
+หน้าตาต้องมาจาก **typography · hierarchy · spacing · โครงสร้าง · ความยับยั้งชั่งใจ · จังหวะ** ไม่ใช่จากของประดับ
+
+| ควรรู้สึก | ต้องไม่รู้สึก |
+|---|---|
+| สงบ · ฉลาด · editorial · เป็นผู้ใหญ่ · น่าเชื่อถือ · โฟกัส · อ่านง่าย · อบอุ่นเล็กน้อย · ตั้งใจทำ | generic SaaS · AI startup · futuristic dashboard · ชุด template สำเร็จรูป |
+
+- **"ความเป็นห้องสมุด" มาจากการจัดลำดับข้อมูล + การจัดตัวอักษร** — ห้ามใช้ของประดับเชิงสัญลักษณ์
+  (ชั้นหนังสือ · กระดาษเก่า · ลาย parchment · ขอบ/ornament คลาสสิก · UI ย้อนยุคปลอม)
+- **Content over chrome** — control/navigation ห้ามดังกว่าเนื้อหาที่มันห่ออยู่
+- **Editorial over SaaS** — ใช้ layout แบบหนังสือ/วารสาร/academic/catalogue/documentation เป็นค่าเริ่มต้น
+  · `sidebar + topbar + กริดการ์ดมุมโค้ง` ไม่ใช่ default ของทุกหน้า · dashboard ใช้เมื่อเนื้อหาเป็น dashboard จริง
+- **Typography เป็นองค์ประกอบหลักของ identity** — hierarchy มาจากขนาด/น้ำหนัก/ตัวพิมพ์ ก่อนจะไปพึ่งกล่อง สี หรือ icon
+- **ความยับยั้งชั่งใจ ไม่ใช่ความว่าง** — เอาความรกออก แต่เก็บ character ไว้; เป้าหมายคือ minimal ที่ **ไม่ generic**
+- กฎตัดสินเมื่อมีหลายทางเลือก: **typography แก้ได้ → ไม่เพิ่มของประดับ · spacing แก้ได้ → ไม่เพิ่ม container · hierarchy แก้ได้ → ไม่เพิ่มสี**
+  แล้วเลือกทางที่ **เงียบกว่า + ชัดกว่า + อ่านง่ายกว่า + ตั้งใจมากกว่า**
+
+### บันได container
+
+ทุกครั้งที่ต้องแบ่งของสองอย่าง ให้ไต่ขึ้นเท่าที่จำเป็น แล้ว **หยุดที่ขั้นแรกที่พอ**:
+
+1. **whitespace** — คำตอบเริ่มต้น ใช้เกือบตลอด
+2. **divider / hairline** — แถว list · กลุ่ม metadata · ขอบ toolbar · จุดตัด section
+3. **typography** (ขนาด/น้ำหนัก/ตัวพิมพ์/สี) — อันหนึ่งเป็นรองหรือเป็นหลักของอีกอัน
+4. **indentation / alignment** — hierarchy ภายในบล็อกเดียวกัน
+5. **พื้นหลังจาง** — ย่านที่แยกออกจริง (code · inset note · panel เงียบ)
+6. **card / panel ยกพื้น** — **เมื่อเนื้อหานั้นเป็น object อิสระที่มีตัวตนและการกระทำของตัวเอง**
+
+ขั้น 6 ต้องมีเหตุผลรองรับว่า "นี่เป็น object เดี่ยวจริง" — กริดการ์ดทุกหน้า · การ์ดซ้อนการ์ด · การ์ด 1 ใบต่อ 1 section = **ไม่ใช่เหตุผล**
+(decision: [08 ข้อ 32](08-decisions.md))
+
 ## หลักการ
 
 1. **Token-first** — สี/ระยะ/ฟอนต์/เงา มาจาก CSS variable เท่านั้น ห้าม hardcode ใน component
@@ -362,6 +395,19 @@ export const calloutDefinition: BlockDefinition = {
 ## 1. Design Tokens
 
 ### 1.1 Color
+
+**ทิศทาง:** พื้นผิวเป็น **warm neutral** — warm white / ivory / warm stone · ตัวอักษร **warm charcoal / ink**
+(ไม่ใช่ `#fff` และ `#000` ล้วน) · **accent เดียว** (`--d-accent` default `#3b7df0` ตาม [08 ข้อ 5](08-decisions.md))
+ใช้เมื่อเป็น *สถานะปัจจุบัน* (link · active · focus · selected) · semantic สีอิ่มต่ำ ใช้เมื่อเป็น state จริงเท่านั้น
+
+- surface / line / text ต้องอยู่ **ตระกูลอุ่นเดียวกัน** — เส้นเทาเย็นบนพื้นอุ่นเห็นได้ทันทีและดูถูกทันที
+- tint ทุกตัว derive ด้วย `color-mix()` จาก token ห้ามตั้งค่าสีใหม่มือต่อ component
+- สีต้องไม่เป็นตัวสื่อความหมายเดียว — ต้องมีข้อความ/น้ำหนัก/เส้นกำกับด้วย
+- **ถ้าจะเพิ่ม accent ที่สองเพื่อแยกของสองอย่าง → ใช้ typography หรือโครงสร้างแทน**
+
+ห้าม: ไล่เฉดม่วง/ฟ้าแบบ AI · neon · glow · gradient ประดับ · การ์ดสีรุ้ง · สีเป็นระบบหมวด
+
+ค่าด้านล่างคือ **baseline ปัจจุบัน (M2) — ยังเป็น cool neutral และยังใช้ `--k-bg` = `#ffffff`**:
 
 ```css
 :root {
@@ -413,6 +459,22 @@ export const calloutDefinition: BlockDefinition = {
 
 แต่ละสีมีคู่ soft bg: `--k-<name>-bg` (light tint) — ใช้เป็นพื้น callout
 
+#### ค่าเป้าหมาย warm neutral
+
+**ชื่อ token คงเดิม เปลี่ยนเฉพาะค่า** — migrate ในรอบ UI ของ M3 ([08 ข้อ 33](08-decisions.md)) · accent และ semantic คงเดิม
+
+| token | light | dark | ใช้กับ |
+|---|---|---|---|
+| `--k-app-bg` | `#f7f5f1` | `#14120f` | พื้นหลังหน้า |
+| `--k-bg` | `#fffefb` | `#1a1815` | พื้นเนื้อหา / เอกสาร |
+| `--d-bg-subtle` | `#f1eee8` | `#221f1a` | code, blockquote, panel เงียบ |
+| `--d-bg-muted` | `#e9e5dd` | `#2b2721` | hover, zebra |
+| `--d-border` | `#e2dcd2` | `#332f28` | hairline ทุกตัว |
+| `--d-border-strong` | `#cfc8bc` | `#4a443a` | เส้นเน้น / active |
+| `--k-text` | `#1c1a17` | `#ece7de` | ตัวอักษรหลัก |
+| `--d-text-muted` | `#5d574e` | `#a8a196` | รอง |
+| `--d-text-subtle` | `#8a8378` | `#7d766a` | meta |
+
 ### 1.2 Per-doc accent
 
 - `meta.theme.accent` (hex) → set `--doc-accent` บน `<html data-accent>`
@@ -455,6 +517,11 @@ export const calloutDefinition: BlockDefinition = {
 --k-shadow-lg: 0 12px 32px rgba(0,0,0,.12);
 ```
 
+**ทิศทาง:** radius **เล็กและคงที่** (2/4/6px — ไม่ใช่ .5/.7/1rem) · shadow ใช้เฉพาะ overlay จริง (menu/modal/popover)
+หน้าปกติสร้าง depth จาก hairline + พื้นหลังจาง + whitespace ไม่ใช่เงา · `--d-radius-pill` ใช้เฉพาะ chip/tag ขนาดเล็ก ไม่ใช่ default ของปุ่ม
+
+ปรับในรอบ UI ของ M3 ([08 ข้อ 33](08-decisions.md))
+
 ### 1.5 Motion
 
 ```css
@@ -472,7 +539,7 @@ export const calloutDefinition: BlockDefinition = {
 ```
 ┌───────────────┬────────────────────────────────────┐
 │ sidebar 260px │  ┌──────────────────────────────┐  │
-│ - back        │  │ main card (max 760px center) │  │
+│ - back        │  │ reading column (max 760px)  │  │
 │ - title/meta  │  │  h1 → meta → content         │  │
 │ - TOC (sticky)│  │  ... blocks ...              │  │
 │ - theme/zen   │  │  backlinks · footer          │  │
@@ -481,7 +548,8 @@ export const calloutDefinition: BlockDefinition = {
   progress bar (fixed top)
 ```
 
-- เนื้อหาเป็น **การ์ดลอย** บน `--k-app-bg` (depth)
+- เนื้อหาวางบนพื้นหน้าโดยตรง — แยกจาก chrome ด้วย **hairline + whitespace**
+  (ยกเลิก "การ์ดลอยบน `--k-app-bg`" ของ M2 ในรอบ UI ของ M3 — [08 ข้อ 32](08-decisions.md))
 - `max-width` เนื้อหา = `--k-measure`
 - sidebar sticky `height:100vh` + TOC active (IntersectionObserver `rootMargin: -10% 0px -80%`)
 
@@ -532,6 +600,32 @@ block renderer ใส่ data attribute ไม่ใช่ class ใหม่:
 
 CSS ยิงด้วย `[data-block="callout"][data-variant="warning"]` → เพิ่ม variant = เพิ่ม CSS ไม่กี่บรรทัด ไม่ต้องตั้งชื่อ class
 
+### Icons
+
+ชุดไอคอน: **Lucide** — [08 ข้อ 34](08-decisions.md) (ISC · 1,600+ · grid 24px · stroke 1.5–2) · vendor subset เข้า repo · ไม่มี CDN / icon font
+
+- **สื่อฟังก์ชันเท่านั้น** — ถ้า icon ไม่ได้ช่วยให้แยกการกระทำได้ชัดขึ้น ให้ตัดออก
+- **family เดียว** (ห้ามผสม Lucide + ชุดอื่น + filled + emoji ในหน้าเดียว) · ขนาดเดียว (14–16px ใน UI ที่แน่น) · stroke เดียวทั้งแอป
+- **ห้ามใช้ emoji เป็น UI** · ห้ามใช้ icon เป็นของประดับ/illustration/ตัวคั่น section · ห้ามใส่ icon คู่ทุกป้ายอัตโนมัติ
+- **ห้ามใส่ icon ทุกแถวใน list** — ใช้เมื่อประเภทของแถวกำกวมจริง
+- เรียกด้วยชื่อ Lucide ตรง ๆ: `folder` `file-text` `search` `panel-left` `pin` `tag` `history` `pencil` `trash-2` `copy` `check` `x` `info` `triangle-alert` `lightbulb` `circle-check` `quote` `hash`
+  — ชื่อที่ไม่รู้จัก → **ไม่แสดง icon** + เตือน (forward compatible เหมือน attribute อื่น)
+- **คัดเฉพาะที่ใช้** — vendor path data เข้า `packages/core/src/icons/` พร้อม ISC notice · ห้ามโหลดทั้งชุด
+
+**วิธีส่ง icon เข้า DOM** ([08 ข้อ 35](08-decisions.md)):
+
+| ที่ | วิธี | ทำไม |
+|---|---|---|
+| **chrome** (server/CLI, TSX) | inline `<svg>` จาก map ใน core · `stroke="currentColor"` | รับสีจาก token เอง · ไม่มี request เพิ่ม |
+| **เนื้อหาเอกสาร** (block) | `<span data-part="…" aria-hidden="true">` + CSS `background-color: currentColor` + `mask-image: url("data:image/svg+xml,…")` | **ห้าม inline SVG เข้า sanitized HTML** (allowlist ไม่มี `svg`/`path` — [06](06-security.md)) · CSP `img-src 'self' data:` มีอยู่แล้ว ([08 ข้อ 27](08-decisions.md)) → ไม่ต้องแก้ CSP |
+
+> ค้าง: `:::card{icon=…}` set `data-icon` แล้วยังไม่มี CSS อ่านค่า → icon หายเงียบ ทำพร้อม UI pass ที่ [M3](07-roadmap.md)
+
+### Metadata
+
+แสดงเป็นข้อความ ขนาดเล็ก สีจาง คั่นด้วยระยะที่คงที่ทุกหน้า (หรือ `·`) · รูปแบบต้องเหมือนกันทั้ง vault
+ห้ามเปลี่ยน metadata เป็นแถว chip สี และห้ามให้ metadata หนักกว่าหัวเรื่อง
+
 ## 4. Reading UX
 
 - **Progress bar** — fixed top, ความกว้าง = scroll %
@@ -547,7 +641,7 @@ CSS ยิงด้วย `[data-block="callout"][data-variant="warning"]` → �
 - **Command palette (Ctrl+K)** — quick-switcher ค้นชื่อไฟล์ + tag + เนื้อหา (FTS) _(ทำใน M3)_
 - **File tree** เต็ม (พับได้, จำ state ใน localStorage)
 - **List**: pinned → recent → ทั้งหมด, date group (Today/Yesterday/Week/…)
-- **Tag cloud** pill สี deterministic (hash → hue) + filter
+- **Tag filter** — แสดงเป็นข้อความ + จำนวน (chip จางได้ถ้าจำเป็น แต่ไม่ไล่สีตาม hash) · active ใช้ accent เดียว
 - **Stats** ต่อ vault: จำนวนเอกสาร / tags / อัปเดตล่าสุด
 - **States**: skeleton ตอนโหลด, error card ตอน server ดับ
 - **Continue reading** — จำเอกสารล่าสุดที่เปิด (localStorage)

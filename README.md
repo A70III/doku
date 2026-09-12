@@ -29,6 +29,23 @@ mono repo, server-render, custom block ผ่าน remark-directive
 5. **คนกับ AI เท่ากัน** — เขียนไฟล์ตรงๆ / REST / MCP (ลบถาวรเฉพาะคน)
 6. **mono repo** — core เดียว ใช้ร่วม CLI, server, MCP
 
+## ทิศทาง UI — Digital Archivist
+
+หน้าตาแบบ **ห้องสมุดดิจิทัลร่วมสมัย** — สงบ · editorial · typography-first · อ่านเป็นหลัก
+ไม่ใช่ generic SaaS และไม่ใช่ futuristic dashboard · เป้าหมายคือ minimal ที่ **ไม่ generic**
+
+- **Typography นำ hierarchy** — ขนาด/น้ำหนัก/จังหวะ ก่อนจะไปพึ่งกล่อง สี หรือ icon
+- **Content over chrome** — navigation/control ห้ามดังกว่าเนื้อหาที่มันห่ออยู่
+- **Card ไม่ใช่ default container** — ไต่จาก whitespace → hairline → typography → indent → พื้นหลังจาง แล้วจึงถึง card
+  (ใช้ card เมื่อเนื้อหาเป็น object อิสระที่มีการกระทำของตัวเองเท่านั้น)
+- **warm neutral + accent เดียว** — surface / เส้น / ตัวอักษร อยู่ตระกูลอุ่นเดียวกัน ไม่ใช้ `#fff`/`#000` ล้วน · สีต้องสื่อความหมาย
+- **List แบบ catalogue** มากกว่ากริดการ์ด · **hairline** แทนเงา · motion สั้นและมีเหตุผล · radius เล็ก (2/4/6px)
+- **ไม่ใช้**: gradient ม่วง/ฟ้าแบบ AI · glassmorphism/blur · neon/glow · เงานุ่มหนา · มุมโค้งยักษ์ · pill ทุกปุ่ม
+  · badge/card เต็มจอ · emoji เป็น UI · ของประดับหนังสือเก่าปลอม (ชั้นหนังสือ · parchment · ornament)
+
+รายละเอียดครบ (token · layout · container · icons · accessibility): [docs/03 Part B](docs/03-blocks-and-design-system.md)
+· decision ที่ล็อกแล้ว: [docs/08](docs/08-decisions.md) ข้อ 31–33
+
 ## โครงสร้าง repo
 
 ```
@@ -68,7 +85,7 @@ examples/   ตัวอย่าง
 
 ```bash
 bun install
-bun test                                    # 127 tests
+bun test                                    # 128 tests
 bun run typecheck && bun run check          # tsc + Biome
 bun run doku -- render --vault examples/vault projects/doku/design > out.html
 bun run doku -- check  --vault examples/vault --json
@@ -82,5 +99,6 @@ bun run gen:schema                          # Zod → schema/ (ไม่ commit)
 - **custom block ครบตาม [docs/03](docs/03-blocks-and-design-system.md)**: callout (7 type), mark, badge, stat/stats,
   figure, gallery, video, card, section, grid/col, kv, progress, steps, timeline, margin-note, motion, details, tabs/tab
 - **design system**: tokens + prose + block CSS อยู่ที่ `@doku/core` ใช้ร่วม CLI/server · ดูทุก block ได้ที่ `/styleguide`
+- **ทิศทาง UI**: Digital Archivist / Editorial Minimalism (ดู [ทิศทาง UI](#ทิศทาง-ui--digital-archivist)) — รอบ UI pass เต็มรูปแบบอยู่ใน M3
 - ยังไม่มี: editor/trash/revision (M3) · REST ครบ + MCP (M4) · index/search (M5)
 - คำถามค้างดู [docs/08-decisions.md](docs/08-decisions.md) หัวข้อ "รอเคาะ"

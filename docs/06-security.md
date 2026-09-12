@@ -32,6 +32,10 @@
 library: **rehype-sanitize** (schema typed) เท่านั้น — ไม่ใช้ sanitize-html
 ถ้าต้องการชั้นสองเพิ่ม ค่อยเพิ่ม allowlist เฉพาะ block ที่เราเขียนเอง
 
+- **ไม่มี `svg` / `path` ใน allowlist และจะไม่เพิ่ม** — icon ของ block ส่งทำเป็น CSS `mask-image` แทน ([08 ข้อ 35](08-decisions.md))
+  เพราะ `<svg>` ที่ AI เขียนได้เปิดทาง `foreignObject` / `use` / event attribute ซึ่งคุมด้วย allowlist ยากกว่า tag ปกติมาก
+- SVG ที่อัปโหลดเป็น asset ยังผ่าน mime allowlist + `Content-Disposition: inline` + CSP `default-src 'none'` ของ route asset (script ไม่ทำงาน)
+
 ## CSP
 
 ```

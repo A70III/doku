@@ -16,6 +16,7 @@
 | Code highlight | **Shiki** (`@shikijs/rehype`) | สวย, theme เยอะ, render ฝั่ง server |
 | Math | **KaTeX** | block/inline |
 | Diagram | **Excalidraw SVG + ASCII** (หลัก), **D2** (code-first, เพิ่มทีหลัง) | ไม่ใช้ Mermaid |
+| Icons | **Lucide** (vendored subset, ไม่มี runtime dep) | line icon ชุดเดียว · static SVG ใช้ได้โดยไม่มี JS · ISC · ปรับ stroke ให้บางตามทิศทาง UI ได้ — [08 ข้อ 34–35](08-decisions.md) |
 | Live | **SSE** | one-way พอ, ง่ายกว่า WS |
 | Lint/Format | **Biome** | tool เดียว |
 | Test | **bun test** + `tsc --build` | CI gate |
@@ -51,6 +52,10 @@ Tailwind CLI → app.css (build/dev-watch, ครั้งเดียว)   ←
 - **Tailwind** → app chrome: sidebar, toolbar, layout, list, editor, buttons, modal
 - **CSS layer เอง** → เนื้อหาเอกสาร: heading, prose, callout, figure, motion, code
 - แชร์ design token ผ่าน CSS variables (`--accent` ฯลฯ) ทั้งสองฝั่ง
+
+> chrome ทุกตัวที่เขียนด้วย Tailwind ยังต้องตาม **ทิศทาง UI** ([03 Part B](03-blocks-and-design-system.md) · [08 ข้อ 31–33](08-decisions.md)):
+> warm neutral + accent เดียว · radius เล็ก · shadow เฉพาะ overlay · **card ไม่ใช่ default container** (ไต่บันได container)
+> — Tailwind เป็นแค่เครื่องมือ ไม่ได้แปลว่าต้องใช้ `rounded-2xl` + `shadow-lg` + การ์ดทุกบล็อก
 
 ## จุดที่เปลี่ยนจาก markdown-it → unified
 
