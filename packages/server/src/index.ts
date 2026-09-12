@@ -8,7 +8,7 @@
 
 import { basename, resolve as resolvePath } from "node:path"
 import { RENDERER_VERSION } from "@doku/core"
-import { createNodeVaultFs } from "@doku/fs-node"
+import { createNodeRevisionStore, createNodeVaultFs } from "@doku/fs-node"
 import { createDokuApp } from "./app.tsx"
 import { FragmentCache } from "./cache.ts"
 import { DocRenderer } from "./doc.ts"
@@ -36,6 +36,13 @@ const cache = new FragmentCache(
 )
 const renderer = new DocRenderer(fs, state, cache)
 const hub = new SseHub()
+const trash = fs.trashStore()
+const revisions = await createNodeRevisionStore(varDir)
+
+// retention: auto-purge trash 30 วัน (docs/06) — ตอนบูต + ทุกชั่วโมง
+void trash.purge()
+const purgeTimer = setInterval(() => void trash.purge(), 60 * 60 * 1000)
+purgeTimer.unref?.()
 
 // watcher → invalidate snapshot + แจ้ง browser reload (debounce ภายใน watcher/hub)
 const watcher = createVaultWatcher(fs.root, {
@@ -55,7 +62,7 @@ const readAppCss = async (): Promise<string | null> => {
   }
 }
 
-const app = createDokuApp({ fs, vaultName, state, renderer, hub, readAppCss })
+const app = createDokuApp({ fs, vaultName, state, renderer, hub, readAppCss, trash, revisions })
 
 let server: ReturnType<typeof Bun.serve>
 try {
@@ -77,6 +84,7 @@ process.stderr.write(
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
+    clearInterval(purgeTimer)
     void watcher.close()
     server.stop(true)
     process.exit(0)

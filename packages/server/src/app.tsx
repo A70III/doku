@@ -6,9 +6,19 @@
  * (REST API /api/* จะมาที่ M3–M4 — docs/07)
  */
 
-import { DocNotFoundError, normalizeVaultPath, PathError, type VaultFs } from "@doku/core"
+import {
+  DocNotFoundError,
+  docEtag,
+  etagHeader,
+  normalizeVaultPath,
+  PathError,
+  type RevisionStore,
+  type TrashStore,
+  type VaultFs,
+} from "@doku/core"
 import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
+import { createApi } from "./api.ts"
 import type { DocRenderer } from "./doc.ts"
 import { loadKatexCss } from "./katex.ts"
 import type { SseHub } from "./sse.ts"
@@ -31,6 +41,10 @@ export interface DokuAppDeps {
   hub: SseHub
   /** อ่านไฟล์ static ที่ generate ไว้ (เช่น app.css จาก Tailwind) — คืน null ถ้ายังไม่มี */
   readAppCss?: () => Promise<string | null>
+  /** M3: REST API + trash/revision — ไม่ส่ง = ไม่ mount `/api/*` (test เก่า/โหมดอ่านอย่างเดียว) */
+  trash?: TrashStore
+  revisions?: RevisionStore
+  readOnly?: boolean
 }
 
 /** MIME allowlist (docs/06) — ไม่อยู่ในนี้ = ไม่ serve */
@@ -67,6 +81,22 @@ function tailPath(url: string, prefix: string): string {
 
 export function createDokuApp(deps: DokuAppDeps): Hono {
   const app = new Hono()
+
+  if (deps.trash && deps.revisions) {
+    app.route(
+      "/api",
+      createApi({
+        fs: deps.fs,
+        vaultName: deps.vaultName,
+        state: deps.state,
+        renderer: deps.renderer,
+        hub: deps.hub,
+        trash: deps.trash,
+        revisions: deps.revisions,
+        readOnly: deps.readOnly,
+      }),
+    )
+  }
 
   // CSP ใส่ตอน response เป็น HTML เท่านั้น (SSE/asset ไม่ต้อง)
   app.use("*", async (context, next) => {
@@ -162,6 +192,11 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
 
     try {
       const doc = await deps.renderer.render(docId)
+      const markdown = await deps.fs.readText(`${docId}.md`)
+      if (markdown !== null) {
+        // ทุก GET คืน ETag ของ {md, meta} (docs/05 concurrency)
+        context.header("etag", etagHeader(await docEtag(markdown, doc.meta)))
+      }
       return context.html(<DocPage doc={doc} path={docId} tree={tree} vaultName={deps.vaultName} />)
     } catch (error) {
       if (error instanceof DocNotFoundError) {

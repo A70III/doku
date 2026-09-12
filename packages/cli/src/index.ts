@@ -14,6 +14,7 @@ import {
   defaultMeta,
   type Meta,
   MetaSchema,
+  normalizeVaultPath,
   renderMarkdown,
   resolveDoc,
   resolveInline,
@@ -21,7 +22,7 @@ import {
   type Warning,
   walkVault,
 } from "@doku/core"
-import { createNodeVaultFs } from "@doku/fs-node"
+import { createNodeRevisionStore, createNodeVaultFs } from "@doku/fs-node"
 import { loadKatexCss } from "./preview/katex-css.ts"
 import { renderPreviewPage } from "./preview/page.ts"
 
@@ -73,21 +74,25 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
 class UsageError extends Error {}
 
 export function usage(): string {
-  return `doku — document hub (M0)
+  return `doku — document hub
 
 คำสั่ง:
   doku render <path>            render เอกสาร → HTML (stdout)
   doku render --stdin           render markdown จาก stdin (stateless)
   doku check [path]             validate vault / เอกสาร
-  doku serve                    เปิด web server (:7667) — M1
+  doku serve                    เปิด web server (:7667)
+  doku restore <path> [ts]      กู้เอกสารจาก revision (ไม่ระบุ ts = ล่าสุด)
+                                ใช้ --list เพื่อดู revision ที่มี
 
 ตัวเลือก:
   --vault <dir>     vault root (default: $DOKU_VAULT หรือ ./vault)
+  --var <dir>       โฟลเดอร์ var (default: $DOKU_VAR หรือ ./var) — ใช้กับ restore
   --fragment        render เฉพาะ HTML fragment (ไม่ห่อ layout)
   --json            ผลลัพธ์เป็น JSON (ให้ agent parse)
   --out <file>      เขียนผลลัพธ์ลงไฟล์แทน stdout
   --meta <file>     meta.json สำหรับโหมด --stdin
   --strict          (check) ให้ warning ทำให้ exit code ≠ 0
+  --list            (restore) แสดง revision ที่มี
   -h, --help        แสดง help
   -v, --version     แสดงเวอร์ชัน
 
@@ -100,6 +105,8 @@ serve เท่านั้น:
   doku render --vault examples/vault projects/doku/design --out /tmp/design.html
   echo '# hi' | doku render --stdin --fragment
   doku check --vault examples/vault --json
+  doku restore projects/doku/design --list
+  doku restore projects/doku/design 20250912T100000000Z
 `
 }
 
@@ -129,6 +136,8 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         return await commandCheck(args)
       case "serve":
         return await commandServe(args)
+      case "restore":
+        return await commandRestore(args)
       default:
         process.stderr.write(`ไม่รู้จักคำสั่ง: ${args.command}\n\n${usage()}`)
         return 2
@@ -290,6 +299,71 @@ async function commandServe(args: ParsedArgs): Promise<number> {
   process.on("SIGINT", () => child.kill("SIGINT"))
   const exit = await child.exited
   return exit === 0 ? 0 : exit === null ? 0 : exit
+}
+
+/**
+ * `doku restore <path> [ts]` — กู้ md (+meta) จาก `var/revisions/` (docs/06)
+ * ก่อนเขียนทับจะเก็บ revision ของสถานะปัจจุบันก่อน → restore ก็ undo ได้
+ */
+async function commandRestore(args: ParsedArgs): Promise<number> {
+  const target = args.positional[0]
+  if (!target) throw new UsageError("ต้องระบุ path ของเอกสาร: doku restore <path> [ts]")
+
+  const vault = await openVault(args.flags.get("vault"))
+  const varFlag = args.flags.get("var")
+  const varDir = resolvePath(
+    typeof varFlag === "string" ? varFlag : (process.env.DOKU_VAR ?? "var"),
+  )
+  const id = normalizeVaultPath(target, { vaultName: vault.vaultName })
+  const revisions = await createNodeRevisionStore(varDir)
+
+  const list = await revisions.list(id)
+  if (args.flags.has("list")) {
+    if (args.flags.has("json")) {
+      process.stdout.write(`${JSON.stringify({ ok: true, path: id, revisions: list })}\n`)
+    } else if (list.length === 0) {
+      process.stdout.write(`ไม่มี revision ของ ${id}\n`)
+    } else {
+      for (const entry of list) process.stdout.write(`${entry.ts}  ${entry.at}\n`)
+    }
+    return 0
+  }
+
+  if (list.length === 0) {
+    process.stderr.write(`error: ไม่มี revision ของ ${id}\n`)
+    return 1
+  }
+
+  const requested = args.positional[1]
+  const ts = requested ?? list[0]?.ts
+  if (!ts) {
+    process.stderr.write(`error: ไม่พบ revision\n`)
+    return 1
+  }
+  const snapshot = await revisions.read(id, ts)
+  if (!snapshot) {
+    process.stderr.write(`error: ไม่พบ revision ${ts} ของ ${id}\n`)
+    return 1
+  }
+
+  // เก็บสถานะปัจจุบันก่อนทับ (กู้กลับได้)
+  const current = {
+    md: await vault.fs.readText(`${id}.md`),
+    meta: await vault.fs.readText(`${id}.meta.json`),
+  }
+  if (current.md !== null || current.meta !== null) await revisions.save(id, current)
+
+  if (snapshot.md !== null) await vault.fs.writeText(`${id}.md`, snapshot.md)
+  if (snapshot.meta !== null) await vault.fs.writeText(`${id}.meta.json`, snapshot.meta)
+
+  if (args.flags.has("json")) {
+    process.stdout.write(
+      `${JSON.stringify({ ok: true, path: id, ts, restored: { md: snapshot.md !== null, meta: snapshot.meta !== null } })}\n`,
+    )
+  } else {
+    process.stderr.write(`กู้คืน ${id} จาก revision ${ts} แล้ว\n`)
+  }
+  return 0
 }
 
 async function commandCheck(args: ParsedArgs): Promise<number> {

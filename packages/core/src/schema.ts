@@ -74,6 +74,21 @@ export const FolderMetaSchema = z.object({
 
 export type FolderMeta = z.infer<typeof FolderMetaSchema>
 
+/** key ที่รู้จักของ `_folder.meta.json` — ใช้ตรวจ unknown field ตอน PATCH ผ่าน API */
+export const FOLDER_META_KEYS = new Set<string>(["title", "icon", "color", "order", "collapsed"])
+
+/**
+ * meta ที่รับจาก REST/MCP (partial) — derive จาก MetaSchema ตัวเดียวกัน (docs/04: Zod single source)
+ * nested object เป็น partial ด้วย เพราะ agent ส่งมาแค่ field ที่แก้
+ */
+export const MetaPatchSchema = MetaSchema.partial().extend({
+  theme: ThemeSchema.partial().optional(),
+  render: RenderSchema.partial().optional(),
+  relations: RelationsSchema.partial().optional(),
+})
+
+export type MetaPatch = z.infer<typeof MetaPatchSchema>
+
 /** key ที่รู้จัก — ใช้ตรวจ unknown field (ค่าที่ไม่รู้จัก = ignore + เตือน) */
 export const META_KNOWN_KEYS = new Set<string>([
   "$schema",

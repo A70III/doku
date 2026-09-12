@@ -4,7 +4,10 @@ import { describe, expect, test } from "bun:test"
 // วัดผล: Bun.spawn 1/40 · Bun.readableStreamToText 4/40 · Bun.spawnSync 4/25 · node spawnSync 0/25
 // (subprocess ที่เขียนลงไฟล์เองก็ 0/25 — แปลว่า CLI ฝั่งเขียนถูก ตัวจับ pipe ของ Bun เป็นตัวปัญหา)
 import { spawnSync } from "node:child_process"
-import { resolve } from "node:path"
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join, resolve } from "node:path"
+import { createNodeRevisionStore } from "@doku/fs-node"
 import { parseArgs } from "../src/index.ts"
 
 const CLI = resolve(import.meta.dir, "../src/index.ts")
@@ -156,5 +159,55 @@ describe("doku check", () => {
     expect(code).toBe(0)
     expect(stdout).toContain("doku render")
     expect(stdout).toContain("doku check")
+  })
+})
+
+describe("doku restore (revision)", () => {
+  function makeVault(): { vault: string; varDir: string } {
+    const root = mkdtempSync(join(tmpdir(), "doku-restore-"))
+    const vault = join(root, "vault")
+    const varDir = join(root, "var")
+    mkdirSync(vault, { recursive: true })
+    return { vault, varDir }
+  }
+
+  testCli("กู้ md จาก revision ล่าสุด + เก็บสถานะปัจจุบันก่อนทับ", async () => {
+    const { vault, varDir } = makeVault()
+    writeFileSync(join(vault, "a.md"), "# v0\n")
+    const revisions = await createNodeRevisionStore(varDir)
+    await revisions.save("a", { md: "# v0\n", meta: null }, new Date("2025-09-12T10:00:00Z"))
+    writeFileSync(join(vault, "a.md"), "# v1\n")
+
+    const before = doku(["restore", "--vault", vault, "--var", varDir, "a", "--list"])
+    expect(before.code).toBe(0)
+    expect(before.stdout).toContain("20250912T100000000Z")
+
+    const result = doku(["restore", "--vault", vault, "--var", varDir, "a"])
+    expect(result.code).toBe(0)
+    expect(readFileSync(join(vault, "a.md"), "utf8")).toBe("# v0\n")
+
+    // สถานะก่อนกู้ถูกเก็บเป็น revision ใหม่ → undo ได้
+    const list = await revisions.list("a")
+    expect(list.length).toBeGreaterThan(1)
+  })
+
+  testCli("ไม่มี revision → exit 1 · ไม่ระบุ path → exit 2", async () => {
+    const { vault, varDir } = makeVault()
+    writeFileSync(join(vault, "a.md"), "# x\n")
+    expect(doku(["restore", "--vault", vault, "--var", varDir, "a"]).code).toBe(1)
+    expect(doku(["restore", "--vault", vault, "--var", varDir]).code).toBe(2)
+  })
+
+  testCli("--json ให้ agent parse ได้", async () => {
+    const { vault, varDir } = makeVault()
+    writeFileSync(join(vault, "a.md"), "# new\n")
+    const revisions = await createNodeRevisionStore(varDir)
+    await revisions.save("a", { md: "# old\n", meta: null }, new Date("2025-09-12T10:00:00Z"))
+    const result = doku(["restore", "--vault", vault, "--var", varDir, "a", "--json"])
+    expect(result.code).toBe(0)
+    const parsed = JSON.parse(result.stdout) as { ok: boolean; ts: string; path: string }
+    expect(parsed.ok).toBe(true)
+    expect(parsed.path).toBe("a")
+    expect(parsed.ts).toBe("20250912T100000000Z")
   })
 })

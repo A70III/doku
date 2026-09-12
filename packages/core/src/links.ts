@@ -91,8 +91,11 @@ export function rewriteMarkdownLinks(
   docId: string,
   plan: MovePlan,
   index: Map<string, string[]>,
+  options: { newDocId?: string } = {},
 ): string {
   const dir = dirnameOf(docId)
+  // ลิงก์ relative ในไฟล์ resolve จากโฟลเดอร์ "เดิม" เสมอ (ข้อความในไฟล์ยังไม่ถูกแก้)
+  const outputDir = dirnameOf(options.newDocId ?? docId)
   let result = body
 
   // 1) wikilink
@@ -136,7 +139,7 @@ export function rewriteMarkdownLinks(
     if (!resolved) return whole
     const mapped = plan.paths.get(resolved)
     if (!mapped) return whole
-    return `](${relativeVaultLink(dir, mapped)}${suffix}${title ?? ""})`
+    return `](${relativeVaultLink(outputDir, mapped)}${suffix}${title ?? ""})`
   })
 
   return result

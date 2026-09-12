@@ -57,6 +57,19 @@ export interface TreeFolder {
 
 export type TreeNode = TreeDoc | TreeFolder
 
+/**
+ * จำกัดความลึกของ tree (API `GET /tree?depth=`) — depth ≤ 0 = ไม่จำกัด
+ * depth 1 = ชั้นบนสุดอย่างเดียว · 2 = รวมลูกหนึ่งชั้น
+ */
+export function clampTreeDepth(nodes: TreeNode[], depth: number): TreeNode[] {
+  if (!Number.isFinite(depth) || depth <= 0) return nodes
+  return nodes.map((node) => {
+    if (node.type !== "folder") return node
+    if (depth <= 1) return { ...node, children: [] }
+    return { ...node, children: clampTreeDepth(node.children, depth - 1) }
+  })
+}
+
 export interface VaultSnapshot {
   tree: TreeNode[]
   docs: DocSummary[]
@@ -105,7 +118,7 @@ export class VaultState {
 
   async #build(): Promise<VaultSnapshot> {
     // walkVault คืน docs เป็น path id (ตัด .md แล้ว) — ไม่ต้อง strip ซ้ำ
-    const { docs: docIds, assets } = await this.#walk()
+    const { docs: docIds, assets, folders } = await this.#walk()
 
     const summaries = new Map<string, DocSummary>()
     for (const id of docIds) {
@@ -122,7 +135,7 @@ export class VaultState {
     const listingHash = await sha256Hex(`${docIds.sort().join("\n")}\n\n${assetParts.join("\n")}`)
 
     return {
-      tree: await buildTree(docIds, this.#fs, summaries),
+      tree: await buildTree(docIds, this.#fs, summaries, folders),
       docs: [...summaries.values()],
       listingHash,
     }
@@ -195,6 +208,7 @@ export async function buildTree(
   docIds: readonly string[],
   fs: VaultFs,
   summaries: ReadonlyMap<string, DocSummary>,
+  folderPaths: readonly string[] = [],
 ): Promise<TreeNode[]> {
   const root: MutableFolder = { type: "folder", path: "", name: "", children: [] }
   const folders = new Map<string, MutableFolder>([["", root]])
@@ -213,6 +227,9 @@ export async function buildTree(
     folders.set(dir, node)
     return node
   }
+
+  // โฟลเดอร์ว่างต้องอยู่ใน tree ด้วย (สร้างโฟลเดอร์ใหม่แล้วต้องเห็นทันที — M3)
+  for (const path of folderPaths) folderAt(path)
 
   for (const id of docIds) folderAt(dirnameOf(id)).children.push(makeDoc(id, summaries))
 

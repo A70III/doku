@@ -15,12 +15,15 @@ export interface VaultListing {
   docs: string[]
   /** vault path ของไฟล์ที่ไม่ใช่เอกสาร/meta (มีนามสกุล) */
   assets: string[]
+  /** vault path ของโฟลเดอร์ทั้งหมด (รวมโฟลเดอร์ว่าง — sidebar ต้องเห็น) */
+  folders: string[]
 }
 
 /** recursive walk — ข้าม dotfile/dotfolder ทุกตัว (รวม `vault/.trash`) */
 export async function walkVault(fs: VaultFs): Promise<VaultListing> {
   const docs: string[] = []
   const assets: string[] = []
+  const folders: string[] = []
 
   async function visit(rel: string): Promise<void> {
     const entries = await fs.list(rel)
@@ -28,6 +31,7 @@ export async function walkVault(fs: VaultFs): Promise<VaultListing> {
       if (isDotEntry(entry.name)) continue
       const path = rel ? `${rel}/${entry.name}` : entry.name
       if (entry.type === "dir") {
+        folders.push(path)
         await visit(path)
         continue
       }
@@ -40,7 +44,8 @@ export async function walkVault(fs: VaultFs): Promise<VaultListing> {
   await visit("")
   docs.sort()
   assets.sort()
-  return { docs, assets }
+  folders.sort()
+  return { docs, assets, folders }
 }
 
 /** map basename → path id ทุกตัว (ใช้ resolve `[[wikilink]]` ก่อนมี index ที่ M5) */
