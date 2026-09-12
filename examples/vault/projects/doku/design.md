@@ -4,10 +4,14 @@
 
 ## Markdown พื้นฐาน
 
-**ตัวหนา**, *ตัวเอียง*, ~~ขีดฆ่า~~, `inline code`, ==คำที่ highlight=={.amber}
+**ตัวหนา**, *ตัวเอียง*, ~~ขีดฆ่า~~, `inline code`
 
 - [x] task ที่ทำแล้ว
 - [ ] task ที่ยังไม่ทำ
+
+## Highlight สี
+
+==คำที่ highlight=={.amber}
 
 ## Callout
 

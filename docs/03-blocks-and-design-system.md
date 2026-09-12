@@ -11,7 +11,13 @@
 
 # Part A — Syntax
 
-Markdown มาตรฐาน (GFM) ใช้ได้ครบ: `**bold**` `*italic*` `~~strike~~` `==mark==` `# heading` ตาราง task list footnote code block
+Markdown มาตรฐาน (GFM) ใช้ได้ครบ: `**bold**` `*italic*` `~~strike~~` `# heading` ตาราง task list footnote code block
+
+`==mark=={.สี}` **ไม่ใช่ GFM** — เป็น extension ของ doku เอง (ดู [Highlight สี](#highlight-สี))
+
+> **สถานะ block:** directive/extension ทั้งหมดใน Part A นี้ยังไม่ implement — จะเริ่มใช้ได้ตั้งแต่ **M2**
+> (ตอนนี้ระบบ fallback เป็น code block + warning `block_unimplemented` ตาม [01](01-architecture.md))
+> ตรวจชื่อ block ที่รองรับจริงได้จาก `packages/core/src/blocks/registry.ts` หรือ `doku check --json`
 
 ## รูปแบบ directive
 
