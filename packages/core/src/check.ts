@@ -39,6 +39,7 @@ const CHECK_LEVELS: Partial<Record<WarningCode, WarningLevel>> = {
   orphan_asset: "warning",
   missing_title: "warning",
   block_unimplemented: "info",
+  icon_unknown: "warning",
   code_language_unsupported: "info",
 }
 

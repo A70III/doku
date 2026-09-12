@@ -2,19 +2,19 @@
 
 exports[`blocks registry (M2) golden snapshot: HTML ของ block ทั้งชุด (highlight off) 1`] = `
 "<h2 id="note">note<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#note"><span class="doku-anchor-icon">#</span></a></h2>
-<aside data-variant="note" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<aside data-variant="note" data-icon="pencil" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
 <h2 id="info">info<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#info"><span class="doku-anchor-icon">#</span></a></h2>
-<aside data-variant="info" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<aside data-variant="info" data-icon="info" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
 <h2 id="tip">tip<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#tip"><span class="doku-anchor-icon">#</span></a></h2>
-<aside data-variant="tip" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<aside data-variant="tip" data-icon="lightbulb" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
 <h2 id="success">success<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#success"><span class="doku-anchor-icon">#</span></a></h2>
-<aside data-variant="success" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<aside data-variant="success" data-icon="circle-check" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
 <h2 id="warning">warning<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#warning"><span class="doku-anchor-icon">#</span></a></h2>
-<aside data-variant="warning" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<aside data-variant="warning" data-icon="triangle-alert" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
 <h2 id="danger">danger<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#danger"><span class="doku-anchor-icon">#</span></a></h2>
-<aside data-variant="danger" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<aside data-variant="danger" data-icon="octagon-alert" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
 <h2 id="quote">quote<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#quote"><span class="doku-anchor-icon">#</span></a></h2>
-<aside data-variant="quote" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<aside data-variant="quote" data-icon="quote" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
 <h2 id="mark">mark<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#mark"><span class="doku-anchor-icon">#</span></a></h2>
 <p><mark data-color="amber" data-block="mark">คำสำคัญ</mark></p>
 <h2 id="badge">badge<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#badge"><span class="doku-anchor-icon">#</span></a></h2>

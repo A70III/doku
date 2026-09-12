@@ -90,7 +90,9 @@ describe("render: sanitize (เนื้อหาจาก AI = ไม่น่�
 describe("render: blocks (M2)", () => {
   test("callout → <aside data-block=callout> + variant + title", async () => {
     const { html, warnings } = await render(':::warning{title="ระวัง"}\nข้อความ\n:::\n')
-    expect(html).toContain('<aside data-variant="warning" data-block="callout">')
+    expect(html).toContain('data-block="callout"')
+    expect(html).toContain('data-variant="warning"')
+    expect(html).toContain('data-icon="triangle-alert"') // icon ผ่าน data-icon → CSS mask (docs/08 ข้อ 35)
     expect(html).toContain('data-part="callout-title">ระวัง')
     expect(html).toContain("ข้อความ")
     expect(warnings.some((entry) => entry.code === "block_unimplemented")).toBe(false)

@@ -1,10 +1,17 @@
 import { describe, expect, test } from "bun:test"
-import { DocNotFoundError, memoryVaultFs, RENDERER_VERSION, type VaultFs } from "@doku/core"
+import {
+  DocNotFoundError,
+  memoryRevisionStore,
+  memoryVaultFs,
+  RENDERER_VERSION,
+  type VaultFs,
+} from "@doku/core"
 import { createDokuApp } from "../src/app.tsx"
 import { FragmentCache } from "../src/cache.ts"
 import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
+import { CLIENT_JS } from "../src/web/client.ts"
 
 function setup(files: Record<string, string | Uint8Array>) {
   const fs = memoryVaultFs(files)
@@ -225,5 +232,104 @@ describe("M2 — styleguide + design system", () => {
     const html = await (await app.request("/d/a")).text()
     expect(html).toContain('class="doku-progress"')
     expect(html).toContain('data-motion="off"')
+  })
+})
+
+describe("M3 chrome (toolbar / palette / trash page)", () => {
+  function setupUi(files: Record<string, string | Uint8Array>) {
+    const fs = memoryVaultFs(files)
+    const state = new VaultState(fs, "vault")
+    const cache = new FragmentCache(null, RENDERER_VERSION)
+    const renderer = new DocRenderer(fs, state, cache)
+    const hub = new SseHub()
+    const app = createDokuApp({
+      fs,
+      vaultName: "vault",
+      state,
+      renderer,
+      hub,
+      trash: fs.trashStore(),
+      revisions: memoryRevisionStore(),
+      readPublic: async (name) => (name === "editor.js" ? "window.DokuEditor = {};" : null),
+    })
+    return { app, fs }
+  }
+
+  test("หน้าเอกสารมี toolbar + editor + palette + ไอคอน inline svg", async () => {
+    const { app } = setupUi({ "a.md": GOOD_DOC })
+    const html = await (await app.request("/d/a")).text()
+    expect(html).toContain('data-action="edit"')
+    expect(html).toContain('data-action="history"')
+    expect(html).toContain('id="doku-editor"')
+    expect(html).toContain('id="doku-palette"')
+    expect(html).toContain('id="doku-meta-form"')
+    expect(html).toContain('id="doku-folder-form"')
+    expect(html).toContain("/static/editor.js")
+    // ไอคอน chrome = inline svg (docs/08 ข้อ 35)
+    expect(html).toContain("<svg")
+    expect(html).not.toContain("data-icon='folder'") // chrome ใช้ svg ไม่ใช้ mask
+  })
+
+  test("sidebar row มี data attributes สำหรับ drag/menu + folder meta", async () => {
+    const { app, fs } = setupUi({ "projects/a.md": GOOD_DOC })
+    await fs.writeText(
+      "projects/_folder.meta.json",
+      JSON.stringify({ title: "โครงการ", icon: "folder-open", color: "#2b5fc4", order: 2 }),
+    )
+    const html = await (await app.request("/")).text()
+    expect(html).toContain('data-doc-id="projects/a"')
+    expect(html).toContain('data-folder-path="projects"')
+    expect(html).toContain('data-folder-color="#2b5fc4"')
+    expect(html).toContain("โครงการ")
+  })
+
+  test("GET /trash — แสดงรายการที่ถูกลบ + ปุ่มกู้คืน", async () => {
+    const { app, fs } = setupUi({ "a.md": GOOD_DOC })
+    await fs.trashStore().put(["a.md"], { label: "a", kind: "doc" })
+    const html = await (await app.request("/trash")).text()
+    expect(html).toContain("Trash")
+    expect(html).toContain('data-action="restore"')
+    expect(html).toContain('data-action="empty-trash"')
+  })
+
+  test("GET /static/editor.js เสิร์ฟ bundle เมื่อมี (404 เมื่อไม่มี)", async () => {
+    const { app } = setupUi({})
+    const withBundle = await app.request("/static/editor.js")
+    expect(withBundle.status).toBe(200)
+
+    const fs2 = memoryVaultFs({})
+    const app2 = createDokuApp({
+      fs: fs2,
+      vaultName: "vault",
+      state: new VaultState(fs2, "vault"),
+      renderer: new DocRenderer(
+        fs2,
+        new VaultState(fs2, "vault"),
+        new FragmentCache(null, RENDERER_VERSION),
+      ),
+      hub: new SseHub(),
+    })
+    expect((await app2.request("/static/editor.js")).status).toBe(404)
+  })
+})
+
+describe("client.js", () => {
+  test("CLIENT_JS เป็น JS ที่ parse ได้ (ไม่มี syntax error) และมีฟีเจอร์ M3 ครบ", () => {
+    // new Function จะ throw ถ้า syntax ผิด — จับได้ก่อนเปิดเบราว์เซอร์
+    expect(() => new Function(CLIENT_JS)).not.toThrow()
+    for (const marker of [
+      "openPalette",
+      "openEditor",
+      "openMeta",
+      "openFolderSettings",
+      "restoreTrash",
+      "emptyTrash",
+      "data-editor-fallback",
+      "dragstart",
+      "cycleTheme",
+      "data-zen",
+    ]) {
+      expect(CLIENT_JS).toContain(marker)
+    }
   })
 })

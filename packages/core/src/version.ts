@@ -5,5 +5,6 @@
  *
  * 2 = M2 (custom block renderer คืน hast แทน fallback code block)
  * 3 = UI pass (leading h1 → title, ไม่ซ้ำกับ header)
+ * 4 = M3 (callout ส่ง data-icon → ไอคอน block ผ่าน CSS mask; ไม่ใช้ glyph ใน ::before)
  */
-export const RENDERER_VERSION = "3"
+export const RENDERER_VERSION = "4"

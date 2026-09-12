@@ -13,6 +13,7 @@ import {
   normalizeVaultPath,
   PathError,
   type RevisionStore,
+  sha256Hex,
   type TrashStore,
   type VaultFs,
 } from "@doku/core"
@@ -25,7 +26,7 @@ import type { SseHub } from "./sse.ts"
 import type { VaultState } from "./tree.ts"
 import { CLIENT_JS } from "./web/client.ts"
 import { CONTENT_CSS } from "./web/content-css.ts"
-import { DocPage, HomePage, NotFoundPage, StyleGuidePage } from "./web/pages.tsx"
+import { DocPage, HomePage, NotFoundPage, StyleGuidePage, TrashPage } from "./web/pages.tsx"
 import { buildStyleguide } from "./web/styleguide.ts"
 
 /** docs/06 CSP — คลาดเคลื่อนเดียว: `font-src 'self' data:` สำหรับ woff2 ที่ KaTeX ฝัง (docs/08 ข้อ 23) */
@@ -39,8 +40,8 @@ export interface DokuAppDeps {
   state: VaultState
   renderer: DocRenderer
   hub: SseHub
-  /** อ่านไฟล์ static ที่ generate ไว้ (เช่น app.css จาก Tailwind) — คืน null ถ้ายังไม่มี */
-  readAppCss?: () => Promise<string | null>
+  /** อ่านไฟล์ใน `public/` ที่ generate ไว้ (app.css / editor.js) — คืน null ถ้ายังไม่มี */
+  readPublic?: (name: string) => Promise<string | null>
   /** M3: REST API + trash/revision — ไม่ส่ง = ไม่ mount `/api/*` (test เก่า/โหมดอ่านอย่างเดียว) */
   trash?: TrashStore
   revisions?: RevisionStore
@@ -81,6 +82,22 @@ function tailPath(url: string, prefix: string): string {
 
 export function createDokuApp(deps: DokuAppDeps): Hono {
   const app = new Hono()
+
+  // จำนวนรายการใน trash สำหรับ badge บน sidebar — cache สั้น ๆ (ทุกหน้าไม่ควรยิง fs ถี่)
+  let trashCache: { at: number; count: number } | null = null
+  const trashCount = async (): Promise<number> => {
+    if (!deps.trash) return 0
+    const now = Date.now()
+    if (trashCache && now - trashCache.at < 2000) return trashCache.count
+    let count = 0
+    try {
+      count = (await deps.trash.list()).length
+    } catch {
+      count = 0
+    }
+    trashCache = { at: now, count }
+    return count
+  }
 
   if (deps.trash && deps.revisions) {
     app.route(
@@ -130,6 +147,25 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     }),
   )
 
+  /** เสิร์ฟไฟล์ใน public/ พร้อม ETag → revalidate เป็น 304 (editor.js ~510KB ไม่ต้องโหลดซ้ำ) */
+  const servePublic = async (
+    context: import("hono").Context,
+    name: string,
+    contentType: string,
+  ): Promise<Response> => {
+    const content = await deps.readPublic?.(name)
+    if (content === null || content === undefined) return context.notFound()
+    const etag = etagHeader(await sha256Hex(content))
+    if (context.req.header("if-none-match") === etag) {
+      return context.body(null, 304, { etag, "cache-control": "no-cache" })
+    }
+    return context.body(content, 200, {
+      "content-type": contentType,
+      "cache-control": "no-cache",
+      etag,
+    })
+  }
+
   app.get("/static/:name", async (context) => {
     const name = context.req.param("name")
     if (name === "client.js") {
@@ -152,12 +188,11 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
       })
     }
     if (name === "app.css") {
-      const css = (await deps.readAppCss?.()) ?? null
-      if (!css) return context.notFound()
-      return context.body(css, 200, {
-        "content-type": "text/css; charset=utf-8",
-        "cache-control": "no-cache",
-      })
+      return servePublic(context, "app.css", "text/css; charset=utf-8")
+    }
+    if (name === "editor.js") {
+      // bundle ของ CodeMirror (bun run build:editor) — ไม่มี = client fallback เป็น textarea
+      return servePublic(context, "editor.js", "text/javascript; charset=utf-8")
     }
     return context.notFound()
   })
@@ -165,13 +200,37 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
   app.get("/", async (context) => {
     const { tree, docs } = await deps.state.get()
     const tag = context.req.query("tag") || undefined
-    return context.html(<HomePage tree={tree} docs={docs} tag={tag} vaultName={deps.vaultName} />)
+    return context.html(
+      <HomePage
+        tree={tree}
+        docs={docs}
+        tag={tag}
+        vaultName={deps.vaultName}
+        trashCount={await trashCount()}
+      />,
+    )
   })
 
   app.get("/styleguide", async (context) => {
     const { tree } = await deps.state.get()
     const blocks = await buildStyleguide()
-    return context.html(<StyleGuidePage tree={tree} blocks={blocks} vaultName={deps.vaultName} />)
+    return context.html(
+      <StyleGuidePage
+        tree={tree}
+        blocks={blocks}
+        vaultName={deps.vaultName}
+        trashCount={await trashCount()}
+      />,
+    )
+  })
+
+  app.get("/trash", async (context) => {
+    if (!deps.trash) return context.notFound()
+    const { tree } = await deps.state.get()
+    const items = await deps.trash.list()
+    return context.html(
+      <TrashPage tree={tree} vaultName={deps.vaultName} items={items} trashCount={items.length} />,
+    )
   })
 
   app.get("/d/*", async (context) => {
@@ -183,7 +242,13 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     } catch (error) {
       if (error instanceof PathError) {
         return context.html(
-          <NotFoundPage tree={tree} kind="doc" path={raw} vaultName={deps.vaultName} />,
+          <NotFoundPage
+            tree={tree}
+            kind="doc"
+            path={raw}
+            vaultName={deps.vaultName}
+            trashCount={await trashCount()}
+          />,
           404,
         )
       }
@@ -197,11 +262,25 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
         // ทุก GET คืน ETag ของ {md, meta} (docs/05 concurrency)
         context.header("etag", etagHeader(await docEtag(markdown, doc.meta)))
       }
-      return context.html(<DocPage doc={doc} path={docId} tree={tree} vaultName={deps.vaultName} />)
+      return context.html(
+        <DocPage
+          doc={doc}
+          path={docId}
+          tree={tree}
+          vaultName={deps.vaultName}
+          trashCount={await trashCount()}
+        />,
+      )
     } catch (error) {
       if (error instanceof DocNotFoundError) {
         return context.html(
-          <NotFoundPage tree={tree} kind="doc" path={docId} vaultName={deps.vaultName} />,
+          <NotFoundPage
+            tree={tree}
+            kind="doc"
+            path={docId}
+            vaultName={deps.vaultName}
+            trashCount={await trashCount()}
+          />,
           404,
         )
       }
@@ -239,7 +318,15 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
 
   app.notFound(async (context) => {
     const { tree } = await deps.state.get()
-    return context.html(<NotFoundPage tree={tree} kind="route" vaultName={deps.vaultName} />, 404)
+    return context.html(
+      <NotFoundPage
+        tree={tree}
+        kind="route"
+        vaultName={deps.vaultName}
+        trashCount={await trashCount()}
+      />,
+      404,
+    )
   })
 
   return app

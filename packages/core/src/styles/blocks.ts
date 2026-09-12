@@ -3,7 +3,27 @@
  *
  * ทุก selector อยู่ใต้ `.doku-prose` (เนื้อหาเอกสาร) ยกเว้น overlay ของ figure zoom
  * ที่ต้องหลุด stacking context
+ *
+ * ไอคอนของ block: ส่งชื่อผ่าน `data-icon` → CSS mask (docs/08 ข้อ 35 · ห้าม inline svg)
  */
+
+import { ICON_MASK_CSS } from "../icons/index.ts"
+
+/** mask rule ต่อไอคอน — scoped ใต้ `.doku-prose` (chrome ใช้ inline svg คนละทาง) */
+const BLOCK_ICON_CSS = ICON_MASK_CSS.replaceAll("[data-icon=", ".doku-prose [data-icon=")
+
+/** ไอคอนที่แสดงเป็น `::before` ของ block — ใช้ `--dk-icon-mask` ที่ผูกจาก data-icon */
+const BLOCK_ICON_BASE_CSS = `
+.doku-prose [data-block][data-icon]::before {
+  content: '';
+  display: inline-block;
+  inline-size: 1.1em;
+  block-size: 1.1em;
+  background-color: var(--dk-color, currentColor);
+  -webkit-mask: var(--dk-icon-mask) center / contain no-repeat;
+  mask: var(--dk-icon-mask) center / contain no-repeat;
+}
+`
 
 /** figure width 5–100% (สเต็ป 5) — เลี่ยง inline style เพื่อคง allowlist ของ sanitize */
 const FIGURE_WIDTH_CSS = Array.from(
@@ -26,13 +46,13 @@ const MOTION_DURATION_CSS = Array.from(
 ).join("\n")
 
 const CALLOUT_VARIANTS = `
-.doku-prose [data-block='callout'][data-variant='note']    { --dk-variant-color: var(--k-info);    --dk-variant-bg: color-mix(in srgb, var(--k-info) 9%, var(--k-bg));    --dk-icon: 'ℹ'; }
-.doku-prose [data-block='callout'][data-variant='info']    { --dk-variant-color: var(--k-info);    --dk-variant-bg: color-mix(in srgb, var(--k-info) 9%, var(--k-bg));    --dk-icon: 'ℹ'; }
-.doku-prose [data-block='callout'][data-variant='tip']     { --dk-variant-color: var(--k-tip);     --dk-variant-bg: color-mix(in srgb, var(--k-tip) 9%, var(--k-bg));     --dk-icon: '✦'; }
-.doku-prose [data-block='callout'][data-variant='success'] { --dk-variant-color: var(--k-success); --dk-variant-bg: color-mix(in srgb, var(--k-success) 9%, var(--k-bg)); --dk-icon: '✓'; }
-.doku-prose [data-block='callout'][data-variant='warning'] { --dk-variant-color: var(--k-warning); --dk-variant-bg: color-mix(in srgb, var(--k-warning) 10%, var(--k-bg)); --dk-icon: '⚠'; }
-.doku-prose [data-block='callout'][data-variant='danger']  { --dk-variant-color: var(--k-danger);  --dk-variant-bg: color-mix(in srgb, var(--k-danger) 9%, var(--k-bg));  --dk-icon: '✕'; }
-.doku-prose [data-block='callout'][data-variant='quote']   { --dk-variant-color: var(--k-quote);   --dk-variant-bg: var(--d-bg-subtle);                                  --dk-icon: '❝'; }
+.doku-prose [data-block='callout'][data-variant='note']    { --dk-variant-color: var(--k-info);    --dk-variant-bg: color-mix(in srgb, var(--k-info) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='info']    { --dk-variant-color: var(--k-info);    --dk-variant-bg: color-mix(in srgb, var(--k-info) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='tip']     { --dk-variant-color: var(--k-tip);     --dk-variant-bg: color-mix(in srgb, var(--k-tip) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='success'] { --dk-variant-color: var(--k-success); --dk-variant-bg: color-mix(in srgb, var(--k-success) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='warning'] { --dk-variant-color: var(--k-warning); --dk-variant-bg: color-mix(in srgb, var(--k-warning) 10%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='danger']  { --dk-variant-color: var(--k-danger);  --dk-variant-bg: color-mix(in srgb, var(--k-danger) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='quote']   { --dk-variant-color: var(--k-quote);   --dk-variant-bg: var(--d-bg-subtle); }
 `
 
 export const BLOCKS_CSS = `
@@ -48,14 +68,11 @@ export const BLOCKS_CSS = `
   border-radius: var(--d-radius-md);
   background: var(--dk-color-bg);
 }
-.doku-prose [data-block='callout']::before {
-  content: var(--dk-icon, 'ℹ');
+.doku-prose [data-block='callout'][data-icon]::before {
   position: absolute;
-  inset-block-start: var(--d-space-4);
+  inset-block-start: calc(var(--d-space-4) + 0.15em);
   inset-inline-start: var(--d-space-3);
-  color: var(--dk-color);
-  font-weight: 700;
-  line-height: 1.2;
+  --dk-color: var(--dk-mapped-color, var(--dk-variant-color, var(--k-info)));
 }
 .doku-prose [data-block='callout'] > * + * { margin-top: var(--d-space-2); }
 .doku-prose [data-part='callout-title'] {
@@ -197,6 +214,10 @@ ${FIGURE_WIDTH_CSS}
   transform: translateY(-1px);
 }
 .doku-prose [data-block='card'] [data-part='card-head'] { display: flex; align-items: center; gap: var(--d-space-2); }
+.doku-prose [data-block='card'][data-icon]::before {
+  --dk-color: var(--d-accent);
+  flex: none;
+}
 .doku-prose [data-block='card'] [data-part='card-title'] { font-weight: 600; color: var(--k-text); }
 .doku-prose [data-block='card'] [data-part='card-badge'] { margin-inline-start: auto; }
 .doku-prose [data-block='card'] [data-part='card-body'] {
@@ -441,4 +462,6 @@ ${MOTION_DURATION_CSS}
 .doku-prose [data-part='tab-panel'] + [data-part='tab-panel'] { border-top: 1px dashed var(--d-border); }
 .doku-prose [data-block='tabs'][data-enhanced] [data-part='tab-panel'] { display: none; }
 .doku-prose [data-block='tabs'][data-enhanced] [data-part='tab-panel'][data-active='true'] { display: block; }
+${BLOCK_ICON_CSS}
+${BLOCK_ICON_BASE_CSS}
 `

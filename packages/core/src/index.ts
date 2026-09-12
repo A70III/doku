@@ -51,6 +51,17 @@ export {
 } from "./fs.ts"
 export { sha256Hex, shortHash } from "./hash.ts"
 export {
+  hasIcon,
+  ICON_MASK_CSS,
+  ICON_NAMES,
+  type IconOptions,
+  iconMaskDataUri,
+  iconSvg,
+  LUCIDE_ICONS,
+  LUCIDE_VERSION,
+  type LucideIconName,
+} from "./icons/index.ts"
+export {
   isEmptyPlan,
   type MovePlan,
   planMove,

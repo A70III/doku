@@ -50,6 +50,8 @@ export interface TreeFolder {
   name: string
   title?: string
   icon?: string
+  /** hex `#rrggbb` จาก `_folder.meta.json` (ผ่าน Zod แล้ว) — ใช้ tint ไอคอน */
+  color?: string
   order?: number
   collapsed?: boolean
   children: TreeNode[]
@@ -171,6 +173,7 @@ export class VaultState {
 export interface FolderMetaLite {
   title?: string
   icon?: string
+  color?: string
   order?: number
   collapsed?: boolean
 }
@@ -187,6 +190,7 @@ async function loadFolderMeta(fs: VaultFs, dir: string): Promise<FolderMetaLite>
     return {
       title: typeof picked.title === "string" ? picked.title : undefined,
       icon: typeof picked.icon === "string" ? picked.icon : undefined,
+      color: typeof picked.color === "string" ? picked.color : undefined,
       order: typeof picked.order === "number" ? picked.order : undefined,
       collapsed: typeof picked.collapsed === "boolean" ? picked.collapsed : undefined,
     }
@@ -259,6 +263,7 @@ async function finalize(
     const meta = await loadFolderMeta(fs, path)
     folder.title = meta.title
     folder.icon = meta.icon
+    folder.color = meta.color
     folder.order = meta.order
     folder.collapsed = meta.collapsed
   }

@@ -223,8 +223,17 @@ export function createNodeTrashStore(vaultRoot: string): TrashStore {
   const removeItem = (id: string): Promise<void> =>
     rm(vaultAbs(vaultRoot, `${TRASH_DIR}/${id}`), { recursive: true, force: true })
 
+  /** path ใต้ `.trash/<id>/…` ที่เราสร้างเอง — ปลอดภัยถ้า id และ rel ผ่าน validation */
+  const isTrashPath = (path: string): boolean => {
+    if (!path.startsWith(`${TRASH_DIR}/`)) return false
+    const rest = path.slice(TRASH_DIR.length + 1)
+    const slash = rest.indexOf("/")
+    if (slash === -1) return false
+    return isTrashId(rest.slice(0, slash)) && isSafeVaultPath(rest.slice(slash + 1))
+  }
+
   const movePath = async (from: string, to: string): Promise<void> => {
-    if (!isSafeVaultPath(from)) throw new Error(`path ไม่ปลอดภัย: ${from}`)
+    if (!isSafeVaultPath(from) && !isTrashPath(from)) throw new Error(`path ไม่ปลอดภัย: ${from}`)
     const target = vaultAbs(vaultRoot, to)
     await mkdir(dirname(target), { recursive: true })
     await rename(vaultAbs(vaultRoot, from), target)

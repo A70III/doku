@@ -3,6 +3,7 @@
  * `href` รับได้ทั้ง path ในเว็บ (`/d/…`), relative (`./a.md`) และ path id ตรง ๆ (`projects/doku/design`)
  */
 
+import { hasIcon } from "../icons/index.ts"
 import { type BlockDefinition, blockElement, h, t } from "./types.ts"
 
 const URL_LIKE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/|#)/i
@@ -26,7 +27,10 @@ export const cardDefinition: BlockDefinition = {
     const properties: Record<string, unknown> = {}
     const href = normalizeHref(ctx.attrs.href)
     if (href) properties.href = href
-    if (ctx.attrs.icon) properties.dataIcon = ctx.attrs.icon
+    if (ctx.attrs.icon) {
+      if (hasIcon(ctx.attrs.icon)) properties.dataIcon = ctx.attrs.icon
+      else ctx.warn("icon_unknown", `ไม่รู้จักไอคอน: ${ctx.attrs.icon} — ไม่แสดง`)
+    }
 
     const head = []
     if (ctx.attrs.badge) {

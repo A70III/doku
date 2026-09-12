@@ -19,6 +19,7 @@ export type WarningCode =
   | "block_stray_fence"
   | "block_nesting_ambiguous"
   | "block_attribute_unknown"
+  | "icon_unknown"
   // assets / links
   | "asset_missing"
   | "asset_path_unsafe"

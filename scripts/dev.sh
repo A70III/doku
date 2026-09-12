@@ -3,6 +3,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# bundle CodeMirror 6 → public/editor.js (docs/08 ข้อ 17) — ครั้งเดียวตอนเปิด
+bun run build:editor
+
 bunx @tailwindcss/cli \
   -i packages/server/src/web/styles/app.css \
   -o packages/server/public/app.css --watch &

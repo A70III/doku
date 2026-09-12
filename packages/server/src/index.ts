@@ -52,17 +52,24 @@ const watcher = createVaultWatcher(fs.root, {
   },
 })
 
-// app.css = Tailwind ที่ generate ไว้ (bun run dev / build:css) — ยังไม่มี = 404 เงียบๆ
-const appCssUrl = new URL("../public/app.css", import.meta.url)
-const readAppCss = async (): Promise<string | null> => {
+// public/ = artifact ที่ generate (Tailwind app.css, editor.js) — ยังไม่มี = 404 เงียบๆ
+// editor.js ถูก build ครั้งเดียวตอนเปิด dev → cache ได้ · app.css ต้องอ่านใหม่ (tailwind --watch)
+const publicDir = new URL("../public/", import.meta.url)
+const publicCache = new Map<string, string>()
+const readPublic = async (name: string): Promise<string | null> => {
+  if (!/^[a-z0-9._-]+$/i.test(name)) return null
+  const cached = publicCache.get(name)
+  if (cached !== undefined) return cached
   try {
-    return await Bun.file(appCssUrl).text()
+    const content = await Bun.file(new URL(name, publicDir)).text()
+    if (name === "editor.js") publicCache.set(name, content)
+    return content
   } catch {
     return null
   }
 }
 
-const app = createDokuApp({ fs, vaultName, state, renderer, hub, readAppCss, trash, revisions })
+const app = createDokuApp({ fs, vaultName, state, renderer, hub, readPublic, trash, revisions })
 
 let server: ReturnType<typeof Bun.serve>
 try {
