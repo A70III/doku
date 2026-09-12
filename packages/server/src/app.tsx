@@ -54,7 +54,14 @@ function tailPath(url: string, prefix: string): string {
   return pathname
     .slice(prefix.length)
     .split("/")
-    .map((segment) => decodeURIComponent(segment))
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment)
+      } catch {
+        // invalid percent-encoding → คืน raw segment (จะถูก isSafeVaultPath ปฏิเสธทีหลัง)
+        return segment
+      }
+    })
     .join("/")
 }
 

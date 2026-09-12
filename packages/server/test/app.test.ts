@@ -123,6 +123,14 @@ describe("routes", () => {
     expect(await res.text()).toContain("404")
   })
 
+  test("invalid percent-encoding → ไม่ crash (docs/06)", async () => {
+    const { app } = setup({ "x.md": GOOD_DOC })
+    // %ZZ ไม่ใช่ valid percent-encoding → decodeURIComponent จะ throw URIError
+    const res = await app.request("/d/%ZZx")
+    // ต้องไม่ 500 — 400 หรือ 404 ก็ได้
+    expect(res.status).toBeLessThan(500)
+  })
+
   test("path traversal → 404 (docs/06)", async () => {
     const { app } = setup({ "x.md": GOOD_DOC })
     const res = await app.request("/d/..%2f..%2fetc")
