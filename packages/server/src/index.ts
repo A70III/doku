@@ -23,7 +23,12 @@ const hostname = process.env.DOKU_HOST ?? "0.0.0.0"
 const disableCache = process.env.DOKU_CACHE === "off"
 
 const vaultName = basename(vaultRoot)
-const fs = await createNodeVaultFs(vaultRoot)
+const fs = await createNodeVaultFs(vaultRoot).catch(() => {
+  process.stderr.write(
+    `ไม่พบ vault: ${vaultRoot}\nสร้างโฟลเดอร์ vault/ ก่อน หรือระบุ DOKU_VAULT=<dir> (ลอง: DOKU_VAULT=examples/vault bun run dev)\n`,
+  )
+  process.exit(2)
+})
 const state = new VaultState(fs, vaultName)
 const cache = new FragmentCache(
   disableCache ? null : resolvePath(varDir, "cache"),
