@@ -26,7 +26,7 @@
 
 ## M1 — Server + vault tree
 
-- [x] Hono server: `/`, `/d/*path`, `/assets/*path` (เพิ่ม `/static/*` `/sse` `/health`)
+- [x] Hono server: `/`, `/d/*path`, `/assets/*path` (เพิ่ม `/static/*` `/sse` `/health`; M2 เพิ่ม `/styleguide`)
 - [x] **sidebar file tree** (collapsible) + Tailwind chrome
 - [x] home: pinned / recent / tag filter
 - [x] HTML cache ตาม content hash (in-memory + `var/cache/<hash>.json` — docs/08 ข้อ 26)
@@ -39,7 +39,7 @@
 
 ## M2 — Design system + custom blocks
 
-- [x] design tokens `tokens.css` + prose layer `.doku-prose` (ตาม [03](03-blocks-and-design-system.md)) — อยู่ที่ `packages/core/src/styles/` ([08 ข้อ 28](08-decisions.md))
+- [x] design tokens + prose layer `.doku-prose` (ตาม [03](03-blocks-and-design-system.md)) — ไฟล์ `tokens`/`prose`/`blocks` อยู่ที่ `packages/core/src/styles/` ([08 ข้อ 28](08-decisions.md))
 - [x] block registry `packages/core/src/blocks/` (data-block/data-variant — [08 ข้อ 29](08-decisions.md))
 - [x] callout (7 type), figure, motion
 - [x] mark สี, badge, details, tabs, grid, card
@@ -115,8 +115,8 @@
 
 | milestone | scope |
 |---|---|
-| M0 | ~1–1.5 วัน (unified + shiki + katex + tailwind setup) |
-| M1 | ~1.5–2 วัน |
+| M0 | ~1–1.5 วัน (unified + shiki + katex) |
+| M1 | ~1.5–2 วัน (server + tree + Tailwind chrome) |
 | M2 | ~2–3 วัน (blocks + CSS) |
 | M3 | ~3–4 วัน (folder mgmt + trash + editor) |
 | M4 | ~1.5–2 วัน |

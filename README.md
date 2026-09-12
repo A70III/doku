@@ -64,19 +64,23 @@ examples/   ตัวอย่าง
 
 ## สถานะ
 
-**M0 (static render) เสร็จแล้ว** — render/validate ได้จริง:
+**M0 + M1 + M2 เสร็จแล้ว (= MVP)** — render / validate / serve ได้จริง พร้อม custom block + design system:
 
 ```bash
 bun install
-bun test                                    # 110 tests
+bun test                                    # 127 tests
 bun run typecheck && bun run check          # tsc + Biome
-bun run doku render --vault examples/vault projects/doku/design > out.html
-bun run doku check --vault examples/vault --json
+bun run doku -- render --vault examples/vault projects/doku/design > out.html
+bun run doku -- check  --vault examples/vault --json
 bun run dev                                 # server + Tailwind → localhost:7667
 bun run build:css                           # generate app.css สำหรับ production
 bun run gen:schema                          # Zod → schema/ (ไม่ commit)
 ```
 
-ใช้งานแล้ว: `doku render` · `doku check` · `doku serve` (server + sidebar tree + SSE)
-ยังไม่มี: block renderer จริง (M2) · editor/trash (M3) · MCP (M4) · search (M5)
-คำถามค้างดู [docs/08-decisions.md](docs/08-decisions.md) หัวข้อ "รอเคาะ"
+- **CLI**: `doku render` · `doku check` · `doku serve` (server + sidebar tree + SSE live-reload)
+- **route**: `/` · `/d/*path` · [`/styleguide`] · `/assets/*` · `/static/*` · `/sse` · `/health`
+- **custom block ครบตาม [docs/03](docs/03-blocks-and-design-system.md)**: callout (7 type), mark, badge, stat/stats,
+  figure, gallery, video, card, section, grid/col, kv, progress, steps, timeline, margin-note, motion, details, tabs/tab
+- **design system**: tokens + prose + block CSS อยู่ที่ `@doku/core` ใช้ร่วม CLI/server · ดูทุก block ได้ที่ `/styleguide`
+- ยังไม่มี: editor/trash/revision (M3) · REST ครบ + MCP (M4) · index/search (M5)
+- คำถามค้างดู [docs/08-decisions.md](docs/08-decisions.md) หัวข้อ "รอเคาะ"
