@@ -89,13 +89,14 @@ packages/
   server/  @kairn/server    Hono + JSX + Tailwind + watch + index (dep: core)
   cli/     @kairn/cli       kairn binary                          (dep: core)
   mcp/     @kairn/mcp       MCP stdio                             (dep: core)
+  fs-node/ @kairn/fs-node   VaultFs adapter (node:fs)              (dep: core)
 vault/                   default vault (mount เป็น volume)
 ```
 
 `schema/` **ไม่ commit** — generate ตอน M0: `bun run gen:schema` (`z.toJSONSchema()` → draft 2020-12)
 serve ให้ agent/editor ผ่าน `GET /api/schema`; `$schema` ใน `.meta.json` เป็น hint ไม่บังคับ
 
-dependency: `cli/server/mcp → core` เท่านั้น
+dependency: `cli/server/mcp/fs-node → core` เท่านั้น (fs-node เป็น leaf ที่ cli/server ใช้ร่วม — docs/08 ข้อ 22)
 `core` เป็น isomorphic — inject fs adapter → test ง่าย
 
 ## Dependencies

@@ -42,6 +42,7 @@ kairn/
       src/web/            layout templates + css/js
     cli/                  @kairn/cli     (dep: core)
     mcp/                  @kairn/mcp     (dep: core)
+    fs-node/              @kairn/fs-node VaultFs adapter (node:fs) — ใช้ร่วม cli/server
   vault/                  เนื้อหา (default, mount volume)
   docs/
   examples/

@@ -27,18 +27,20 @@ CLI `kairn` (รายละเอียดครบใน `docs/05`): `new` `mk
 ## โครง repo + ทิศทาง dependency
 
 ```
-packages/core/    @kairn/core    resolve · render · blocks · validate · vault
-packages/server/  @kairn/server  Hono + JSX + Tailwind + watch + index   (dep: core)
-packages/cli/     @kairn/cli     kairn binary                            (dep: core)
-packages/mcp/     @kairn/mcp     MCP stdio                               (dep: core)
-vault/            เนื้อหา = source of truth (gitignore)
-docs/             เอกสารออกแบบ 01–08
-examples/         vault ตัวอย่าง (commit เป็น fixture)
+packages/core/     @kairn/core     resolve · render · blocks · validate · vault
+packages/fs-node/  @kairn/fs-node  VaultFs adapter (node:fs)              (dep: core)
+packages/server/   @kairn/server   Hono + JSX + Tailwind + watch + index (dep: core, fs-node)
+packages/cli/      @kairn/cli      kairn binary                          (dep: core, fs-node)
+packages/mcp/      @kairn/mcp      MCP stdio                             (dep: core, fs-node)
+vault/             เนื้อหา = source of truth (gitignore)
+docs/              เอกสารออกแบบ 01–08
+examples/          vault ตัวอย่าง (commit เป็น fixture)
 ```
 
-- **ทิศทาง dependency: `cli` / `server` / `mcp` → `core` เท่านั้น** ห้าม `core` import package อื่น
+- **ทิศทาง dependency: `cli` / `server` / `mcp` → `core` (+ `fs-node` ที่เป็น leaf) เท่านั้น**
+  ห้าม package กลุ่มแรก import กันเอง และห้าม `core` import package อื่น (docs/08 ข้อ 22)
 - `core` เป็น isomorphic — **ห้ามรู้จัก HTTP และห้ามผูก filesystem ตรงๆ** ให้รับ fs adapter เข้ามา
-  (เพื่อให้ render ได้ทั้งใน test, CLI และ server)
+  (adapter ของ Node/Bun อยู่ที่ `@kairn/fs-node` เพื่อให้ render ได้ทั้งใน test, CLI และ server)
 
 ## Conventions
 
@@ -82,9 +84,16 @@ examples/         vault ตัวอย่าง (commit เป็น fixture)
 
 ## สถานะปัจจุบัน
 
-- **ยังไม่ implement** — proposal + decisions ครบแล้ว เริ่มที่ **M0** (static render)
+- **M0 (static render) เสร็จแล้ว** — monorepo Bun + `packages/core` + `packages/cli`
+  - `kairn render <path>` / `render --stdin` / `kairn check [path]` ใช้ได้ (มี `--json` ทุกคำสั่ง)
+  - render pipeline: resolve → blocks → sanitize → asset rewrite → KaTeX/Shiki → HTML
+  - ยังไม่มี: Tailwind + server (M1), block renderer จริง (M2), index/search (M5)
+- **ถัดไป: M1** — Hono server + `/d/*path` + sidebar tree + watcher/SSE + `kairn serve`
+  (`bun run dev` / `kairn serve` จะใช้ได้ตั้งแต่ M1)
 - **MVP = M0 + M1 + M2** · port `7667` · vault default `vault/`
 - ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#3b7df0`
+- ล็อกเพิ่มตอน M0: Tailwind เริ่มที่ M1 · node fs adapter = `@kairn/fs-node` · KaTeX preview = ไฟล์เดียวจบ
+  · `:::` ซ้อนกันต้องให้ชั้นนอกยาวกว่า (docs/08 ข้อ 21–24)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
 

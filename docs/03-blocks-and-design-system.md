@@ -25,8 +25,26 @@ Markdown มาตรฐาน (GFM) ใช้ได้ครบ: `**bold**` `*i
 
 - ค่าที่ไม่มี quote = ห้ามมี space
 - attribute ทั้งหมดถูก escape ก่อนใส่ HTML (กัน XSS)
-- ใส่ `:::ชื่อ` ซ้อนกันได้ (คนละ type)
 - directive แบบบรรทัดเดียวใช้ `:ชื่อ[ข้อความ]{attr}` (เช่น `:badge`, `:stat`)
+
+### การซ้อน block (สำคัญ)
+
+**ชั้นนอกสุดต้องใช้ `:::` ที่ยาวกว่าชั้นใน** — remark-directive (micromark) ปิด container
+ทุกตัวที่ fence ยาว ≤ ตัวที่ปิด ถ้าใช้ `:::` ยาวเท่ากัน ชั้นในตัวที่สองจะหลุดออกมาเป็น sibling
+และเหลือ `:::` เปล่า
+
+```md
+::::tabs          ← ชั้นนอก 4 colon
+:::tab{label="a"}
+AAAA
+:::
+:::tab{label="b"}
+BBBB
+:::
+::::              ← ปิด tabs
+```
+
+`kairn check` ตรวจให้ (error `block_nesting_ambiguous`) ถ้าซ้อนด้วย fence ยาวเท่ากัน/สั้นกว่า
 
 ## Callout
 
@@ -73,11 +91,11 @@ type: `note` `info` `tip` `success` `warning` `danger` `quote`
 ## Gallery
 
 ```md
-:::gallery{cols=3}
+::::gallery{cols=3}
 :::figure{src=assets/a.png caption="A"}:::
 :::figure{src=assets/b.png caption="B"}:::
 :::figure{src=assets/c.png caption="C"}:::
-:::
+::::
 ```
 
 - grid รูปหลายใบ; `cols`: `2` `3` `4` (responsive ลดคอลัมน์อัตโนมัติ)
@@ -197,14 +215,14 @@ effect allowlist: `fade` `fade-up` `fade-down` `slide-left` `slide-right` `scale
 ## Tabs
 
 ```md
-:::tabs
+::::tabs
 :::tab{label="macOS"}
 คำสั่งสำหรับ mac
 :::
 :::tab{label="Linux"}
 คำสั่งสำหรับ linux
 :::
-:::
+::::
 ```
 
 JS ตัวเล็ก toggle class; ไม่มี JS → แสดงทุก tab ซ้อนกัน (อ่านได้)
@@ -212,14 +230,14 @@ JS ตัวเล็ก toggle class; ไม่มี JS → แสดงทุ
 ## Grid / Col
 
 ```md
-:::grid{cols=2 gap=md}
+::::grid{cols=2 gap=md}
 :::col
 ซ้าย
 :::
 :::col
 ขวา
 :::
-:::
+::::
 ```
 
 - `cols`: `2` `3` `4`; `gap`: `sm` `md` `lg`

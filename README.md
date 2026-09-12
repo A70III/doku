@@ -34,9 +34,10 @@ mono repo, server-render, custom block ผ่าน remark-directive
 ```
 packages/
   core/              render, resolve, validate, sanitize, blocks
-  server/            Hono + JSX + Tailwind + SSE
+  fs-node/           VaultFs adapter (node:fs) — ใช้ร่วม cli/server
+  server/            Hono + JSX + Tailwind + SSE      (M1)
   cli/               kairn binary
-  mcp/               MCP stdio server
+  mcp/               MCP stdio server                  (M4)
 vault/      เนื้อหา (default vault, mount เป็น volume)
 docs/       เอกสารออกแบบ
 examples/   ตัวอย่าง
@@ -63,4 +64,16 @@ examples/   ตัวอย่าง
 
 ## สถานะ
 
-ข้อเสนอ ยังไม่ implement — decisions ทั้งหมดอยู่ที่ [docs/08-decisions.md](docs/08-decisions.md)
+**M0 (static render) เสร็จแล้ว** — render/validate ได้จริง:
+
+```bash
+bun install
+bun test                                    # 92 tests
+bun run typecheck && bun run check          # tsc + Biome
+bun run kairn render --vault examples/vault projects/kairn/design > out.html
+bun run kairn check --vault examples/vault --json
+bun run gen:schema                          # Zod → schema/ (ไม่ commit)
+```
+
+ยังไม่มี: server/sidebar tree (M1) · block renderer จริง (M2) · search (M5)
+คำถามค้างดู [docs/08-decisions.md](docs/08-decisions.md) หัวข้อ "รอเคาะ"

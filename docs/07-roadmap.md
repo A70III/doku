@@ -9,15 +9,16 @@
 
 ## M0 — Static render
 
-- [ ] workspace setup (`packages/core` + `tsconfig.base` + Biome)
-- [ ] `kairn render <path>` + `--stdin`
-- [ ] resolve path → md + optional meta.json (Zod schema)
-- [ ] unified: remark-parse + gfm + directive + rehype
-- [ ] rehype-slug + autolink + **rehype-sanitize**
-- [ ] **Shiki** (`@shikijs/rehype`) + **KaTeX** (rehype-katex)
-- [ ] layout HTML (Tailwind build) + typography
-- [ ] asset rewrite
-- [ ] `kairn check`
+- [x] workspace setup (`packages/core` + `tsconfig.base` + Biome)
+- [x] `kairn render <path>` + `--stdin`
+- [x] resolve path → md + optional meta.json (Zod schema)
+- [x] unified: remark-parse + gfm + directive + rehype
+- [x] rehype-slug + autolink + **rehype-sanitize**
+- [x] **Shiki** (`@shikijs/rehype`) + **KaTeX** (rehype-katex)
+- [x] layout HTML + typography — `kairn render` คืนหน้า HTML เดียวจบ (preview shell + `.kairn-prose` + token ตาม [03](03-blocks-and-design-system.md))
+      · **Tailwind ย้ายไป M1** ตาม [08 ข้อ 21](08-decisions.md) (M0 ไม่มี app chrome และ render ต้องไม่พึ่ง build step)
+- [x] asset rewrite
+- [x] `kairn check`
 
 **เสร็จ:** `kairn render projects/kairn/design > out.html` เปิด browser สวย มี code สี + สมการ
 

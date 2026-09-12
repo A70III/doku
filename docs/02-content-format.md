@@ -153,7 +153,7 @@ tags: [guide]
 - meta ผ่าน JSON Schema, `title`/`tags` รูปถูก
 - asset path ที่อ้างมีจริง + ไม่หลุด vault
 - link ภายใน resolve ได้ (ไม่มี broken/ambiguous)
-- custom block รู้จัก + ปิดครบ
+- custom block รู้จัก + ปิดครบ + ไม่ซ้อนด้วย `:::` ยาวเท่ากัน (ดู [03](03-blocks-and-design-system.md))
 - orphan assets + เอกสารที่ไม่มี title
 - `_folder.meta.json` ผ่าน Zod (object เดียวกับ meta — ไม่มี schema ไฟล์แยก)
 
