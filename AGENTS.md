@@ -42,8 +42,9 @@ examples/         vault ตัวอย่าง (commit เป็น fixture)
 
 ## Conventions
 
-- **ภาษา:** commit message, doc comment, AGENTS.md, README ใช้ไทย ผสมอังกฤษได้ตามธรรมชาติ
-  ส่วน code identifiers, commit type (`feat:` `fix:` `refactor:` `docs:` `chore:`) และชื่อ symbol ใช้ English
+- **ภาษา:** doc comment, AGENTS.md, README, เนื้อหา docs ใช้ไทย ผสมอังกฤษได้ตามธรรมชาติ
+  ส่วน **commit message ใช้ English** (Conventional Commits), code identifiers, commit type
+  (`feat:` `fix:` `refactor:` `docs:` `chore:`) และชื่อ symbol ใช้ English
 - **TypeScript** strict, `moduleResolution: bundler` — ใช้ type จาก Zod (`z.infer`) ไม่ประกาศ type ซ้ำ
 - **Lint/format: Biome** เท่านั้น — ห้ามเพิ่ม ESLint/Prettier
 - **Template: Hono JSX** — ห้ามเพิ่ม React
