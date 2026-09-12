@@ -21,6 +21,10 @@ config/tokens.json
 .env
 .env.*
 
+# pi agent local resources (skills, settings) — personal, not shared
+# AGENTS.md is intentionally committed; only the .pi/ dir is local-only
+/.pi/
+
 # OS / editor
 .DS_Store
 .idea/
