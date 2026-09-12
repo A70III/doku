@@ -26,14 +26,14 @@
 
 ## M1 — Server + vault tree
 
-- [ ] Hono server: `/`, `/d/*path`, `/assets/*path`
-- [ ] **sidebar file tree** (collapsible) + Tailwind chrome
-- [ ] home: pinned / recent / tag filter
-- [ ] HTML cache ตาม content hash
-- [ ] watcher + **SSE** live-reload
-- [ ] `doku serve` (default :7667)
+- [x] Hono server: `/`, `/d/*path`, `/assets/*path` (เพิ่ม `/static/*` `/sse` `/health`)
+- [x] **sidebar file tree** (collapsible) + Tailwind chrome
+- [x] home: pinned / recent / tag filter
+- [x] HTML cache ตาม content hash (in-memory + `var/cache/<hash>.json` — docs/08 ข้อ 26)
+- [x] watcher (chokidar) + **SSE** live-reload
+- [x] `doku serve` (default :7667 — spawn subprocess ตาม docs/08 ข้อ 25)
 
-**เสร็จ:** วางโฟลเดอร์+ไฟล์ → tree ถูก → แก้ md แล้ว refresh เอง
+**เสร็จ:** วางโฟลเดอร์+ไฟล์ → tree ถูก → แก้ md แล้ว refresh เอง (ทดสอบแล้ว)
 
 ---
 

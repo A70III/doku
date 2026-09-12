@@ -8,6 +8,9 @@ dist/
 # generated from Zod (see docs/04-tech-stack.md)
 schema/
 
+# generated CSS (bun run build:css / scripts/dev.sh)
+packages/server/public/
+
 # runtime / disposable data
 var/
 *.log

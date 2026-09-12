@@ -30,6 +30,9 @@
 | 22 | node fs adapter | แยก **`packages/fs-node` (`@doku/fs-node`)** — leaf package ที่ cli/server/mcp depend ได้ · `core` ยัง isomorphic (ห้ามผูก `node:fs`) |
 | 23 | KaTeX ใน preview | **ไฟล์เดียวจบ** — ฝัง woff2 ทั้งหมดเป็น data URI (~380 KB เมื่อมีสมการ) เพื่อให้เปิด offline ได้ 100% |
 | 24 | การซ้อน directive | **`:::` ชั้นนอกต้องยาวกว่าชั้นใน** (เช่น `::::tabs` + `:::tab`) — `doku check` ตรวจเป็น error (`block_nesting_ambiguous`) |
+| 25 | `doku serve` | **CLI spawn subprocess** — cli ห้าม import `@doku/server` ตรงๆ (ทิศทาง dependency) · ส่งค่าผ่าน env `DOKU_VAULT`/`DOKU_PORT`/`DOKU_HOST` |
+| 26 | HTML cache file | **JSON envelope** ที่ `var/cache/<hash>.json` (fragment + meta + toc + warnings) — เพราะ layout ต้องใช้ meta/toc ต่อ request, เก็บเป็น `.html` ตาม docs/01 เดิมทำไม่ได้ |
+| 27 | CSP | `font-src 'self' data:` — เพิ่ม `data:` สำหรับ woff2 ที่ KaTeX ฝัง (ตามข้อ 23), ส่วนอื่นตาม docs/06 เดิม · route ชื่อ `/sse` (event `change` → client reload) · `/static/*` = static ที่ server คุมเอง |
 
 ## รอเคาะ
 

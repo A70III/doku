@@ -12,7 +12,7 @@
                               │
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
-   vault/ (files)       var/cache (html)      var/index.db
+   vault/ (files)       var/cache (json)      var/index.db
    source of truth       disposable            disposable (FTS5)
 ```
 
@@ -95,7 +95,7 @@ Layout เป็น **server-rendered HTML + CSS** ใช้ JS เฉพาะ:
 
 | ชั้น | เก็บ | invalidate |
 |---|---|---|
-| HTML | `var/cache/<hash>.html` | content เปลี่ยน → hash เปลี่ยน |
+| HTML | `var/cache/<hash>.json` (envelope: fragment + meta + toc + warnings — docs/08 ข้อ 26) | content เปลี่ยน → hash เปลี่ยน |
 | tree | in-memory | watch event (debounce 200ms) |
 | index | SQLite FTS5 | mtime/hash เปลี่ยน |
 

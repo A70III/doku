@@ -1,0 +1,17 @@
+{
+  "name": "@doku/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./app": "./src/app.ts"
+  },
+  "dependencies": {
+    "@doku/core": "workspace:*",
+    "@doku/fs-node": "workspace:*",
+    "chokidar": "^4.0.0",
+    "hono": "^4.6.0",
+    "katex": "^0.16.0"
+  }
+}

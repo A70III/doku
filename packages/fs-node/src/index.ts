@@ -10,7 +10,7 @@
  */
 
 import type { Dirent } from "node:fs"
-import { readdir, readFile, realpath } from "node:fs/promises"
+import { readdir, readFile, realpath, stat } from "node:fs/promises"
 import { resolve as resolvePath, sep } from "node:path"
 import { isDotEntry, isSafeVaultPath, type VaultEntry, type VaultFs } from "@doku/core"
 
@@ -62,6 +62,16 @@ export async function createNodeVaultFs(root: string): Promise<NodeVaultFs> {
     async readBytes(rel) {
       const buffer = await read(rel)
       return buffer ? new Uint8Array(buffer) : null
+    },
+    async stat(rel) {
+      try {
+        const info = await stat(await safeJoin(rel))
+        return { mtimeMs: info.mtimeMs, size: info.size }
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        if (code === "ENOENT" || code === "EISDIR") return null
+        throw error
+      }
     },
     async list(rel): Promise<VaultEntry[]> {
       const abs = await safeJoin(rel)

@@ -30,6 +30,7 @@ export {
   memoryVaultFs,
   type VaultEntry,
   type VaultFs,
+  type VaultStat,
 } from "./fs.ts"
 export { sha256Hex, shortHash } from "./hash.ts"
 export { loadMeta, type MetaLoadResult, type MetaSource } from "./meta.ts"
@@ -104,3 +105,4 @@ export {
   type VaultListing,
   walkVault,
 } from "./vault-walk.ts"
+export { RENDERER_VERSION } from "./version.ts"

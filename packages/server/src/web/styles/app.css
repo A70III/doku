@@ -1,0 +1,5 @@
+/* app.css — Tailwind v4 สำหรับ app chrome (sidebar/toolbar/layout) เท่านั้น
+   เนื้อหาเอกสารใช้ CSS layer `.doku-prose` ใน content-css.ts — ห้ามใช้ Tailwind
+   กับ content block (docs/03 §10 · docs/08 ข้อ 21) */
+@import "tailwindcss" source(none);
+@source "../";

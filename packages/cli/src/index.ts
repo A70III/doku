@@ -6,6 +6,7 @@
  */
 
 import { basename, resolve as resolvePath } from "node:path"
+import { fileURLToPath } from "node:url"
 import {
   buildDocIndex,
   checkVault,
@@ -25,7 +26,7 @@ import { loadKatexCss } from "./preview/katex-css.ts"
 import { renderPreviewPage } from "./preview/page.ts"
 
 const VERSION = "0.0.0"
-const VALUE_FLAGS = new Set(["vault", "out", "meta"])
+const VALUE_FLAGS = new Set(["vault", "out", "meta", "port", "host", "var"])
 
 export interface ParsedArgs {
   command: string
@@ -78,6 +79,7 @@ export function usage(): string {
   doku render <path>            render เอกสาร → HTML (stdout)
   doku render --stdin           render markdown จาก stdin (stateless)
   doku check [path]             validate vault / เอกสาร
+  doku serve                    เปิด web server (:7667) — M1
 
 ตัวเลือก:
   --vault <dir>     vault root (default: $DOKU_VAULT หรือ ./vault)
@@ -88,6 +90,10 @@ export function usage(): string {
   --strict          (check) ให้ warning ทำให้ exit code ≠ 0
   -h, --help        แสดง help
   -v, --version     แสดงเวอร์ชัน
+
+serve เท่านั้น:
+  --port <n>        (default 7667 · env DOKU_PORT)
+  --host <addr>     (default 0.0.0.0 · env DOKU_HOST)
 
 ตัวอย่าง:
   doku render projects/doku/design > out.html
@@ -121,6 +127,8 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         return await commandRender(args)
       case "check":
         return await commandCheck(args)
+      case "serve":
+        return await commandServe(args)
       default:
         process.stderr.write(`ไม่รู้จักคำสั่ง: ${args.command}\n\n${usage()}`)
         return 2
@@ -257,6 +265,31 @@ async function writeOutput(content: string, args: ParsedArgs): Promise<number> {
 
   process.stdout.write(content.endsWith("\n") ? content : `${content}\n`)
   return 0
+}
+
+/**
+ * `doku serve` — สปอร์น server subprocess (docs/08 ข้อ 25)
+ * เพราะทิศทาง dependency ห้าม cli import @doku/server ตรงๆ
+ * (env ผ่าน DOKU_VAULT / DOKU_PORT / DOKU_HOST)
+ */
+async function commandServe(args: ParsedArgs): Promise<number> {
+  const serverEntry = fileURLToPath(new URL("../../server/src/index.ts", import.meta.url))
+  const env: Record<string, string | undefined> = { ...process.env }
+
+  const vaultFlag = args.flags.get("vault")
+  if (typeof vaultFlag === "string") env.DOKU_VAULT = resolvePath(vaultFlag)
+  const portFlag = args.flags.get("port")
+  if (typeof portFlag === "string") env.DOKU_PORT = portFlag
+  const hostFlag = args.flags.get("host")
+  if (typeof hostFlag === "string") env.DOKU_HOST = hostFlag
+
+  const child = Bun.spawn([process.execPath, serverEntry], {
+    env,
+    stdio: ["inherit", "inherit", "inherit"],
+  })
+  process.on("SIGINT", () => child.kill("SIGINT"))
+  const exit = await child.exited
+  return exit === 0 ? 0 : exit === null ? 0 : exit
 }
 
 async function commandCheck(args: ParsedArgs): Promise<number> {

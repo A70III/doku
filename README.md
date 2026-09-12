@@ -68,12 +68,15 @@ examples/   ตัวอย่าง
 
 ```bash
 bun install
-bun test                                    # 92 tests
+bun test                                    # 110 tests
 bun run typecheck && bun run check          # tsc + Biome
 bun run doku render --vault examples/vault projects/doku/design > out.html
 bun run doku check --vault examples/vault --json
+bun run dev                                 # server + Tailwind → localhost:7667
+bun run build:css                           # generate app.css สำหรับ production
 bun run gen:schema                          # Zod → schema/ (ไม่ commit)
 ```
 
-ยังไม่มี: server/sidebar tree (M1) · block renderer จริง (M2) · search (M5)
+ใช้งานแล้ว: `doku render` · `doku check` · `doku serve` (server + sidebar tree + SSE)
+ยังไม่มี: block renderer จริง (M2) · editor/trash (M3) · MCP (M4) · search (M5)
 คำถามค้างดู [docs/08-decisions.md](docs/08-decisions.md) หัวข้อ "รอเคาะ"

@@ -9,6 +9,12 @@ export interface VaultEntry {
   type: "file" | "dir"
 }
 
+/** ผลของ stat — ใช้ home "recent" (docs/03 §5) · optional เพราะ adapter บางตัวให้ไม่ได้ */
+export interface VaultStat {
+  mtimeMs: number
+  size: number
+}
+
 export interface VaultFs {
   /** อ่านไฟล์เป็น text — คืน `null` ถ้าไม่มีไฟล์ */
   readText(rel: string): Promise<string | null>
@@ -16,6 +22,8 @@ export interface VaultFs {
   readBytes(rel: string): Promise<Uint8Array | null>
   /** list เนื้อในโฟลเดอร์ (rel = "" คือ root) — ข้าม dotfile/dotfolder ได้เลย */
   list(rel: string): Promise<VaultEntry[]>
+  /** stat ไฟล์ — ถ้า adapter ไม่รองรับให้เว้น undefined (ผู้เรียกต้องเช็คเสมอ) */
+  stat?(rel: string): Promise<VaultStat | null>
 }
 
 export function isDotEntry(name: string): boolean {
