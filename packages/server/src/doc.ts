@@ -18,6 +18,15 @@ import {
 import type { CachedDoc, FragmentCache } from "./cache.ts"
 import type { VaultState } from "./tree.ts"
 
+/** h1 นำหน้าสุดของ body → ใช้เป็นชื่อเอกสาร (กัน h1 ซ้ำกับ header) */
+const LEADING_H1 = /^[\uFEFF \t\r\n]*#[ \t]+(.+?)[ \t]*(?:\r?\n|$)/
+
+function extractLeadingHeading(body: string): { title: string; body: string } | null {
+  const match = body.match(LEADING_H1)
+  if (!match) return null
+  return { title: match[1] ?? "", body: body.slice(match[0].length) }
+}
+
 export class DocRenderer {
   #fs: VaultFs
   #state: VaultState
@@ -38,9 +47,22 @@ export class DocRenderer {
 
     const known = new Set(docs.map((doc) => doc.id))
     const warnings = [...resolved.warnings]
-    const result = await renderMarkdown(resolved.body, {
+
+    // ชื่อเอกสารเดียว: meta ที่ระบุชัดเจนชนะ · ไม่มี → ใช้ h1 นำหน้าของ body · สุดท้ายใช้ชื่อไฟล์
+    // ตัด h1 ออกเมื่อไม่มี meta title ชัดเจน หรือเมื่อ h1 ซ้ำกับ title (กันหัวเรื่องซ้ำ)
+    const baseName = resolved.id.slice(resolved.id.lastIndexOf("/") + 1)
+    const leading = extractLeadingHeading(resolved.body)
+    const explicitTitle = resolved.metaSource === "default" ? undefined : resolved.meta.title
+    const title = explicitTitle ?? leading?.title ?? baseName
+    const dedupe =
+      leading !== null &&
+      (explicitTitle === undefined ||
+        leading.title.trim().toLowerCase() === title.trim().toLowerCase())
+    const body = dedupe && leading ? leading.body : resolved.body
+
+    const result = await renderMarkdown(body, {
       docId: resolved.id,
-      meta: resolved.meta,
+      meta: { ...resolved.meta, title },
       vault: {
         fs: this.#fs,
         index: await this.#state.wikiIndex(),
@@ -99,19 +121,29 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;")
 }
 
+function formatArchiveDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium" }).format(date)
+}
+
 export function docHeaderHtml(meta: Meta): string {
-  const bits: string[] = [`<span class="doku-status">${escapeHtml(meta.status)}</span>`]
+  const bits: string[] = []
+  // "active" = สถานะปกติ — ไม่ต้องประกาศ (เหลือแต่ state ที่ต่างจากปกติ)
+  if (meta.status !== "active")
+    bits.push(`<span class="doku-status">${escapeHtml(meta.status)}</span>`)
   for (const tag of meta.tags) bits.push(`<span class="doku-tag">#${escapeHtml(tag)}</span>`)
-  if (meta.created) bits.push(`<span>${escapeHtml(meta.created)}</span>`)
+  if (meta.created) bits.push(`<span>${escapeHtml(formatArchiveDate(meta.created))}</span>`)
   if (meta.authors.length > 0) {
     bits.push(`<span>${meta.authors.map((author) => escapeHtml(author.name)).join(", ")}</span>`)
   }
-  const summary = meta.summary ? `<p class="doku-doc-meta">${escapeHtml(meta.summary)}</p>` : ""
+  const lede = meta.summary ? `<p class="doku-doc-lede">${escapeHtml(meta.summary)}</p>` : ""
+  const metaLine = bits.length > 0 ? `<div class="doku-doc-meta">${bits.join("")}</div>` : ""
 
   return `<header class="doku-doc-header">
 <h1 class="doku-doc-title">${escapeHtml(meta.title ?? "")}</h1>
-${summary}
-<div class="doku-doc-meta">${bits.join("")}</div>
+${lede}
+${metaLine}
 </header>`
 }
 

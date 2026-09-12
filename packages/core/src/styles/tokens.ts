@@ -6,6 +6,43 @@
  * (CLI import server ไม่ได้ตามทิศทาง dependency — docs/08 ข้อ 28)
  */
 
+/** ค่า token สำหรับ dark theme — ใช้ทั้ง `[data-theme='dark']` และ auto ตาม OS */
+const DARK_TOKENS = `
+  --k-app-bg: #14120f;
+  --k-bg: #1a1815;
+  --d-bg-subtle: #221f1a;
+  --d-bg-muted: #2b2721;
+
+  --d-border: #332f28;
+  --d-border-strong: #4a443a;
+
+  --k-text: #ece7de;
+  --d-text-muted: #a8a196;
+  --d-text-subtle: #948d80;
+
+  --d-accent: #58a6ff;
+  --d-accent-weak: color-mix(in srgb, var(--d-accent) 14%, transparent);
+
+  --k-success: #3fb950;
+  --k-warning: #d2991d;
+  --k-danger: #f85149;
+  --k-info: #58a6ff;
+  --k-tip: #bc8cff;
+
+  --k-red: #f85149;
+  --k-orange: #f0883e;
+  --k-amber: #d2991d;
+  --k-yellow: #e3b341;
+  --k-green: #3fb950;
+  --k-teal: #2dd4bf;
+  --k-blue: #58a6ff;
+  --k-purple: #bc8cff;
+
+  --k-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --k-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --k-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+`
+
 export const TOKENS_CSS = `
 :root {
   /* ── surface (warm neutrals — same family as lines and ink) ── */
@@ -15,17 +52,19 @@ export const TOKENS_CSS = `
   --d-bg-muted: #e9e5dd;
 
   /* ── line (warm grey, one family) ── */
-  --d-border: #e0dbd2;
+  --d-border: #e2dcd2;
   --d-border-strong: #cfc8bc;
 
   /* ── text (warm ink, not pure black) ── */
   --k-text: #1c1a17;
   --d-text-muted: #5d574e;
-  --d-text-subtle: #8a8378;
+  --d-text-subtle: #6f695f;
 
-  /* ── accent (default; override ได้ต่อเอกสาร) ── */
-  --d-accent: #3b7df0;
-  --d-accent-weak: rgba(59, 125, 240, 0.10);
+  /* ── accent (เดียว · ใช้กับสถานะปัจจุบันเท่านั้น) ──
+     #3b7df0 บนพื้นอุ่นได้ contrast 3.87:1 → ไม่ผ่าน WCAG AA สำหรับ link
+     จึงลดความสว่างลงเป็น #2b5fc4 (5.9:1) — สีเดียวกัน เข้มกว่า */
+  --d-accent: #2b5fc4;
+  --d-accent-weak: color-mix(in srgb, var(--d-accent) 10%, transparent);
 
   /* ── semantic ── */
   --k-success: #1a7f37;
@@ -78,40 +117,11 @@ export const TOKENS_CSS = `
   --k-reveal-y: 8px;
 }
 
-[data-theme='dark'] {
-  --k-app-bg: #14120f;
-  --k-bg: #1a1815;
-  --d-bg-subtle: #221f1a;
-  --d-bg-muted: #2b2721;
+[data-theme='dark'] {${DARK_TOKENS}}
 
-  --d-border: #332f28;
-  --d-border-strong: #4a443a;
-
-  --k-text: #ece7de;
-  --d-text-muted: #a8a196;
-  --d-text-subtle: #7d766a;
-
-  --d-accent: #58a6ff;
-  --d-accent-weak: rgba(88, 166, 255, 0.14);
-
-  --k-success: #3fb950;
-  --k-warning: #d2991d;
-  --k-danger: #f85149;
-  --k-info: #58a6ff;
-  --k-tip: #bc8cff;
-
-  --k-red: #f85149;
-  --k-orange: #f0883e;
-  --k-amber: #d2991d;
-  --k-yellow: #e3b341;
-  --k-green: #3fb950;
-  --k-teal: #2dd4bf;
-  --k-blue: #58a6ff;
-  --k-purple: #bc8cff;
-
-  --k-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --k-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --k-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+/* data-theme='auto' (default) → ตาม OS · ขาด block นี้ = โหมด auto ไม่มีวันเป็น dark */
+@media (prefers-color-scheme: dark) {
+  [data-theme='auto'] {${DARK_TOKENS}}
 }
 
 /* per-document accent (docs/03 §1.2) — Zod validate #rrggbb มาก่อนแล้ว */

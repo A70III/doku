@@ -210,8 +210,9 @@ ${FIGURE_WIDTH_CSS}
 
 .doku-prose [data-block='section'][data-variant='hero'] {
   padding: var(--d-space-6);
-  border-radius: var(--d-radius-lg);
-  background: linear-gradient(135deg, var(--d-accent-weak), transparent 70%), var(--d-bg-subtle);
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-md);
+  background: var(--d-bg-subtle);
 }
 .doku-prose [data-block='section'][data-variant='hero'] > :first-child { margin-top: 0; }
 .doku-prose hr[data-block='section'][data-variant='divider'] {

@@ -99,7 +99,8 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - **ถัดไป: M3** — folder mgmt + trash/restore + revision + ETag/If-Match + web editor + zen/command palette
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)
-- ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#3b7df0`
+- ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#2b5fc4`
+- UI pass (M0–M2) เสร็จ: token warm neutral ตาม docs/03 §1.1 · แก้ dark mode `auto` ให้ตาม OS · ชื่อเรื่องเดียว (h1 นำหน้า) · ตัด gradient ประดับ · rail ซ่อนใต้ `md` (docs/08 ข้อ 36)
 - ล็อกเพิ่มตอน M1: `doku serve` = spawn subprocess (ข้อ 25) · cache file = JSON envelope (ข้อ 26)
   · CSP `font-src 'self' data:` + route `/sse`,`/static/*` (ข้อ 27) · ตาม docs/08 ข้อ 21–27
 

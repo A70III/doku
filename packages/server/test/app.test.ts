@@ -211,7 +211,7 @@ describe("M2 — styleguide + design system", () => {
     const res = await app.request("/static/content.css")
     expect(res.status).toBe(200)
     const css = await res.text()
-    expect(css).toContain("--d-accent: #3b7df0")
+    expect(css).toContain("--d-accent: #2b5fc4")
     expect(css).toContain("[data-block='callout']")
     expect(css).toContain("[data-block='tabs'][data-enhanced]")
     expect(css).toContain("@media print")

@@ -3,3 +3,31 @@
    กับ content block (docs/03 §10 · docs/08 ข้อ 21) */
 @import "tailwindcss" source(none);
 @source "../";
+
+@layer base {
+  /* focus ring ต้องรอดบนทุกพื้น — accent เดียว (docs/03 Part B §7) */
+  :focus-visible {
+    outline: 2px solid var(--d-accent);
+    outline-offset: 2px;
+    border-radius: var(--d-radius-sm);
+  }
+
+  ::selection {
+    background: var(--d-accent-weak);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+/* disclosure caret ของ file tree — ตัวเดียวที่ต้องใช้ state ของ <details> */
+.tree-caret {
+  display: inline-block;
+  transition: transform var(--d-dur-fast) var(--d-ease);
+}
+.tree[open] > summary .tree-caret {
+  transform: rotate(90deg);
+}

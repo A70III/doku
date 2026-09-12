@@ -397,7 +397,7 @@ Doku คือ **ห้องสมุดดิจิทัลร่วมสม
 ### 1.1 Color
 
 **ทิศทาง:** พื้นผิวเป็น **warm neutral** — warm white / ivory / warm stone · ตัวอักษร **warm charcoal / ink**
-(ไม่ใช่ `#fff` และ `#000` ล้วน) · **accent เดียว** (`--d-accent` default `#3b7df0` ตาม [08 ข้อ 5](08-decisions.md))
+(ไม่ใช่ `#fff` และ `#000` ล้วน) · **accent เดียว** (`--d-accent` default ตาม [08 ข้อ 5](08-decisions.md) — ค่าจริงดู [§1.1](#11-color))
 ใช้เมื่อเป็น *สถานะปัจจุบัน* (link · active · focus · selected) · semantic สีอิ่มต่ำ ใช้เมื่อเป็น state จริงเท่านั้น
 
 - surface / line / text ต้องอยู่ **ตระกูลอุ่นเดียวกัน** — เส้นเทาเย็นบนพื้นอุ่นเห็นได้ทันทีและดูถูกทันที
@@ -407,42 +407,46 @@ Doku คือ **ห้องสมุดดิจิทัลร่วมสม
 
 ห้าม: ไล่เฉดม่วง/ฟ้าแบบ AI · neon · glow · gradient ประดับ · การ์ดสีรุ้ง · สีเป็นระบบหมวด
 
-ค่าด้านล่างคือ **baseline ปัจจุบัน (M2) — ยังเป็น cool neutral และยังใช้ `--k-bg` = `#ffffff`**:
+ค่าด้านล่างคือ **ค่าที่ใช้จริงหลัง UI pass (migrate จาก cool neutral แล้ว)** — [08 ข้อ 36](08-decisions.md):
+
+| token | light | dark | ใช้กับ |
+|---|---|---|---|
+| `--k-app-bg` | `#f7f5f1` | `#14120f` | rail / พื้นหลังหน้า |
+| `--k-bg` | `#fffefb` | `#1a1815` | พื้นเนื้อหา / เอกสาร |
+| `--d-bg-subtle` | `#f1eee8` | `#221f1a` | code, blockquote, inset panel |
+| `--d-bg-muted` | `#e9e5dd` | `#2b2721` | hover, zebra |
+| `--d-border` | `#e2dcd2` | `#332f28` | hairline ทุกตัว |
+| `--d-border-strong` | `#cfc8bc` | `#4a443a` | เส้นเน้น / active |
+| `--k-text` | `#1c1a17` | `#ece7de` | ตัวอักษรหลัก |
+| `--d-text-muted` | `#5d574e` | `#a8a196` | รอง |
+| `--d-text-subtle` | `#6f695f` | `#948d80` | meta |
+| `--d-accent` | `#2b5fc4` | `#58a6ff` | สถานะปัจจุบัน (link/active/focus) |
+
+- `--d-accent-weak` = `color-mix(in srgb, var(--d-accent) 10%, transparent)` — derive จาก accent เสมอ ไม่ hardcode
+- **accent**: `#3b7df0` เดิมบนพื้นอุ่นได้ contrast **3.87:1** (ไม่ผ่าน AA สำหรับ link) จึงลดความสว่างเป็น **`#2b5fc4`** (5.9:1) — ยังเป็นน้ำเงินตัวเดียวกัน แค่เข้มขึ้น
+- **`--d-text-subtle`**: `#8a8378` เดิมได้ 3.7:1 → เปลี่ยนเป็น `#6f695f` (light) / `#948d80` (dark) ให้ผ่าน AA
+- **`data-theme="auto"` (default)**: ค่า dark ถูก emit ทั้ง `[data-theme="dark"]` และ `@media (prefers-color-scheme: dark) [data-theme="auto"]` — ถ้าลืม block หลัง โหมด auto จะไม่มีวันเป็น dark
 
 ```css
 :root {
-  /* surface */
-  --k-app-bg:      #f4f7fd;   /* พื้นหลังหลังการ์ด */
-  --k-bg:          #ffffff;   /* พื้นการ์ด/เนื้อหา */
-  --d-bg-subtle:   #f6f8fa;   /* code, blockquote */
-  --d-bg-muted:    #eef2f5;   /* hover, zebra */
+  /* surface — อุ่นทั้งตระกูล */
+  --k-app-bg:      #f7f5f1;   /* rail / พื้นหลังหน้า */
+  --k-bg:          #fffefb;   /* พื้นเนื้อหา / เอกสาร */
+  --d-bg-subtle:   #f1eee8;   /* code, blockquote, inset panel */
+  --d-bg-muted:    #e9e5dd;   /* hover, zebra */
 
   /* line */
-  --d-border:        #d8dee6;
-  --d-border-strong: #c2cbd6;
+  --d-border:        #e2dcd2;
+  --d-border-strong: #cfc8bc;
 
   /* text */
-  --k-text:        #1f2328;
-  --d-text-muted:  #656d76;
-  --d-text-subtle: #8b949e;
+  --k-text:        #1c1a17;
+  --d-text-muted:  #5d574e;
+  --d-text-subtle: #6f695f;
 
-  /* accent (default; override ได้ต่อเอกสาร) */
-  --d-accent:      #3b7df0;
-  --d-accent-weak: rgba(59,125,240,.10);
-}
-
-[data-theme="dark"] {
-  --k-app-bg:      #0a0d12;
-  --k-bg:          #0d1117;
-  --d-bg-subtle:   #161b22;
-  --d-bg-muted:    #21262d;
-  --d-border:        #30363d;
-  --d-border-strong: #484f58;
-  --k-text:        #e6edf3;
-  --d-text-muted:  #8b949e;
-  --d-text-subtle: #6e7681;
-  --d-accent:      #58a6ff;
-  --d-accent-weak: rgba(88,166,255,.14);
+  /* accent — เดียว ใช้กับสถานะปัจจุบัน */
+  --d-accent:      #2b5fc4;
+  --d-accent-weak: color-mix(in srgb, var(--d-accent) 10%, transparent);
 }
 ```
 
@@ -458,22 +462,6 @@ Doku คือ **ห้องสมุดดิจิทัลร่วมสม
 | `--k-quote` | `--d-text-muted` | เดียวกัน | quote |
 
 แต่ละสีมีคู่ soft bg: `--k-<name>-bg` (light tint) — ใช้เป็นพื้น callout
-
-#### ค่าเป้าหมาย warm neutral
-
-**ชื่อ token คงเดิม เปลี่ยนเฉพาะค่า** — migrate ในรอบ UI ของ M3 ([08 ข้อ 33](08-decisions.md)) · accent และ semantic คงเดิม
-
-| token | light | dark | ใช้กับ |
-|---|---|---|---|
-| `--k-app-bg` | `#f7f5f1` | `#14120f` | พื้นหลังหน้า |
-| `--k-bg` | `#fffefb` | `#1a1815` | พื้นเนื้อหา / เอกสาร |
-| `--d-bg-subtle` | `#f1eee8` | `#221f1a` | code, blockquote, panel เงียบ |
-| `--d-bg-muted` | `#e9e5dd` | `#2b2721` | hover, zebra |
-| `--d-border` | `#e2dcd2` | `#332f28` | hairline ทุกตัว |
-| `--d-border-strong` | `#cfc8bc` | `#4a443a` | เส้นเน้น / active |
-| `--k-text` | `#1c1a17` | `#ece7de` | ตัวอักษรหลัก |
-| `--d-text-muted` | `#5d574e` | `#a8a196` | รอง |
-| `--d-text-subtle` | `#8a8378` | `#7d766a` | meta |
 
 ### 1.2 Per-doc accent
 
@@ -510,17 +498,17 @@ Doku คือ **ห้องสมุดดิจิทัลร่วมสม
 --d-space-1:.25rem; --d-space-2:.5rem;  --d-space-3:.75rem; --d-space-4:1rem;
 --d-space-6:1.5rem; --d-space-8:2rem;   --d-space-12:3rem;
 
---d-radius-sm:.5rem; --d-radius-md:.75rem; --d-radius-lg:1rem; --d-radius-pill:999px;
+--d-radius-sm:2px; --d-radius-md:4px; --d-radius-lg:6px; --d-radius-pill:999px;
 
---k-shadow-sm: 0 1px 2px rgba(0,0,0,.06);
---k-shadow-md: 0 4px 16px rgba(0,0,0,.08);
---k-shadow-lg: 0 12px 32px rgba(0,0,0,.12);
+--k-shadow-sm: 0 1px 2px rgba(28,26,23,.05);
+--k-shadow-md: 0 2px 8px rgba(28,26,23,.08);
+--k-shadow-lg: 0 4px 16px rgba(28,26,23,.10);
 ```
 
-**ทิศทาง:** radius **เล็กและคงที่** (2/4/6px — ไม่ใช่ .5/.7/1rem) · shadow ใช้เฉพาะ overlay จริง (menu/modal/popover)
+**ทิศทาง:** radius **เล็กและคงที่** (2/4/6px) · shadow ใช้เฉพาะ overlay จริง (menu/modal/popover)
 หน้าปกติสร้าง depth จาก hairline + พื้นหลังจาง + whitespace ไม่ใช่เงา · `--d-radius-pill` ใช้เฉพาะ chip/tag ขนาดเล็ก ไม่ใช่ default ของปุ่ม
 
-ปรับในรอบ UI ของ M3 ([08 ข้อ 33](08-decisions.md))
+migrate แล้วใน UI pass ([08 ข้อ 36](08-decisions.md))
 
 ### 1.5 Motion
 

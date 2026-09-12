@@ -135,13 +135,13 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
   app.get("/", async (context) => {
     const { tree, docs } = await deps.state.get()
     const tag = context.req.query("tag") || undefined
-    return context.html(<HomePage tree={tree} docs={docs} tag={tag} />)
+    return context.html(<HomePage tree={tree} docs={docs} tag={tag} vaultName={deps.vaultName} />)
   })
 
   app.get("/styleguide", async (context) => {
     const { tree } = await deps.state.get()
     const blocks = await buildStyleguide()
-    return context.html(<StyleGuidePage tree={tree} blocks={blocks} />)
+    return context.html(<StyleGuidePage tree={tree} blocks={blocks} vaultName={deps.vaultName} />)
   })
 
   app.get("/d/*", async (context) => {
@@ -152,17 +152,23 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
       docId = normalizeVaultPath(raw, { vaultName: deps.vaultName })
     } catch (error) {
       if (error instanceof PathError) {
-        return context.html(<NotFoundPage tree={tree} kind="doc" path={raw} />, 404)
+        return context.html(
+          <NotFoundPage tree={tree} kind="doc" path={raw} vaultName={deps.vaultName} />,
+          404,
+        )
       }
       throw error
     }
 
     try {
       const doc = await deps.renderer.render(docId)
-      return context.html(<DocPage doc={doc} path={docId} tree={tree} />)
+      return context.html(<DocPage doc={doc} path={docId} tree={tree} vaultName={deps.vaultName} />)
     } catch (error) {
       if (error instanceof DocNotFoundError) {
-        return context.html(<NotFoundPage tree={tree} kind="doc" path={docId} />, 404)
+        return context.html(
+          <NotFoundPage tree={tree} kind="doc" path={docId} vaultName={deps.vaultName} />,
+          404,
+        )
       }
       throw error
     }
@@ -198,7 +204,7 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
 
   app.notFound(async (context) => {
     const { tree } = await deps.state.get()
-    return context.html(<NotFoundPage tree={tree} kind="route" />, 404)
+    return context.html(<NotFoundPage tree={tree} kind="route" vaultName={deps.vaultName} />, 404)
   })
 
   return app

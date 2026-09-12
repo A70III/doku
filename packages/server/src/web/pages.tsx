@@ -1,6 +1,9 @@
 /**
  * Hono JSX pages (docs/01: layout เป็น server-rendered HTML, ไม่มี SPA framework)
  * Tailwind = app chrome เท่านั้น — เนื้อหาเอกสารใช้ CSS layer .doku-prose (docs/03 §10)
+ *
+ * หน้าตา: "catalogue & reading room" — rail หิน (app-bg) + กระดาษ (k-bg)
+ * โครงสร้างมาจาก whitespace → hairline ไม่ใช่การ์ด (docs/03 Part B · 08 ข้อ 31–33)
  */
 
 import { HEX_COLOR_PATTERN, type Meta } from "@doku/core"
@@ -8,6 +11,7 @@ import type { Child, FC } from "hono/jsx"
 import type { CachedDoc } from "../cache.ts"
 import type { DocSummary, TreeNode } from "../tree.ts"
 
+/** วันที่แบบคลังเอกสาร — เก็บเป็น absolute เสมอสำหรับ archive (docs/03 §3) */
 function formatDate(mtimeMs: number): string {
   if (!mtimeMs) return ""
   return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium" }).format(new Date(mtimeMs))
@@ -35,57 +39,68 @@ export const Layout: FC<{
         <link rel="stylesheet" href="/static/content.css" />
         <script src="/static/client.js" defer />
       </head>
-      <body class="min-h-screen bg-(--k-app-bg) text-(--k-text) font-(family-name:--d-font-sans) antialiased">
+      <body class="min-h-screen bg-(--k-bg) text-(--k-text) font-(family-name:--d-font-sans) antialiased">
         <div class="doku-progress" aria-hidden="true">
           <div data-part="progress-fill" />
         </div>
+        {/* rail ถูกซ่อนใต้ md — เหลือแถบนำทางบาง ๆ ไม่ให้ content ถูกบีบ (docs/03 §2) */}
+        <a
+          href="/"
+          class="block border-b border-(--d-border) px-6 py-3 text-sm font-semibold tracking-tight text-(--k-text) no-underline md:hidden"
+        >
+          doku
+        </a>
         {children}
       </body>
     </html>
   )
 }
 
-/* ── sidebar tree ─────────────────────────────────────────────────────── */
+/* ── sidebar rail ────────────────────────────────────────────────────── */
 
 const TreeDocRow: FC<{ node: { id: string; title: string }; activeId?: string }> = ({
   node,
   activeId,
-}) => (
-  <li>
-    <a
-      href={`/d/${encodeURI(node.id)}`}
-      class={`block truncate px-2 py-1 text-sm no-underline transition-colors ${
-        activeId === node.id
-          ? "font-medium text-(--d-accent)"
-          : "text-(--d-text-muted) hover:text-(--k-text)"
-      }`}
-      aria-current={activeId === node.id ? "page" : undefined}
-    >
-      {node.title}
-    </a>
-  </li>
-)
+}) => {
+  const active = activeId === node.id
+  return (
+    <li>
+      <a
+        href={`/d/${encodeURI(node.id)}`}
+        class={`block truncate py-1 pl-3 text-sm no-underline transition-colors ${
+          active
+            ? "-ml-px border-l-2 border-(--d-accent) font-medium text-(--d-accent)"
+            : "text-(--d-text-muted) hover:text-(--k-text)"
+        }`}
+        aria-current={active ? "page" : undefined}
+      >
+        {node.title}
+      </a>
+    </li>
+  )
+}
 
-const TreeFolderRow: FC<{
+const TreeFolder: FC<{
   node: {
     path: string
     name: string
     title?: string
-    icon?: string
     collapsed?: boolean
     children: TreeNode[]
   }
   activeId?: string
 }> = ({ node, activeId }) => (
-  <details data-tree={node.path} open={!node.collapsed}>
-    <summary class="cursor-pointer list-none px-2 py-1 text-sm font-medium text-(--k-text) transition-colors hover:text-(--d-accent) select-none">
-      <span class="mr-1 opacity-40 text-xs">{node.icon ?? "▾"}</span>
-      {node.title ?? node.name}
+  <details class="tree" data-tree={node.path} open={!node.collapsed}>
+    <summary class="flex cursor-pointer list-none items-center gap-1.5 py-1 text-sm font-medium text-(--k-text) transition-colors select-none hover:text-(--d-accent)">
+      <span class="tree-caret text-(--d-text-subtle)" aria-hidden="true">
+        ▸
+      </span>
+      <span class="truncate">{node.title ?? node.name}</span>
     </summary>
-    <ul class="ml-3 border-l border-(--d-border) pl-2">
+    <ul class="ml-[7px] border-l border-(--d-border)">
       {node.children.map((child) =>
         child.type === "folder" ? (
-          <TreeFolderRow key={child.path} node={child} activeId={activeId} />
+          <TreeFolder key={child.path} node={child} activeId={activeId} />
         ) : (
           <TreeDocRow key={child.id} node={child} activeId={activeId} />
         ),
@@ -94,36 +109,27 @@ const TreeFolderRow: FC<{
   </details>
 )
 
-export const Sidebar: FC<{ tree: TreeNode[]; activeId?: string }> = ({ tree, activeId }) => (
-  <aside class="sticky top-0 h-screen w-56 shrink-0 overflow-y-auto border-r border-(--d-border) bg-(--k-app-bg) px-4 py-5">
-    <a
-      href="/"
-      class="mb-5 block text-xs font-semibold tracking-widest no-underline text-(--d-text-subtle) uppercase"
-    >
-      doku
+export const Sidebar: FC<{ tree: TreeNode[]; activeId?: string; vaultName: string }> = ({
+  tree,
+  activeId,
+  vaultName,
+}) => (
+  <aside class="sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-(--d-border) bg-(--k-app-bg) px-5 py-6 md:flex">
+    <a href="/" class="block no-underline">
+      <span class="block text-sm font-semibold tracking-tight text-(--k-text)">doku</span>
+      <span class="mt-0.5 block truncate font-(family-name:--d-font-mono) text-xs text-(--d-text-subtle)">
+        {vaultName}
+      </span>
     </a>
-    <nav aria-label="แผนผังเอกสาร">
-      <ul class="mb-4 pb-4 border-b border-(--d-border)">
-        <li>
-          <a
-            href="/styleguide"
-            class={`block px-2 py-1 text-sm no-underline transition-colors ${
-              activeId === "__styleguide__"
-                ? "font-medium text-(--d-accent)"
-                : "text-(--d-text-muted) hover:text-(--k-text)"
-            }`}
-          >
-            styleguide
-          </a>
-        </li>
-      </ul>
+
+    <nav aria-label="แผนผังเอกสาร" class="mt-6 flex-1">
       {tree.length === 0 ? (
         <p class="text-sm text-(--d-text-subtle)">vault ว่าง — วางไฟล์ .md ได้เลย</p>
       ) : (
-        <ul>
+        <ul class="space-y-0.5">
           {tree.map((node) =>
             node.type === "folder" ? (
-              <TreeFolderRow key={node.path} node={node} activeId={activeId} />
+              <TreeFolder key={node.path} node={node} activeId={activeId} />
             ) : (
               <TreeDocRow key={node.id} node={node} activeId={activeId} />
             ),
@@ -131,27 +137,46 @@ export const Sidebar: FC<{ tree: TreeNode[]; activeId?: string }> = ({ tree, act
         </ul>
       )}
     </nav>
+
+    <div class="mt-6 border-t border-(--d-border) pt-4">
+      <a
+        href="/styleguide"
+        class={`block text-sm no-underline transition-colors ${
+          activeId === "__styleguide__"
+            ? "font-medium text-(--d-accent)"
+            : "text-(--d-text-muted) hover:text-(--k-text)"
+        }`}
+        aria-current={activeId === "__styleguide__" ? "page" : undefined}
+      >
+        styleguide
+      </a>
+    </div>
   </aside>
 )
 
-/* ── doc page ────────────────────────────────────────────────────────── */
+/* ── doc page (reading room) ─────────────────────────────────────────── */
 
-export const DocPage: FC<{ doc: CachedDoc; path: string; tree: TreeNode[] }> = ({
-  doc,
-  path,
-  tree,
-}) => {
+export const DocPage: FC<{
+  doc: CachedDoc
+  path: string
+  tree: TreeNode[]
+  vaultName: string
+}> = ({ doc, path, tree, vaultName }) => {
   const meta = doc.meta
   return (
     <Layout title={meta.title ?? "doku"} theme={meta.theme}>
       <div class="mx-auto flex max-w-6xl">
-        <Sidebar tree={tree} activeId={path} />
-        <main class="min-w-0 flex-1 px-4 py-8">
+        <Sidebar tree={tree} activeId={path} vaultName={vaultName} />
+        <main class="min-w-0 flex-1 px-6 py-10 md:px-10">
           <article
-            class="mx-auto max-w-[var(--k-measure)]"
+            class="max-w-[var(--k-measure)]"
             data-doc-id={path}
             data-motion={meta.render.motion ? undefined : "off"}
           >
+            {/* shelf mark — path = id (docs/02) */}
+            <p class="mb-3 font-(family-name:--d-font-mono) text-xs text-(--d-text-subtle)">
+              {path}
+            </p>
             <div class="doku-prose" dangerouslySetInnerHTML={{ __html: doc.fragment }} />
           </article>
         </main>
@@ -160,129 +185,131 @@ export const DocPage: FC<{ doc: CachedDoc; path: string; tree: TreeNode[] }> = (
   )
 }
 
-/* ── home page (pinned / recent / tag filter) ────────────────────────── */
+/* ── hub page (catalogue) ────────────────────────────────────────────── */
 
-const TagLink: FC<{ tag: string; active?: boolean }> = ({ tag, active }) => (
-  <a
-    href={active ? "/" : `/?tag=${encodeURIComponent(tag)}`}
-    class={`text-sm no-underline transition-colors ${
-      active ? "font-medium text-(--d-accent)" : "text-(--d-text-muted) hover:text-(--d-accent)"
-    }`}
-  >
-    #{tag}
-  </a>
-)
-
-const DocRow: FC<{ doc: DocSummary }> = ({ doc }) => (
-  <a
-    href={`/d/${encodeURI(doc.id)}`}
-    class="group block border-b border-(--d-border) py-3 no-underline last:border-b-0"
-  >
-    <div class="flex items-baseline justify-between gap-3">
-      <span class="font-medium text-(--k-text) group-hover:text-(--d-accent) transition-colors">
-        {doc.title}
-      </span>
-      <span class="shrink-0 text-xs text-(--d-text-subtle) tabular-nums">
-        {formatDate(doc.mtimeMs)}
-      </span>
-    </div>
-    <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-(--d-text-muted)">
-      {doc.status !== "active" ? (
-        <span class="text-(--d-text-subtle) uppercase tracking-wide text-[0.65rem]">
-          {doc.status}
+const DocRow: FC<{ doc: DocSummary }> = ({ doc }) => {
+  const hasMeta = doc.status !== "active" || doc.tags.length > 0
+  return (
+    <a
+      href={`/d/${encodeURI(doc.id)}`}
+      class="group block border-b border-(--d-border) py-3 no-underline last:border-b-0"
+    >
+      <div class="flex items-baseline justify-between gap-4">
+        <span class="min-w-0 truncate font-medium text-(--k-text) transition-colors group-hover:text-(--d-accent)">
+          {doc.title}
         </span>
+        <span class="shrink-0 text-xs text-(--d-text-subtle) tabular-nums">
+          {formatDate(doc.mtimeMs)}
+        </span>
+      </div>
+      {hasMeta ? (
+        <div class="mt-0.5 flex flex-wrap items-baseline gap-x-4 text-xs text-(--d-text-muted)">
+          {doc.status !== "active" ? (
+            <span class="text-(--d-text-subtle)">{doc.status}</span>
+          ) : null}
+          {doc.tags.map((tag) => (
+            <span key={tag}>#{tag}</span>
+          ))}
+        </div>
       ) : null}
-      {doc.tags.map((tag) => (
-        <span key={tag} class="doku-tag">
-          #{tag}
-        </span>
-      ))}
-    </div>
-  </a>
-)
+    </a>
+  )
+}
 
-const SectionTitle: FC<{ children: Child }> = ({ children }) => (
-  <h2 class="mb-2 text-sm font-medium text-(--d-text-muted)">{children}</h2>
+const SectionTitle: FC<{ children: Child; count: number }> = ({ children, count }) => (
+  <h2 class="mb-1 flex items-baseline gap-2 text-sm font-medium text-(--k-text)">
+    {children}
+    <span class="text-xs font-normal text-(--d-text-subtle) tabular-nums">{count}</span>
+  </h2>
 )
 
 export const HomePage: FC<{
   tree: TreeNode[]
   docs: DocSummary[]
   tag?: string
-}> = ({ tree, docs, tag }) => {
-  const allTags = [...new Set(docs.flatMap((doc) => doc.tags))].sort()
+  vaultName: string
+}> = ({ tree, docs, tag, vaultName }) => {
+  const tagCounts = new Map<string, number>()
+  for (const doc of docs) {
+    for (const item of doc.tags) tagCounts.set(item, (tagCounts.get(item) ?? 0) + 1)
+  }
+  const allTags = [...tagCounts.keys()].sort()
+
   const filtered = tag ? docs.filter((doc) => doc.tags.includes(tag)) : docs
   const pinned = filtered.filter((doc) => doc.pinned)
-  const recent = [...filtered]
-    .filter((doc) => !doc.pinned)
-    .sort((a, b) => b.mtimeMs - a.mtimeMs)
-    .slice(0, 8)
-  const rest = [...filtered]
-    .filter((doc) => !doc.pinned)
-    .sort((a, b) => b.mtimeMs - a.mtimeMs)
-    .slice(8)
+  const rest = filtered.filter((doc) => !doc.pinned).sort((a, b) => b.mtimeMs - a.mtimeMs)
+  const [recent, older] = [rest.slice(0, 8), rest.slice(8)]
 
-  const heading = tag ? `# ${tag}` : "Doku"
+  const heading = tag ? `#${tag}` : vaultName
+  const stats = tag ? `${filtered.length} เอกสาร` : `${docs.length} เอกสาร · ${allTags.length} แท็ก`
 
   return (
     <Layout title={tag ? `doku · #${tag}` : "doku"}>
       <div class="mx-auto flex max-w-6xl">
-        <Sidebar tree={tree} />
-        <main class="min-w-0 flex-1 px-4 py-8">
-          <header class="mb-8">
-            <h1 class="text-2xl font-semibold text-(--k-text)">{heading}</h1>
-            <p class="mt-1 text-sm text-(--d-text-muted)">
-              {docs.length} เอกสาร · {allTags.length} แท็ก
-            </p>
+        <Sidebar tree={tree} vaultName={vaultName} />
+        <main class="min-w-0 flex-1 px-6 py-10 md:px-10">
+          <header class="mb-5 border-b border-(--d-border) pb-5">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <h1 class="text-2xl font-semibold tracking-tight text-(--k-text)">{heading}</h1>
+              <p class="text-sm text-(--d-text-muted) tabular-nums">{stats}</p>
+            </div>
           </header>
 
           {allTags.length > 0 ? (
-            <section class="mb-8">
-              <SectionTitle>แท็ก</SectionTitle>
-              <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-                {allTags.map((item) => (
-                  <TagLink key={item} tag={item} active={item === tag} />
-                ))}
-              </div>
-            </section>
+            <div class="mb-8 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
+              <span class="text-(--d-text-subtle)">แท็ก</span>
+              {allTags.map((item) => {
+                const active = item === tag
+                return (
+                  <a
+                    key={item}
+                    href={active ? "/" : `/?tag=${encodeURIComponent(item)}`}
+                    class={`no-underline transition-colors ${
+                      active
+                        ? "font-medium text-(--d-accent)"
+                        : "text-(--d-text-muted) hover:text-(--d-accent)"
+                    }`}
+                  >
+                    {item}
+                    <span class="ml-1 text-xs text-(--d-text-subtle) tabular-nums">
+                      {tagCounts.get(item)}
+                    </span>
+                  </a>
+                )
+              })}
+            </div>
           ) : null}
 
           {pinned.length > 0 ? (
             <section class="mb-8">
-              <SectionTitle>ปักหมุด</SectionTitle>
-              <div>
-                {pinned.map((doc) => (
-                  <DocRow key={doc.id} doc={doc} />
-                ))}
-              </div>
+              <SectionTitle count={pinned.length}>ปักหมุด</SectionTitle>
+              {pinned.map((doc) => (
+                <DocRow key={doc.id} doc={doc} />
+              ))}
             </section>
           ) : null}
 
           {recent.length > 0 ? (
             <section class="mb-8">
-              <SectionTitle>ล่าสุด</SectionTitle>
-              <div>
-                {recent.map((doc) => (
-                  <DocRow key={doc.id} doc={doc} />
-                ))}
-              </div>
+              <SectionTitle count={recent.length}>ล่าสุด</SectionTitle>
+              {recent.map((doc) => (
+                <DocRow key={doc.id} doc={doc} />
+              ))}
             </section>
           ) : null}
 
-          {rest.length > 0 ? (
+          {older.length > 0 ? (
             <section class="mb-8">
-              <SectionTitle>ทั้งหมด</SectionTitle>
-              <div>
-                {rest.map((doc) => (
-                  <DocRow key={doc.id} doc={doc} />
-                ))}
-              </div>
+              <SectionTitle count={older.length}>ทั้งหมด</SectionTitle>
+              {older.map((doc) => (
+                <DocRow key={doc.id} doc={doc} />
+              ))}
             </section>
           ) : null}
 
           {filtered.length === 0 ? (
-            <p class="mt-4 text-sm text-(--d-text-subtle)">
-              {tag ? `ไม่มีเอกสารที่มีแท็ก #${tag}` : "ยังไม่มีเอกสาร"}
+            <p class="text-sm text-(--d-text-subtle)">
+              {tag ? `ไม่มีเอกสารที่มีแท็ก #${tag}` : "ยังไม่มีเอกสารใน vault นี้"}
             </p>
           ) : null}
         </main>
@@ -295,9 +322,10 @@ export const HomePage: FC<{
 
 export const NotFoundPage: FC<{
   tree: TreeNode[]
+  vaultName: string
   kind: "doc" | "asset" | "route"
   path?: string
-}> = ({ tree, kind, path }) => {
+}> = ({ tree, vaultName, kind, path }) => {
   const message =
     kind === "doc"
       ? `ไม่พบเอกสาร${path ? `: ${path}` : ""}`
@@ -307,11 +335,11 @@ export const NotFoundPage: FC<{
   return (
     <Layout title="404 — doku">
       <div class="mx-auto flex max-w-6xl">
-        <Sidebar tree={tree} />
-        <main class="min-w-0 flex-1 px-4 py-16">
-          <div class="mx-auto max-w-[var(--k-measure)] text-center">
-            <p class="font-(family-name:--d-font-mono) text-3xl text-(--d-text-subtle)">404</p>
-            <p class="mt-2 text-sm text-(--d-text-muted)">{message}</p>
+        <Sidebar tree={tree} vaultName={vaultName} />
+        <main class="min-w-0 flex-1 px-6 py-16 md:px-10">
+          <div class="max-w-[var(--k-measure)]">
+            <p class="font-(family-name:--d-font-mono) text-sm text-(--d-text-subtle)">404</p>
+            <p class="mt-1 text-(--d-text-muted)">{message}</p>
             <a href="/" class="mt-4 inline-block text-sm text-(--d-accent) underline">
               กลับหน้าแรก
             </a>
@@ -331,25 +359,38 @@ export interface StyleGuideSection {
   html: string
 }
 
-export const StyleGuidePage: FC<{ tree: TreeNode[]; blocks: StyleGuideSection[] }> = ({
-  tree,
-  blocks,
-}) => (
+export const StyleGuidePage: FC<{
+  tree: TreeNode[]
+  vaultName: string
+  blocks: StyleGuideSection[]
+}> = ({ tree, vaultName, blocks }) => (
   <Layout title="styleguide — doku">
     <div class="mx-auto flex max-w-6xl">
-      <Sidebar tree={tree} activeId="__styleguide__" />
-      <main class="min-w-0 flex-1 px-4 py-8">
-        <header class="mb-8">
-          <h1 class="text-2xl font-semibold text-(--k-text)">Styleguide</h1>
+      <Sidebar tree={tree} activeId="__styleguide__" vaultName={vaultName} />
+      <main class="min-w-0 flex-1 px-6 py-10 md:px-10">
+        <header class="mb-6 border-b border-(--d-border) pb-5">
+          <h1 class="text-2xl font-semibold tracking-tight text-(--k-text)">Styleguide</h1>
           <p class="mt-1 text-sm text-(--d-text-muted)">
-            {blocks.length} blocks — ทุก block พร้อม syntax และตัวอย่าง (docs/03 §9)
+            {blocks.length} blocks — ทุก directive พร้อม syntax และตัวอย่างจริง (docs/03 §9)
           </p>
+          <nav aria-label="รายการ block" class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {blocks.map((block) => (
+              <a
+                key={block.name}
+                href={`#block-${block.name}`}
+                class="font-(family-name:--d-font-mono) text-(--d-text-muted) no-underline transition-colors hover:text-(--d-accent)"
+              >
+                {block.name}
+              </a>
+            ))}
+          </nav>
         </header>
-        <div>
+
+        <div class="max-w-[var(--k-measure)]">
           {blocks.map((block) => (
-            <section id={`block-${block.name}`} class="mb-8 border-t border-(--d-border) pt-6">
-              <div class="mb-4 flex items-baseline justify-between gap-3">
-                <h2 class="font-(family-name:--d-font-mono) text-base font-medium text-(--k-text)">
+            <section key={block.name} id={`block-${block.name}`} class="mb-10 scroll-mt-6">
+              <div class="mb-3 flex items-baseline justify-between gap-3 border-b border-(--d-border) pb-2">
+                <h2 class="font-(family-name:--d-font-mono) text-sm font-medium text-(--k-text)">
                   <a href={`#block-${block.name}`} class="no-underline text-(--k-text)">
                     {block.name}
                   </a>
