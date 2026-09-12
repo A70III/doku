@@ -86,7 +86,7 @@ export class DocRenderer {
   private fragment(meta: Meta, html: string, toc: TocEntry[], warnings: Warning[]): string {
     // ใช้ JSX ผ่าน app.tsx จะสะอาดกว่า — จุดนี้ assemble ด้วย string ที่เราคุมเอง
     // (input ทั้งหมดมาจาก meta/escape แล้ว หรือจาก HTML ที่ผ่าน sanitize)
-    return `${docHeaderHtml(meta)}${warningsBannerHtml(warnings)}${tocHtml(toc)}${html}`
+    return `${docHeaderHtml(meta)}${warningsBannerHtml(warnings)}${meta.render.toc ? tocHtml(toc) : ""}${html}`
   }
 }
 

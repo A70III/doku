@@ -15,7 +15,8 @@ import type { SseHub } from "./sse.ts"
 import type { VaultState } from "./tree.ts"
 import { CLIENT_JS } from "./web/client.ts"
 import { CONTENT_CSS } from "./web/content-css.ts"
-import { DocPage, HomePage, NotFoundPage } from "./web/pages.tsx"
+import { DocPage, HomePage, NotFoundPage, StyleGuidePage } from "./web/pages.tsx"
+import { buildStyleguide } from "./web/styleguide.ts"
 
 /** docs/06 CSP — คลาดเคลื่อนเดียว: `font-src 'self' data:` สำหรับ woff2 ที่ KaTeX ฝัง (docs/08 ข้อ 23) */
 export const CSP =
@@ -128,6 +129,12 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     const { tree, docs } = await deps.state.get()
     const tag = context.req.query("tag") || undefined
     return context.html(<HomePage tree={tree} docs={docs} tag={tag} />)
+  })
+
+  app.get("/styleguide", async (context) => {
+    const { tree } = await deps.state.get()
+    const blocks = await buildStyleguide()
+    return context.html(<StyleGuidePage tree={tree} blocks={blocks} />)
   })
 
   app.get("/d/*", async (context) => {

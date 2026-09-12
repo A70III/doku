@@ -183,3 +183,39 @@ describe("DocRenderer", () => {
     expect(doc.warnings).toHaveLength(0)
   })
 })
+
+describe("M2 — styleguide + design system", () => {
+  test("GET /styleguide — render ทุก block พร้อม syntax", async () => {
+    const { app } = setup({ "welcome.md": GOOD_DOC })
+    const res = await app.request("/styleguide")
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain("Styleguide")
+    expect(html).toContain('id="block-note"')
+    expect(html).toContain('id="block-tabs"')
+    expect(html).toContain('data-block="callout"')
+    expect(html).toContain("doku-prose")
+    expect(res.headers.get("content-security-policy")).toContain("default-src 'none'")
+  })
+
+  test("GET /static/content.css — มี tokens + block styles จาก @doku/core", async () => {
+    const { app } = setup({})
+    const res = await app.request("/static/content.css")
+    expect(res.status).toBe(200)
+    const css = await res.text()
+    expect(css).toContain("--d-accent: #3b7df0")
+    expect(css).toContain("[data-block='callout']")
+    expect(css).toContain("[data-block='tabs'][data-enhanced]")
+    expect(css).toContain("@media print")
+  })
+
+  test("doc page มี progress bar + motion off ตาม meta.render.motion", async () => {
+    const { app } = setup({
+      "a.md": ":::motion{effect=fade-up}\nx\n:::\n",
+      "a.meta.json": JSON.stringify({ render: { motion: false } }),
+    })
+    const html = await (await app.request("/d/a")).text()
+    expect(html).toContain('class="doku-progress"')
+    expect(html).toContain('data-motion="off"')
+  })
+})

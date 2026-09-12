@@ -36,6 +36,9 @@ export const Layout: FC<{
         <script src="/static/client.js" defer />
       </head>
       <body class="min-h-screen bg-(--k-app-bg) text-(--k-text) font-(family-name:--d-font-sans) antialiased">
+        <div class="doku-progress" aria-hidden="true">
+          <div data-part="progress-fill" />
+        </div>
         {children}
       </body>
     </html>
@@ -97,6 +100,20 @@ export const Sidebar: FC<{ tree: TreeNode[]; activeId?: string }> = ({ tree, act
       doku
     </a>
     <nav aria-label="แผนผังเอกสาร">
+      <ul class="mb-3 border-b border-(--d-border) pb-3">
+        <li>
+          <a
+            href="/styleguide"
+            class={`block rounded-(--d-radius-sm) px-2 py-1 text-sm no-underline transition-colors hover:bg-(--d-bg-muted) ${
+              activeId === "__styleguide__"
+                ? "font-medium text-(--d-accent)"
+                : "text-(--d-text-muted)"
+            }`}
+          >
+            styleguide
+          </a>
+        </li>
+      </ul>
       {tree.length === 0 ? (
         <p class="text-sm text-(--d-text-subtle)">vault ว่าง — วางไฟล์ .md ได้เลย</p>
       ) : (
@@ -130,6 +147,7 @@ export const DocPage: FC<{ doc: CachedDoc; path: string; tree: TreeNode[] }> = (
           <article
             class="mx-auto max-w-[var(--k-measure)] rounded-(--d-radius-lg) border border-(--d-border) bg-(--k-bg) p-(--d-space-8) shadow-(--k-shadow-md)"
             data-doc-id={path}
+            data-motion={meta.render.motion ? undefined : "off"}
           >
             <div class="doku-prose" dangerouslySetInnerHTML={{ __html: doc.fragment }} />
           </article>
@@ -304,3 +322,54 @@ export const NotFoundPage: FC<{
     </Layout>
   )
 }
+
+/* ── styleguide (docs/03 §9) — render ทุก block ให้คน + AI ดู ────────────── */
+
+export interface StyleGuideSection {
+  name: string
+  kind: string
+  syntax: string
+  html: string
+}
+
+export const StyleGuidePage: FC<{ tree: TreeNode[]; blocks: StyleGuideSection[] }> = ({
+  tree,
+  blocks,
+}) => (
+  <Layout title="styleguide — doku">
+    <div class="mx-auto flex max-w-6xl">
+      <Sidebar tree={tree} activeId="__styleguide__" />
+      <main class="min-w-0 flex-1 px-4 py-8">
+        <header class="mb-8">
+          <h1 class="text-3xl font-semibold text-(--k-text)">Styleguide</h1>
+          <p class="mt-1 text-sm text-(--d-text-muted)">
+            {blocks.length} blocks — ทุก block พร้อม syntax และตัวอย่าง (docs/03 §9)
+          </p>
+        </header>
+        <div class="grid gap-6">
+          {blocks.map((block) => (
+            <section
+              id={`block-${block.name}`}
+              class="rounded-(--d-radius-lg) border border-(--d-border) bg-(--k-bg) p-6"
+            >
+              <div class="mb-4 flex items-baseline justify-between gap-3">
+                <h2 class="font-(family-name:--d-font-mono) text-lg font-semibold text-(--k-text)">
+                  <a href={`#block-${block.name}`} class="no-underline text-(--k-text)">
+                    {block.name}
+                  </a>
+                </h2>
+                <span class="rounded-(--d-radius-pill) border border-(--d-border) px-2 py-0.5 text-xs text-(--d-text-subtle)">
+                  {block.kind}
+                </span>
+              </div>
+              <pre class="mb-4 overflow-auto rounded-(--d-radius-sm) border border-(--d-border) bg-(--d-bg-subtle) p-3 text-xs text-(--d-text-muted)">
+                <code>{block.syntax}</code>
+              </pre>
+              <div class="doku-prose" dangerouslySetInnerHTML={{ __html: block.html }} />
+            </section>
+          ))}
+        </div>
+      </main>
+    </div>
+  </Layout>
+)
