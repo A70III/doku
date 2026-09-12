@@ -30,13 +30,24 @@ describe("checkVault", () => {
     expect(report.ok).toBe(false)
   })
 
-  test("block ที่ไม่รู้จัก = error · block ที่ยังไม่ implement = info", async () => {
+  test("block ที่ไม่รู้จัก = error · block ที่รู้จักแล้ว = ไม่เตือน", async () => {
     const fs = memoryVaultFs({
       "design.md": "# D\n\n:::note\nx\n:::\n\n:::typo-name\nx\n:::\n",
     })
     const report = await checkVault(fs)
     expect(report.errors.some((item) => item.code === "block_unknown")).toBe(true)
-    expect(report.warnings.some((item) => item.code === "block_unimplemented")).toBe(true)
+    expect(report.warnings.some((item) => item.code === "block_unimplemented")).toBe(false)
+  })
+
+  test("asset ที่อ้างผ่าน attribute ของ block ถูกนับว่าใช้งานแล้ว", async () => {
+    const fs = memoryVaultFs({
+      "design.md": '# D\n\n:::figure{src="assets/a.svg" caption=x}\n:::\n',
+      "assets/a.svg": "<svg></svg>",
+    })
+    const report = await checkVault(fs)
+    expect(report.ok).toBe(true)
+    expect(report.warnings.some((item) => item.code === "orphan_asset")).toBe(false)
+    expect(report.errors.some((item) => item.code === "asset_missing")).toBe(false)
   })
 
   test("block เปิดไม่ปิด → block_unclosed", async () => {

@@ -66,6 +66,8 @@ const GLOBAL_EXTRA: AttrList = [
   "ariaDescribedBy",
   "ariaExpanded",
   "ariaControls",
+  "ariaSelected",
+  "ariaCurrent",
 ]
 
 export const dokuSanitizeSchema: SanitizeOptions = {
@@ -82,6 +84,7 @@ export const dokuSanitizeSchema: SanitizeOptions = {
       "figcaption",
       "video",
       "audio",
+      "progress",
       "button",
       "label",
       "hr",
@@ -116,6 +119,7 @@ export const dokuSanitizeSchema: SanitizeOptions = {
       "data*",
     ]),
     source: attrs("source", ["src", "type", "media", "srcSet"]),
+    progress: attrs("progress", ["value", "max"]),
     li: attrs("li", [["className", "task-list-item", K]]),
     span: attrs("span", [["className", K, "math-inline", "math-display", "katex"]]),
     div: attrs("div", [["className", K, "math-display", "katex-display"]]),

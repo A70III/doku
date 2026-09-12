@@ -87,14 +87,21 @@ describe("render: sanitize (เนื้อหาจาก AI = ไม่น่�
   })
 })
 
-describe("render: blocks (M0 = ทุก block ยังไม่ implement)", () => {
-  test("block ที่รู้จักแต่ยังไม่ทำ → code block + info", async () => {
+describe("render: blocks (M2)", () => {
+  test("callout → <aside data-block=callout> + variant + title", async () => {
     const { html, warnings } = await render(':::warning{title="ระวัง"}\nข้อความ\n:::\n')
-    expect(html).toContain(":::warning")
-    expect(html).toContain("<pre")
-    const item = warnings.find((entry) => entry.code === "block_unimplemented")
+    expect(html).toContain('<aside data-variant="warning" data-block="callout">')
+    expect(html).toContain('data-part="callout-title">ระวัง')
+    expect(html).toContain("ข้อความ")
+    expect(warnings.some((entry) => entry.code === "block_unimplemented")).toBe(false)
+  })
+
+  test("attribute ที่ไม่รู้จัก/ค่าไม่ผ่าน → block_attribute_unknown (info)", async () => {
+    const { html, warnings } = await render(':::warning{title="x" bogus=1}\ny\n:::\n')
+    const item = warnings.find((entry) => entry.code === "block_attribute_unknown")
     expect(item?.level).toBe("info")
-    expect(item?.field).toBe("warning")
+    expect(item?.message).toContain("bogus")
+    expect(html).toContain("callout")
   })
 
   test("block ที่ไม่รู้จัก → code block + warning", async () => {
@@ -102,19 +109,64 @@ describe("render: blocks (M0 = ทุก block ยังไม่ implement)", (
     expect(warnings.some((entry) => entry.code === "block_unknown")).toBe(true)
   })
 
+  test("`:name` กลางข้อความโดยไม่มี [...] = ข้อความธรรมดา (ไม่ใช่ block)", async () => {
+    const { html, warnings } = await render("db: bun:sqlite\n")
+    expect(html).toContain("db: bun:sqlite")
+    expect(warnings.some((entry) => entry.code === "block_unknown")).toBe(false)
+  })
+
   test("text directive → inline (ห้ามมี <pre> ซ้อนใน <p>)", async () => {
     const { html } = await render("สถานะ: :badge[BETA]{color=green}\n")
-    expect(html).toContain("<p>สถานะ: <code>:badge[BETA]{color=green}</code></p>")
+    expect(html).toContain('<span data-color="green" data-block="badge">BETA</span>')
     expect(html).not.toContain("<p>สถานะ: <pre")
   })
 
+  test("mark: ==ข้อความ=={.สี}", async () => {
+    const { html } = await render("==สำคัญ=={.amber} และ ==ธรรมดา==\n")
+    expect(html).toContain('<mark data-color="amber" data-block="mark">สำคัญ</mark>')
+    expect(html).toContain('<mark data-block="mark">ธรรมดา</mark>')
+  })
+
+  test("kv: แยก key/value ทีละบรรทัด (รวมบรรทัดที่ remark ยุบ)", async () => {
+    const { html } = await render(":::kv\nruntime: Bun\nhttp: Hono\ndb: bun:sqlite\n:::\n")
+    expect(html).toContain('data-part="kv-key">runtime')
+    expect(html).toContain('data-part="kv-value">bun:sqlite')
+    expect(html.match(/data-part="kv-row"/g)?.length).toBe(3)
+  })
+
+  test("stats: :stat ข้างในกลายเป็น tile", async () => {
+    const { html } = await render(
+      ':::stats\n:stat[42]{label="เอกสาร"}\n:stat[18]{label="แท็ก"}\n:::\n',
+    )
+    expect(html.match(/data-block="stat" data-variant="tile"/g)?.length).toBe(2)
+    expect(html).toContain('data-part="stat-value">42')
+  })
+
+  test("figure: ไม่มี src → placeholder + เตือน ไม่ใช่รูปแตก", async () => {
+    const { html, warnings } = await render(":::figure{caption=x}\n:::\n")
+    expect(html).toContain("data-missing")
+    expect(warnings.some((entry) => entry.code === "block_attribute_unknown")).toBe(true)
+  })
+
+  test("figure: width นอกสเต็ป 5 → เตือนและไม่ใส่ data-width", async () => {
+    const { html, warnings } = await render(":::figure{src=x.svg width=73}\n:::\n")
+    expect(html).not.toContain("data-width")
+    expect(warnings.some((entry) => entry.code === "block_attribute_unknown")).toBe(true)
+  })
+
+  test("motion: quantize delay/duration เป็นสเต็ป 100ms", async () => {
+    const { html } = await render(":::motion{effect=fade-up delay=210ms duration=390ms}\nx\n:::\n")
+    expect(html).toContain('data-delay="200"')
+    expect(html).toContain('data-duration="400"')
+  })
+
   test("directive ซ้อนกัน → เนื้อหาไม่ซ้ำไม่หาย", async () => {
-    const { html, warnings } = await render(
-      ':::tabs\n:::tab{label="a"}\nAAA\n:::\n:::tab{label="b"}\nBBB\n:::\n:::\n',
+    const { html } = await render(
+      '::::tabs\n:::tab{label="a"}\nAAA\n:::\n:::tab{label="b"}\nBBB\n:::\n::::\n',
     )
     expect(html.match(/AAA/g)?.length).toBe(1)
     expect(html.match(/BBB/g)?.length).toBe(1)
-    expect(warnings.some((entry) => entry.code === "block_unimplemented")).toBe(true)
+    expect(html.match(/data-part="tab-panel"/g)?.length).toBe(2)
   })
 
   test("`:::` ที่ไม่เข้าคู่ถูกตัดออก + เตือน", async () => {
@@ -136,6 +188,12 @@ describe("render: blocks (M0 = ทุก block ยังไม่ implement)", (
     expect(html.match(/BBBB/g)?.length).toBe(1)
     expect(warnings.some((entry) => entry.code.startsWith("block_nesting"))).toBe(false)
     expect(warnings.some((entry) => entry.code === "block_stray_fence")).toBe(false)
+  })
+
+  test("sanitize: block ไม่สร้าง style attribute และตัด javascript: ใน src", async () => {
+    const { html } = await render(':::figure{src="javascript:alert(1)" caption=x}\n:::\n')
+    expect(html).not.toContain("style=")
+    expect(html).not.toContain("javascript:")
   })
 })
 

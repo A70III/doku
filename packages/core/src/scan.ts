@@ -81,13 +81,27 @@ export function scanMarkdown(body: string, docId = ""): DocScan {
     }
 
     if (DIRECTIVE_NAMES[node.type]) {
-      const directive = node as unknown as { name: string }
+      // `:name` กลางข้อความโดยไม่มี `[...]` = ข้อความธรรมดา (เช่น `bun:sqlite`) → ไม่นับเป็น block
+      if (node.type === "textDirective" && (node.children?.length ?? 0) === 0) return
+
+      const directive = node as unknown as {
+        name: string
+        attributes?: Record<string, string | null | undefined> | null
+      }
       const definition = findBlock(directive.name)
       scan.blocks.push({
         name: directive.name,
         known: Boolean(definition),
         implemented: definition?.implemented ?? false,
       })
+
+      // asset ที่อ้างผ่าน attribute ของ block (figure/video) — scanner ไม่เห็นเป็น link ปกติ
+      for (const key of ["src", "poster"] as const) {
+        const value = directive.attributes?.[key]
+        if (typeof value === "string" && value.length > 0) {
+          scan.links.push(classify(value, docId))
+        }
+      }
       return
     }
   })

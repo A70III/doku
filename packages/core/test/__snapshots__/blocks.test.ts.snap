@@ -1,0 +1,62 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`blocks registry (M2) golden snapshot: HTML ของ block ทั้งชุด (highlight off) 1`] = `
+"<h2 id="note">note<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#note"><span class="doku-anchor-icon">#</span></a></h2>
+<aside data-variant="note" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<h2 id="info">info<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#info"><span class="doku-anchor-icon">#</span></a></h2>
+<aside data-variant="info" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<h2 id="tip">tip<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#tip"><span class="doku-anchor-icon">#</span></a></h2>
+<aside data-variant="tip" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<h2 id="success">success<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#success"><span class="doku-anchor-icon">#</span></a></h2>
+<aside data-variant="success" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<h2 id="warning">warning<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#warning"><span class="doku-anchor-icon">#</span></a></h2>
+<aside data-variant="warning" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<h2 id="danger">danger<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#danger"><span class="doku-anchor-icon">#</span></a></h2>
+<aside data-variant="danger" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<h2 id="quote">quote<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#quote"><span class="doku-anchor-icon">#</span></a></h2>
+<aside data-variant="quote" data-block="callout"><p data-part="callout-title">หัวข้อ</p><p>เนื้อหาของ callout</p></aside>
+<h2 id="mark">mark<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#mark"><span class="doku-anchor-icon">#</span></a></h2>
+<p><mark data-color="amber" data-block="mark">คำสำคัญ</mark></p>
+<h2 id="badge">badge<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#badge"><span class="doku-anchor-icon">#</span></a></h2>
+<p><span data-color="green" data-block="badge">BETA</span></p>
+<h2 id="stat">stat<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#stat"><span class="doku-anchor-icon">#</span></a></h2>
+<p><span data-variant="inline" data-block="stat"><span data-part="stat-value">42</span><span data-part="stat-label">เอกสาร</span></span></p>
+<h2 id="figure">figure<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#figure"><span class="doku-anchor-icon">#</span></a></h2>
+<figure data-align="center" data-width="70" data-zoom="true" data-block="figure"><img src="/assets/projects/doku/assets/diagram.svg" alt="Fig 1 — pipeline" loading="lazy" decoding="async"><figcaption data-part="figure-caption">Fig 1 — pipeline</figcaption></figure>
+<h2 id="gallery">gallery<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#gallery"><span class="doku-anchor-icon">#</span></a></h2>
+<div data-cols="3" data-block="gallery"><figure data-align="center" data-block="figure"><img src="/assets/a.png" alt="A" loading="lazy" decoding="async"><figcaption data-part="figure-caption">A</figcaption></figure><figure data-align="center" data-block="figure"><img src="/assets/b.png" alt="B" loading="lazy" decoding="async"><figcaption data-part="figure-caption">B</figcaption></figure></div>
+<h2 id="video">video<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#video"><span class="doku-anchor-icon">#</span></a></h2>
+<video src="/assets/demo.mp4" controls preload="metadata" loop muted poster="/assets/cover.png" data-block="video"></video>
+<h2 id="card">card<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#card"><span class="doku-anchor-icon">#</span></a></h2>
+<a href="/d/projects/doku/design" data-block="card"><div data-part="card-head"><span data-block="badge" data-part="card-badge" data-color="blue">BETA</span><span data-part="card-title">Doku Design</span></div><div data-part="card-body"><p>สรุปสั้นของเอกสาร</p></div></a>
+<h2 id="section">section<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#section"><span class="doku-anchor-icon">#</span></a></h2>
+<section data-variant="hero" data-block="section"><h1 id="หัวเรื่องใหญ่">หัวเรื่องใหญ่<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#หัวเรื่องใหญ่"><span class="doku-anchor-icon">#</span></a></h1></section>
+<h2 id="grid">grid<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#grid"><span class="doku-anchor-icon">#</span></a></h2>
+<div data-cols="2" data-gap="md" data-block="grid"><div data-block="col"><p>ซ้าย</p></div><div data-block="col"><p>ขวา</p></div></div>
+<h2 id="col">col<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#col"><span class="doku-anchor-icon">#</span></a></h2>
+<div data-block="col"><p>เนื้อหาคอลัมน์</p></div>
+<h2 id="kv">kv<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#kv"><span class="doku-anchor-icon">#</span></a></h2>
+<dl data-block="kv"><div data-part="kv-row"><dt data-part="kv-key">runtime</dt><dd data-part="kv-value">Bun</dd></div><div data-part="kv-row"><dt data-part="kv-key">http</dt><dd data-part="kv-value">Hono</dd></div><div data-part="kv-row"><dt data-part="kv-key">db</dt><dd data-part="kv-value">bun:sqlite</dd></div></dl>
+<h2 id="stats">stats<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#stats"><span class="doku-anchor-icon">#</span></a></h2>
+<div data-block="stats"><div data-block="stat" data-variant="tile"><span data-part="stat-value">42</span><span data-part="stat-label">เอกสาร</span></div><div data-block="stat" data-variant="tile"><span data-part="stat-value">18</span><span data-part="stat-label">แท็ก</span></div></div>
+<h2 id="progress">progress<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#progress"><span class="doku-anchor-icon">#</span></a></h2>
+<div data-block="progress"><progress value="70" max="100"></progress><span data-part="progress-label">M2 — blocks</span></div>
+<h2 id="steps">steps<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#steps"><span class="doku-anchor-icon">#</span></a></h2>
+<div data-block="steps"><ol>
+<li>ติดตั้ง workspace</li>
+<li>เขียน core</li>
+<li>รัน server</li>
+</ol></div>
+<h2 id="timeline">timeline<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#timeline"><span class="doku-anchor-icon">#</span></a></h2>
+<ol data-block="timeline"><li data-part="timeline-item"><span data-part="timeline-label">2025-09</span><span data-part="timeline-text">เริ่มโปรเจกต์</span></li><li data-part="timeline-item"><span data-part="timeline-label">2025-10</span><span data-part="timeline-text">M0 เสร็จ</span></li></ol>
+<h2 id="margin-note">margin-note<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#margin-note"><span class="doku-anchor-icon">#</span></a></h2>
+<aside data-side="right" data-block="margin-note"><p>โน้ตข้าง — desktop วางข้าง, mobile ย่อเป็น inline</p></aside>
+<h2 id="motion">motion<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#motion"><span class="doku-anchor-icon">#</span></a></h2>
+<div data-effect="fade-up" data-delay="200" data-duration="400" data-once="true" data-block="motion"><p>เนื้อหาที่จะค่อยๆ โผล่</p></div>
+<h2 id="details">details<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#details"><span class="doku-anchor-icon">#</span></a></h2>
+<details data-block="details"><summary>กดเพื่อดูรายละเอียด</summary><p>เนื้อหาที่ซ่อน</p></details>
+<h2 id="tabs">tabs<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#tabs"><span class="doku-anchor-icon">#</span></a></h2>
+<div data-block="tabs"><div data-part="tablist" role="tablist"><button type="button" role="tab" data-part="tab-button" data-index="0" aria-selected="true">macOS</button><button type="button" role="tab" data-part="tab-button" data-index="1" aria-selected="false">Linux</button></div><div data-label="macOS" data-block="tab" data-part="tab-panel" data-index="0" role="tabpanel" aria-label="macOS" data-active="true"><p>คำสั่งสำหรับ mac</p></div><div data-label="Linux" data-block="tab" data-part="tab-panel" data-index="1" role="tabpanel" aria-label="Linux"><p>คำสั่งสำหรับ linux</p></div></div>
+<h2 id="tab">tab<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#tab"><span class="doku-anchor-icon">#</span></a></h2>
+<div data-label="macOS" data-block="tab"><p>เนื้อหาแท็บ</p></div>"
+`;

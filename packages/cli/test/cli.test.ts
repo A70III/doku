@@ -26,8 +26,13 @@ async function doku(args: string[], stdin?: string): Promise<RunResult> {
   return { code, stdout, stderr }
 }
 
+/** CLI test spawns a subprocess (~2.5s each) — default 5s timeout ทำให้ flaky เมื่อรันทั้ง suite พร้อมกัน */
+function testCli(name: string, fn: () => Promise<void> | void): void {
+  test(name, fn, 20_000)
+}
+
 describe("parseArgs", () => {
-  test("แยก command / positional / flag พร้อมค่า", () => {
+  testCli("แยก command / positional / flag พร้อมค่า", () => {
     const args = parseArgs(["render", "a/b", "--vault", "v", "--json", "--out=x.html"])
     expect(args.command).toBe("render")
     expect(args.positional).toEqual(["a/b"])
@@ -36,13 +41,13 @@ describe("parseArgs", () => {
     expect(args.flags.get("out")).toBe("x.html")
   })
 
-  test("flag ที่ต้องมีค่าแต่ไม่มี → error", () => {
+  testCli("flag ที่ต้องมีค่าแต่ไม่มี → error", () => {
     expect(() => parseArgs(["render", "--vault"])).toThrow("ต้องมีค่า")
   })
 })
 
 describe("doku render (M0 definition of done)", () => {
-  test("render เอกสารจาก vault → HTML หน้าเดียวจบ", async () => {
+  testCli("render เอกสารจาก vault → HTML หน้าเดียวจบ", async () => {
     const { code, stdout, stderr } = await doku([
       "render",
       "--vault",
@@ -54,11 +59,12 @@ describe("doku render (M0 definition of done)", () => {
     expect(stdout).toContain("doku-prose")
     expect(stdout).toContain("Doku Design")
     expect(stdout).toContain('data-accent style="--doc-accent: #7c3aed"')
-    // block ทั้งหมดยังไม่ implement ที่ M0 → ต้องมี warning บอก ไม่ใช่เงียบ
-    expect(stderr).toContain("block_unimplemented")
+    // M2: block ถูก render จริง — ต้องเห็น markup ของ design system (ไม่ใช่ code block เตือน)
+    expect(stdout).toContain('data-block="callout"')
+    expect(stderr).not.toContain("block_unimplemented")
   })
 
-  test("--fragment ได้เฉพาะ HTML fragment", async () => {
+  testCli("--fragment ได้เฉพาะ HTML fragment", async () => {
     const { code, stdout } = await doku([
       "render",
       "--vault",
@@ -71,14 +77,14 @@ describe("doku render (M0 definition of done)", () => {
     expect(stdout).toContain("<h1")
   })
 
-  test("--stdin + --fragment ใช้ได้แบบ stateless", async () => {
+  testCli("--stdin + --fragment ใช้ได้แบบ stateless", async () => {
     const { code, stdout } = await doku(["render", "--stdin", "--fragment"], "# หัว\n\nเนื้อหา\n")
     expect(code).toBe(0)
     expect(stdout).toContain('id="หัว"')
     expect(stdout).toContain("<p>เนื้อหา</p>")
   })
 
-  test("โจทย์ M0: code สี + สมการ ครบในหน้าเดียว", async () => {
+  testCli("โจทย์ M0: code สี + สมการ ครบในหน้าเดียว", async () => {
     const md = "# Demo\n\n$$E = mc^2$$\n\n```ts\nconst x = 1\n```\n"
     const { code, stdout } = await doku(["render", "--stdin"], md)
     expect(code).toBe(0)
@@ -87,7 +93,7 @@ describe("doku render (M0 definition of done)", () => {
     expect(stdout).toContain("--shiki-dark")
   })
 
-  test("--json ให้ agent parse ได้", async () => {
+  testCli("--json ให้ agent parse ได้", async () => {
     const { code, stdout } = await doku(["render", "--stdin", "--fragment", "--json"], "# x\n")
     expect(code).toBe(0)
     const payload = JSON.parse(stdout) as { ok: boolean; content: string }
@@ -95,18 +101,18 @@ describe("doku render (M0 definition of done)", () => {
     expect(payload.content).toContain("<h1")
   })
 
-  test("เอกสารที่ไม่มี → exit 1 พร้อมข้อความอ่านรู้เรื่อง", async () => {
+  testCli("เอกสารที่ไม่มี → exit 1 พร้อมข้อความอ่านรู้เรื่อง", async () => {
     const { code, stderr } = await doku(["render", "--vault", VAULT, "projects/nope"])
     expect(code).toBe(1)
     expect(stderr).toContain("ไม่พบเอกสาร")
   })
 
-  test("path traversal ถูกปฏิเสธ", async () => {
+  testCli("path traversal ถูกปฏิเสธ", async () => {
     const { code } = await doku(["render", "--vault", VAULT, "../../../etc/passwd"])
     expect(code).toBe(1)
   })
 
-  test("vault ที่ไม่มี → exit 2 + บอกวิธีใช้", async () => {
+  testCli("vault ที่ไม่มี → exit 2 + บอกวิธีใช้", async () => {
     const { code, stderr } = await doku(["render", "--vault", "/tmp/definitely-no-vault", "x"])
     expect(code).toBe(2)
     expect(stderr).toContain("--vault")
@@ -114,13 +120,14 @@ describe("doku render (M0 definition of done)", () => {
 })
 
 describe("doku check", () => {
-  test("vault ตัวอย่างผ่าน (exit 0) — block ที่ยังไม่ทำเป็นแค่ info", async () => {
+  testCli("vault ตัวอย่างผ่าน (exit 0) — ทุก block implement แล้ว", async () => {
     const { code, stdout } = await doku(["check", "--vault", VAULT])
     expect(code).toBe(0)
     expect(stdout).toContain("3 docs")
+    expect(stdout).toContain("0 errors")
   })
 
-  test("--json คืน report ที่ agent ใช้ต่อได้", async () => {
+  testCli("--json คืน report ที่ agent ใช้ต่อได้", async () => {
     const { code, stdout } = await doku(["check", "--vault", VAULT, "--json"])
     expect(code).toBe(0)
     const report = JSON.parse(stdout) as {
@@ -133,18 +140,18 @@ describe("doku check", () => {
     expect(report.docs.map((doc) => doc.id)).toContain("projects/doku/design")
   })
 
-  test("ตรวจเฉพาะเอกสารเดียวได้", async () => {
+  testCli("ตรวจเฉพาะเอกสารเดียวได้", async () => {
     const { code, stdout } = await doku(["check", "--vault", VAULT, "daily/2025-09-12"])
     expect(code).toBe(0)
     expect(stdout).toContain("1 docs")
   })
 
-  test("คำสั่งที่ไม่รู้จัก → exit 2", async () => {
+  testCli("คำสั่งที่ไม่รู้จัก → exit 2", async () => {
     const { code } = await doku(["cook", "dinner"])
     expect(code).toBe(2)
   })
 
-  test("--help แสดงคำสั่งหลัก", async () => {
+  testCli("--help แสดงคำสั่งหลัก", async () => {
     const { code, stdout } = await doku(["--help"])
     expect(code).toBe(0)
     expect(stdout).toContain("doku render")

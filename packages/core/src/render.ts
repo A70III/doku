@@ -24,10 +24,11 @@ import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 import { type AssetResolver, createAssetResolver } from "./assets.ts"
-import { remarkDokuDirectives } from "./blocks/directive.ts"
+import { createDokuHandlers, remarkDokuDirectives } from "./blocks/directive.ts"
 import { analyzeDirectiveFences, describeFenceProblem, type FenceProblem } from "./blocks/fences.ts"
 import { splitFrontmatter } from "./frontmatter.ts"
 import type { VaultFs } from "./fs.ts"
+import { remarkMark } from "./plugins/mark.ts"
 import { rehypeCollectToc, type TocEntry } from "./plugins/toc.ts"
 import { remarkWikilinks } from "./plugins/wikilink.ts"
 import { rehypeRewrite } from "./rewrite.ts"
@@ -105,9 +106,10 @@ export async function renderMarkdown(
     .use(remarkGfm)
     .use(remarkDirective)
     .use(remarkMath)
+    .use(remarkMark, { docId, onWarning: collect })
     .use(remarkDokuDirectives, { source: body, onWarning: collect, docId })
     .use(remarkWikilinks, { docId, index: options.vault?.index, onWarning: collect })
-    .use(remarkRehype)
+    .use(remarkRehype, { handlers: createDokuHandlers({ docId, onWarning: collect }) })
     .use(rehypeSlug)
     // TOC ก่อน autolink เพื่อไม่ให้ข้อความ "#" ของ anchor ติดเข้าไปในสารบัญ
     .use(rehypeCollectToc, { onEntry: (entry) => toc.push(entry) })

@@ -1,62 +1,64 @@
 /**
  * Block registry — จุดเดียวที่นิยาม custom block ทั้งหมด (docs/03 syntax reference)
  *
- * สถานะ M0: ลงทะเบียน "ชื่อที่รู้จัก" ครบแล้ว แต่ยังไม่ implement renderer
- *   → render เป็น code block + warning `block_unimplemented` (ตาม docs/01 error handling)
- *   → M2 จะเติม `render`/`validate` แล้วปิด warning พร้อมทำ `/styleguide`
- * ชื่อที่ไม่อยู่ใน registry เลย = `block_unknown` (พิมพ์ผิด) ซึ่งจะกลายเป็น error ที่ `doku check`
+ * เพิ่ม block ใหม่ = เพิ่ม 1 ไฟล์ + register ที่นี่ ไม่ต้องแตะ core
+ * `implemented: true` = มี renderer จริง → ไม่ปล่อย warning `block_unimplemented`
+ * ลำดับใน array = ลำดับที่แสดงใน `/styleguide` (และ M4 `/api/schema`)
  */
 
-export type DirectiveKind = "container" | "leaf" | "text"
+import { badgeDefinition } from "./badge.ts"
+import { calloutDefinition } from "./callout.ts"
+import { cardDefinition } from "./card.ts"
+import { detailsDefinition } from "./details.ts"
+import { figureDefinition } from "./figure.ts"
+import { galleryDefinition } from "./gallery.ts"
+import { colDefinition, gridDefinition } from "./grid.ts"
+import { kvDefinition } from "./kv.ts"
+import { marginNoteDefinition } from "./margin-note.ts"
+import { markDefinition } from "./mark.ts"
+import { motionDefinition } from "./motion.ts"
+import { progressDefinition } from "./progress.ts"
+import { sectionDefinition } from "./section.ts"
+import { statDefinition, statsDefinition } from "./stats.ts"
+import { stepsDefinition } from "./steps.ts"
+import { tabDefinition, tabsDefinition } from "./tabs.ts"
+import { timelineDefinition } from "./timeline.ts"
+import type { BlockDefinition, DirectiveKind } from "./types.ts"
+import { videoDefinition } from "./video.ts"
 
-export interface BlockDefinition {
-  name: string
-  kind: DirectiveKind
-  /** M0 = ยังไม่ implement, M2 = มี renderer จริง */
-  stage: "M2" | "M0"
-  implemented: boolean
-  /** ตัวอย่าง syntax สั้น ๆ — ป้อน `/api/schema` + `/styleguide` ที่ M2/M4 */
-  syntax?: string
-}
-
-function container(name: string, syntax: string): BlockDefinition {
-  return { name, kind: "container", stage: "M2", implemented: false, syntax }
-}
-
-function text(name: string, syntax: string): BlockDefinition {
-  return { name, kind: "text", stage: "M2", implemented: false, syntax }
-}
+/** callout ทั้ง 7 type (docs/08 ข้อ 14) — ใช้ renderer เดียวกัน */
+export const CALLOUT_TYPES = [
+  "note",
+  "info",
+  "tip",
+  "success",
+  "warning",
+  "danger",
+  "quote",
+] as const
 
 export const BLOCKS: readonly BlockDefinition[] = [
-  // Callout — 7 type (docs/08 ข้อ 14)
-  ...["note", "info", "tip", "success", "warning", "danger", "quote"].map((name) =>
-    container(name, `:::${name}{title="…"}`),
-  ),
-  // Media
-  container("figure", ':::figure{src=assets/x.svg caption="…" width=70% align=center}'),
-  container("gallery", ":::gallery{cols=3}"),
-  container("video", ":::video{src=assets/demo.mp4 poster=assets/cover.png}"),
-  // Primitive
-  container("card", ':::card{title="…" href="/d/…" badge=BETA}'),
-  container("section", ":::section{type=hero}"),
-  container("grid", ":::grid{cols=2 gap=md}"),
-  container("col", ":::col"),
-  // Data
-  container("kv", ":::kv"),
-  container("stats", ":::stats"),
-  container("progress", ':::progress{value=70 label="M2 — blocks"}'),
-  container("steps", ":::steps"),
-  container("timeline", ":::timeline"),
-  // Annotation
-  container("margin-note", ":::margin-note{side=right}"),
-  container("motion", ":::motion{effect=fade-up delay=200ms duration=400ms once=true}"),
-  // Interactive
-  container("details", ':::details{summary="…" open=false}'),
-  container("tabs", ":::tabs"),
-  container("tab", ':::tab{label="macOS"}'),
-  // Inline (leaf/text directive)
-  text("badge", ":badge[BETA]{color=green}"),
-  text("stat", ':stat[42]{label="เอกสาร"}'),
+  ...CALLOUT_TYPES.map((name) => calloutDefinition(name)),
+  markDefinition,
+  badgeDefinition,
+  statDefinition,
+  figureDefinition,
+  galleryDefinition,
+  videoDefinition,
+  cardDefinition,
+  sectionDefinition,
+  gridDefinition,
+  colDefinition,
+  kvDefinition,
+  statsDefinition,
+  progressDefinition,
+  stepsDefinition,
+  timelineDefinition,
+  marginNoteDefinition,
+  motionDefinition,
+  detailsDefinition,
+  tabsDefinition,
+  tabDefinition,
 ]
 
 const BLOCK_INDEX = new Map(BLOCKS.map((block) => [block.name, block]))
@@ -69,3 +71,5 @@ export function findBlock(name: string): BlockDefinition | undefined {
 export function blockNames(): string[] {
   return BLOCKS.map((block) => block.name)
 }
+
+export type { BlockDefinition, DirectiveKind }

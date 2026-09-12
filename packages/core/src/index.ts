@@ -10,14 +10,26 @@ export {
   createAssetResolver,
   type ResolvedAsset,
 } from "./assets.ts"
-export { type DokuDirectiveOptions, remarkDokuDirectives } from "./blocks/directive.ts"
+export {
+  createDokuHandlers,
+  type DokuDirectiveOptions,
+  remarkDokuDirectives,
+} from "./blocks/directive.ts"
 export {
   BLOCKS,
   type BlockDefinition,
   blockNames,
+  CALLOUT_TYPES,
   type DirectiveKind,
   findBlock,
 } from "./blocks/registry.ts"
+export {
+  BLOCK_COLORS,
+  type BlockContext,
+  blockElement,
+  type DokuDirectiveNode,
+  h,
+} from "./blocks/types.ts"
 export {
   type CheckOptions,
   type CheckReport,
@@ -48,6 +60,7 @@ export {
   PathError,
   resolveRelativePath,
 } from "./paths.ts"
+export { type MarkOptions, remarkMark } from "./plugins/mark.ts"
 export { rehypeCollectToc, type TocEntry } from "./plugins/toc.ts"
 export { remarkWikilinks, type WikiLinkOptions } from "./plugins/wikilink.ts"
 export {
