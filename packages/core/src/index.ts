@@ -102,6 +102,7 @@ export {
   TAG_PATTERN,
   ThemeSchema,
 } from "./schema.ts"
+export { BLOCKS_CSS, CONTENT_CSS, PROSE_CSS, TOKENS_CSS } from "./styles/index.ts"
 export {
   countByLevel,
   type Warning,

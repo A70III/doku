@@ -7,7 +7,8 @@
  */
 
 import type { Meta, TocEntry, Warning } from "@doku/core"
-import { PREVIEW_CSS } from "./style.ts"
+import { CONTENT_CSS } from "@doku/core"
+import { PREVIEW_CHROME_CSS } from "./style.ts"
 
 export interface PreviewPageInput {
   title: string
@@ -39,14 +40,14 @@ export function renderPreviewPage(input: PreviewPageInput): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>${escapeHtml(input.title)}</title>
-<style>${PREVIEW_CSS}</style>${input.extraCss ? `\n<style>${input.extraCss}</style>` : ""}
+<style>${CONTENT_CSS}${PREVIEW_CHROME_CSS}</style>${input.extraCss ? `\n<style>${input.extraCss}</style>` : ""}
 </head>
 <body>
 <div class="doku-page">
 <article class="doku-card doku-prose">
 ${docHeader(input)}
 ${warningsBanner(input.warnings)}
-${tocBlock(input.toc)}
+${meta.render.toc ? tocBlock(input.toc) : ""}
 ${input.html}
 </article>
 <footer class="doku-footer">doku · ${escapeHtml(input.docId || "(inline)")} · ${escapeHtml(meta.status)}</footer>
