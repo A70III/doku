@@ -39,18 +39,19 @@
 
 ## M2 — Design system + custom blocks
 
-- [ ] design tokens `tokens.css` + prose layer `.doku-prose` (ตาม [03](03-blocks-and-design-system.md))
-- [ ] block registry `packages/core/src/blocks/` (data-block/data-variant)
-- [ ] callout, figure, motion
-- [ ] mark สี, badge, details, tabs, grid, card
-- [ ] kv, stats, progress, steps, timeline
-- [ ] diagram: Excalidraw SVG (figure) + ASCII
-- [ ] reading UX: progress bar, TOC active, heading anchor
-- [ ] `prefers-reduced-motion` + print styles
-- [ ] **`/styleguide`** render ทุก block (คุมดีไซน์ + ให้ AI ดู)
-- [ ] sanitize allowlist ครบ
+- [x] design tokens `tokens.css` + prose layer `.doku-prose` (ตาม [03](03-blocks-and-design-system.md)) — อยู่ที่ `packages/core/src/styles/` ([08 ข้อ 28](08-decisions.md))
+- [x] block registry `packages/core/src/blocks/` (data-block/data-variant — [08 ข้อ 29](08-decisions.md))
+- [x] callout (7 type), figure, motion
+- [x] mark สี, badge, details, tabs, grid, card
+- [x] kv, stats, progress, steps, timeline
+- [x] diagram: Excalidraw SVG (figure) + ASCII (D2 เก็บไว้หลัง v1 — [08 ข้อ 19](08-decisions.md))
+- [x] reading UX: progress bar, TOC active, heading anchor (+ copy code, figure zoom)
+- [x] `prefers-reduced-motion` + print styles
+- [x] **`/styleguide`** render ทุก block (คุมดีไซน์ + ให้ AI ดู) + golden snapshot test
+- [x] sanitize allowlist ครบ (รวม `progress`, aria state; ยังไม่ให้ `style`)
 
-**เสร็จ:** เอกสารตัวอย่างใช้ทุก block ไม่มี warning + เทียบกับ styleguide ได้
+**เสร็จ:** `examples/vault/projects/doku/design` ใช้ทุก block → `doku check` = 0 errors/0 warnings
+และเทียบกับ `/styleguide` ได้
 
 ---
 

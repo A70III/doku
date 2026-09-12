@@ -15,9 +15,11 @@ Markdown มาตรฐาน (GFM) ใช้ได้ครบ: `**bold**` `*i
 
 `==mark=={.สี}` **ไม่ใช่ GFM** — เป็น extension ของ doku เอง (ดู [Highlight สี](#highlight-สี))
 
-> **สถานะ block:** directive/extension ทั้งหมดใน Part A นี้ยังไม่ implement — จะเริ่มใช้ได้ตั้งแต่ **M2**
-> (ตอนนี้ระบบ fallback เป็น code block + warning `block_unimplemented` ตาม [01](01-architecture.md))
-> ตรวจชื่อ block ที่รองรับจริงได้จาก `packages/core/src/blocks/registry.ts` หรือ `doku check --json`
+> **สถานะ block:** directive/extension ทั้งหมดใน Part A **implement แล้วที่ M2** (`packages/core/src/blocks/`)
+> block ที่ไม่รู้จัก → fallback เป็น code block + warning `block_unknown` · block ที่ยังไม่ทำ → `block_unimplemented` (info) ตาม [01](01-architecture.md)
+> ตรวจชื่อ/attribute ที่รองรับได้จาก `packages/core/src/blocks/registry.ts` หรือ `doku check --json` · ดูตัวอย่างจริงได้ที่ `/styleguide`
+>
+> `:name` กลางข้อความโดยไม่มี `[...]` (เช่น `bun:sqlite`) = ข้อความธรรมดา ไม่นับเป็น directive
 
 ## รูปแบบ directive
 
@@ -70,8 +72,9 @@ type: `note` `info` `tip` `success` `warning` `danger` `quote`
 ==อีกอัน=={.amber}
 ```
 
-สีใน allowlist: `red orange amber yellow green teal blue purple` (+ default เหลือง)
-สีดิบ (`#hex`) อนุญาตเฉพาะเมื่อ `theme.allowRawColor = true` — default ปิดเพื่อคุมธีม
+สีใน allowlist: `red orange amber yellow green teal blue purple` (+ default = สี accent ของเอกสาร)
+ค่านอก allowlist = เตือน (`block_attribute_unknown`) แล้วใช้สี accent แทน · **ยังไม่รองรับสีดิบ `#hex`**
+(ขัดกับที่เคยเขียนไว้ว่ามี `theme.allowRawColor` — field นี้ไม่มีใน schema จริง, docs/08 ข้อ 30)
 
 ## Badge / Stat (inline)
 
@@ -89,8 +92,9 @@ type: `note` `info` `tip` `success` `warning` `danger` `quote`
 ```
 
 - แทน `<img>` ตรงๆ เมื่ออยากได้ caption/จัดวาง
-- `width`: เปอร์เซ็นต์ความกว้าง (default `100%`)
-- `align`: `left` `center` `right` **`full`** (= เต็มความกว้าง content, แทนคำว่า bleed)
+- `width`: เปอร์เซ็นต์ความกว้าง **5–100 สเต็ป 5** (default `100%`) — ค่านอกสเต็ป = เตือน แล้วใช้ 100
+  (จำกัดสเต็ปเพื่อเลี่ยง inline `style` → ยังอยู่ใน sanitize allowlist, docs/08 ข้อ 29)
+- `align`: `left` `center` `right` **`full`** (= เต็มความกว้าง content, แทนคำว่า bleed) — default `center`
 - `zoom=true` → คลิกขยาย (JS เส้นเดียว)
 - ถ้า `src` หาย → placeholder "asset not found: ..." ไม่ใช่รูปแตก
 
@@ -308,18 +312,28 @@ fenced ```` ```d2 ```` → เรียก binary → SVG → cache `var/diagram
 
 ## Extension registry
 
-custom block ทุกตัวนิยามในไฟล์เดียว:
+custom block ทุกตัวนิยามในไฟล์เดียว และ **คืน hast element** (ไม่ใช่ HTML string) พร้อมสไตล์แบบ `data-*`:
 
 ```ts
 // packages/core/src/blocks/callout.ts
-export default {
+export const calloutDefinition: BlockDefinition = {
   name: "callout",
-  render(attrs, content) {
-    // คืน HTML ที่ escape แล้ว
+  kind: "container",
+  implemented: true,
+  attributes: ["title", "color"],
+  values: { color: BLOCK_COLORS },
+  example: ':::note{title="…"}\n…\n:::',
+  render(ctx) {
+    // คืน hast element — rehype-sanitize จะตรวจต่อทุก node (docs/08 ข้อ 29)
+    return blockElement("aside", "callout", { dataVariant: ctx.attrs.color ?? "note" }, ctx.children)
   },
-  validate(attrs) { /* คืน error[] */ }
 }
 ```
+
+- `render` รับ `BlockContext` = `{ attrs, children, node, docId, warn }`
+- attribute ที่ไม่รู้จัก/ค่าไม่อยู่ใน allowlist = ignore + `block_attribute_unknown` (info)
+- ค่าที่ต้องใช้เป็นตัวเลข/CSS (width, delay, progress) → validate + quantize แล้วเก็บเป็น data attribute
+  แล้วให้ CSS rule ที่ generate ไว้เป็นคนแสดงผล (ไม่มี inline `style`)
 
 เพิ่ม block ใหม่ = เพิ่ม 1 ไฟล์ + register ใน `packages/core/src/blocks/index.ts` ไม่ต้องแตะ core
 
@@ -579,5 +593,6 @@ CSS ยิงด้วย `[data-block="callout"][data-variant="warning"]` → �
 | App chrome | Tailwind utility + component TSX (`<Sidebar>`, `<FileTree>`) |
 | เนื้อหา | CSS layer `.doku-prose` + `[data-block="…"]` |
 | Token | `--k-*` |
-| CSS file | `packages/server/src/web/styles/tokens.css`, `prose.css`, `blocks.css` |
+| CSS file | `packages/core/src/styles/{tokens,prose,blocks}.ts` (export `CONTENT_CSS`) — ใช้ร่วม CLI + server (docs/08 ข้อ 28) |
+| Block markup | `data-block="…"` / `data-variant="…"` / `data-part="…"` (ไม่ตั้งชื่อ class ใหม่) |
 | Block renderer | `packages/core/src/blocks/<name>.ts` (ดู [Extension registry](#extension-registry)) |

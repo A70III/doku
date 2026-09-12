@@ -33,6 +33,9 @@
 | 25 | `doku serve` | **CLI spawn subprocess** — cli ห้าม import `@doku/server` ตรงๆ (ทิศทาง dependency) · ส่งค่าผ่าน env `DOKU_VAULT`/`DOKU_PORT`/`DOKU_HOST` |
 | 26 | HTML cache file | **JSON envelope** ที่ `var/cache/<hash>.json` (fragment + meta + toc + warnings) — เพราะ layout ต้องใช้ meta/toc ต่อ request, เก็บเป็น `.html` ตาม docs/01 เดิมทำไม่ได้ |
 | 27 | CSP | `font-src 'self' data:` — เพิ่ม `data:` สำหรับ woff2 ที่ KaTeX ฝัง (ตามข้อ 23), ส่วนอื่นตาม docs/06 เดิม · route ชื่อ `/sse` (event `change` → client reload) · `/static/*` = static ที่ server คุมเอง |
+| 28 | content CSS อยู่ที่ core | `tokens` / `prose` / `blocks` อยู่ที่ `packages/core/src/styles/` (export `CONTENT_CSS`) — CLI preview กับ server ใช้ชุดเดียวกันจริง ๆ · chrome ของแต่ละหน้าอยู่ที่ผู้ใช้ (server = Tailwind, CLI = `PREVIEW_CHROME_CSS`) · เหตุผล: CLI import `@doku/server` ไม่ได้ (ทิศทาง dependency) จึงต้องมีที่เดียวใน core ไม่งั้น CSS drift (แก้ docs/03 §10) |
+| 29 | block renderer คืน hast | `BlockDefinition.render(ctx)` คืน hast `Element` **ไม่ใช่ HTML string** และสไตล์ใช้ `data-*` ไม่ใช้ inline `style` — เพื่อให้ rehype-sanitize ครอบทุก node ที่ block สร้าง (ตาม invariant “sanitize เสมอ”) · ค่าที่ต้องเป็นตัวเลข (figure width, motion delay/duration, progress) ถูก validate + quantize แล้วแทนด้วย data attribute + CSS rule ที่ generate (ไม่มี inline style) |
+| 30 | `==mark=={.สี}` | implement ด้วย remark plugin ที่แปลง **mdast text node** (ไม่ทำ micromark extension) — สีต้องอยู่ใน allowlist `red orange amber yellow green teal blue purple` · `:name` กลางข้อความโดยไม่มี `[...]` (เช่น `bun:sqlite`) = ข้อความธรรมดา ไม่นับเป็น directive |
 
 ## รอเคาะ
 
