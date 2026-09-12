@@ -68,6 +68,7 @@
 - [ ] **UI pass ตามทิศทาง Digital Archivist** — token warm neutral ([03 §1.1](03-blocks-and-design-system.md) · [08 ข้อ 33](08-decisions.md))
       + รื้อ chrome ที่ยังเป็น "การ์ดลอย / เงา / มุมโค้งใหญ่" เป็น **hairline + whitespace** ([08 ข้อ 32](08-decisions.md))
       + vendor subset **Lucide** + `<Icon>` (chrome) + icon ของ block ผ่าน CSS mask ([08 ข้อ 34–35](08-decisions.md))
+      _(สถานะ: token warm neutral + รื้อ chrome เสร็จแล้วใน UI pass M0–M2 ([08 ข้อ 36](08-decisions.md)) — ข้อนี้จึงเหลือเฉพาะ Lucide/`<Icon>`)_
 
 **เสร็จ:** จัดโฟลเดอร์ + เขียน/แก้เอกสารในเว็บได้ ไม่ต้องพึ่ง editor ภายนอก · หน้าตาตรงทิศทาง Digital Archivist (list แบบ catalogue · ไม่ใช่กริดการ์ด)
 
