@@ -57,7 +57,19 @@ const readAppCss = async (): Promise<string | null> => {
 
 const app = createDokuApp({ fs, vaultName, state, renderer, hub, readAppCss })
 
-const server = Bun.serve({ port, hostname, fetch: app.fetch })
+let server: ReturnType<typeof Bun.serve>
+try {
+  server = Bun.serve({ port, hostname, fetch: app.fetch })
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
+    process.stderr.write(
+      `port ${port} ถูกใช้อยู่ — เลือก port อื่น: DOKU_PORT=<n> bun run dev\n` +
+        `(หาว่าใครถืออยู่: ss -tlnp | grep ${port})\n`,
+    )
+    process.exit(2)
+  }
+  throw error
+}
 
 process.stderr.write(
   `doku serve → http://${hostname}:${port}  (vault: ${fs.root}${disableCache ? " · cache off" : ""})\n`,
