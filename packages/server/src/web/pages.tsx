@@ -54,10 +54,10 @@ const TreeDocRow: FC<{ node: { id: string; title: string }; activeId?: string }>
   <li>
     <a
       href={`/d/${encodeURI(node.id)}`}
-      class={`block truncate rounded-(--d-radius-sm) px-2 py-1 text-sm no-underline transition-colors hover:bg-(--d-bg-muted) ${
+      class={`block truncate px-2 py-1 text-sm no-underline transition-colors ${
         activeId === node.id
-          ? "bg-(--d-accent-weak) font-medium text-(--d-accent)"
-          : "text-(--d-text-muted)"
+          ? "font-medium text-(--d-accent)"
+          : "text-(--d-text-muted) hover:text-(--k-text)"
       }`}
       aria-current={activeId === node.id ? "page" : undefined}
     >
@@ -78,8 +78,8 @@ const TreeFolderRow: FC<{
   activeId?: string
 }> = ({ node, activeId }) => (
   <details data-tree={node.path} open={!node.collapsed}>
-    <summary class="cursor-pointer list-none rounded-(--d-radius-sm) px-2 py-1 text-sm font-medium text-(--k-text) transition-colors hover:bg-(--d-bg-muted) select-none">
-      <span class="mr-1 opacity-70">{node.icon ?? "▾"}</span>
+    <summary class="cursor-pointer list-none px-2 py-1 text-sm font-medium text-(--k-text) transition-colors hover:text-(--d-accent) select-none">
+      <span class="mr-1 opacity-40 text-xs">{node.icon ?? "▾"}</span>
       {node.title ?? node.name}
     </summary>
     <ul class="ml-3 border-l border-(--d-border) pl-2">
@@ -95,19 +95,22 @@ const TreeFolderRow: FC<{
 )
 
 export const Sidebar: FC<{ tree: TreeNode[]; activeId?: string }> = ({ tree, activeId }) => (
-  <aside class="sticky top-0 h-screen w-64 shrink-0 overflow-y-auto border-r border-(--d-border) bg-(--k-bg) p-4">
-    <a href="/" class="mb-4 block text-lg font-semibold no-underline text-(--k-text)">
+  <aside class="sticky top-0 h-screen w-56 shrink-0 overflow-y-auto border-r border-(--d-border) bg-(--k-app-bg) px-4 py-5">
+    <a
+      href="/"
+      class="mb-5 block text-xs font-semibold tracking-widest no-underline text-(--d-text-subtle) uppercase"
+    >
       doku
     </a>
     <nav aria-label="แผนผังเอกสาร">
-      <ul class="mb-3 border-b border-(--d-border) pb-3">
+      <ul class="mb-4 pb-4 border-b border-(--d-border)">
         <li>
           <a
             href="/styleguide"
-            class={`block rounded-(--d-radius-sm) px-2 py-1 text-sm no-underline transition-colors hover:bg-(--d-bg-muted) ${
+            class={`block px-2 py-1 text-sm no-underline transition-colors ${
               activeId === "__styleguide__"
                 ? "font-medium text-(--d-accent)"
-                : "text-(--d-text-muted)"
+                : "text-(--d-text-muted) hover:text-(--k-text)"
             }`}
           >
             styleguide
@@ -117,7 +120,7 @@ export const Sidebar: FC<{ tree: TreeNode[]; activeId?: string }> = ({ tree, act
       {tree.length === 0 ? (
         <p class="text-sm text-(--d-text-subtle)">vault ว่าง — วางไฟล์ .md ได้เลย</p>
       ) : (
-        <ul class="space-y-0.5">
+        <ul>
           {tree.map((node) =>
             node.type === "folder" ? (
               <TreeFolderRow key={node.path} node={node} activeId={activeId} />
@@ -145,15 +148,12 @@ export const DocPage: FC<{ doc: CachedDoc; path: string; tree: TreeNode[] }> = (
         <Sidebar tree={tree} activeId={path} />
         <main class="min-w-0 flex-1 px-4 py-8">
           <article
-            class="mx-auto max-w-[var(--k-measure)] rounded-(--d-radius-lg) border border-(--d-border) bg-(--k-bg) p-(--d-space-8) shadow-(--k-shadow-md)"
+            class="mx-auto max-w-[var(--k-measure)]"
             data-doc-id={path}
             data-motion={meta.render.motion ? undefined : "off"}
           >
             <div class="doku-prose" dangerouslySetInnerHTML={{ __html: doc.fragment }} />
           </article>
-          <p class="mx-auto mt-6 max-w-[var(--k-measure)] text-center font-(family-name:--d-font-mono) text-xs text-(--d-text-subtle)">
-            doku · {path}
-          </p>
         </main>
       </div>
     </Layout>
@@ -162,13 +162,11 @@ export const DocPage: FC<{ doc: CachedDoc; path: string; tree: TreeNode[] }> = (
 
 /* ── home page (pinned / recent / tag filter) ────────────────────────── */
 
-const TagPill: FC<{ tag: string; active?: boolean }> = ({ tag, active }) => (
+const TagLink: FC<{ tag: string; active?: boolean }> = ({ tag, active }) => (
   <a
     href={active ? "/" : `/?tag=${encodeURIComponent(tag)}`}
-    class={`rounded-(--d-radius-pill) px-3 py-1 text-xs no-underline transition-colors ${
-      active
-        ? "bg-(--d-accent) text-white"
-        : "bg-(--d-accent-weak) text-(--d-accent) hover:bg-(--d-accent) hover:text-white"
+    class={`text-sm no-underline transition-colors ${
+      active ? "font-medium text-(--d-accent)" : "text-(--d-text-muted) hover:text-(--d-accent)"
     }`}
   >
     #{tag}
@@ -178,16 +176,19 @@ const TagPill: FC<{ tag: string; active?: boolean }> = ({ tag, active }) => (
 const DocRow: FC<{ doc: DocSummary }> = ({ doc }) => (
   <a
     href={`/d/${encodeURI(doc.id)}`}
-    class="block rounded-(--d-radius-md) border border-(--d-border) bg-(--k-bg) p-4 no-underline transition-shadow hover:shadow-(--k-shadow-md)"
+    class="group block border-b border-(--d-border) py-3 no-underline last:border-b-0"
   >
-    <div class="flex items-baseline justify-between gap-2">
-      <span class="font-medium text-(--k-text)">{doc.title}</span>
-      <span class="shrink-0 text-xs text-(--d-text-subtle)">{formatDate(doc.mtimeMs)}</span>
+    <div class="flex items-baseline justify-between gap-3">
+      <span class="font-medium text-(--k-text) group-hover:text-(--d-accent) transition-colors">
+        {doc.title}
+      </span>
+      <span class="shrink-0 text-xs text-(--d-text-subtle) tabular-nums">
+        {formatDate(doc.mtimeMs)}
+      </span>
     </div>
-    <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-(--d-text-muted)">
-      <span class="font-(family-name:--d-font-mono)">{doc.id}</span>
+    <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-(--d-text-muted)">
       {doc.status !== "active" ? (
-        <span class="rounded-(--d-radius-pill) border border-(--d-border) px-1.5 py-0.5 uppercase tracking-wide">
+        <span class="text-(--d-text-subtle) uppercase tracking-wide text-[0.65rem]">
           {doc.status}
         </span>
       ) : null}
@@ -201,9 +202,7 @@ const DocRow: FC<{ doc: DocSummary }> = ({ doc }) => (
 )
 
 const SectionTitle: FC<{ children: Child }> = ({ children }) => (
-  <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-(--d-text-muted)">
-    {children}
-  </h2>
+  <h2 class="mb-2 text-sm font-medium text-(--d-text-muted)">{children}</h2>
 )
 
 export const HomePage: FC<{
@@ -231,7 +230,7 @@ export const HomePage: FC<{
         <Sidebar tree={tree} />
         <main class="min-w-0 flex-1 px-4 py-8">
           <header class="mb-8">
-            <h1 class="text-3xl font-semibold text-(--k-text)">{heading}</h1>
+            <h1 class="text-2xl font-semibold text-(--k-text)">{heading}</h1>
             <p class="mt-1 text-sm text-(--d-text-muted)">
               {docs.length} เอกสาร · {allTags.length} แท็ก
             </p>
@@ -240,9 +239,9 @@ export const HomePage: FC<{
           {allTags.length > 0 ? (
             <section class="mb-8">
               <SectionTitle>แท็ก</SectionTitle>
-              <div class="flex flex-wrap gap-2">
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
                 {allTags.map((item) => (
-                  <TagPill key={item} tag={item} active={item === tag} />
+                  <TagLink key={item} tag={item} active={item === tag} />
                 ))}
               </div>
             </section>
@@ -251,7 +250,7 @@ export const HomePage: FC<{
           {pinned.length > 0 ? (
             <section class="mb-8">
               <SectionTitle>ปักหมุด</SectionTitle>
-              <div class="grid gap-3">
+              <div>
                 {pinned.map((doc) => (
                   <DocRow key={doc.id} doc={doc} />
                 ))}
@@ -262,7 +261,7 @@ export const HomePage: FC<{
           {recent.length > 0 ? (
             <section class="mb-8">
               <SectionTitle>ล่าสุด</SectionTitle>
-              <div class="grid gap-3">
+              <div>
                 {recent.map((doc) => (
                   <DocRow key={doc.id} doc={doc} />
                 ))}
@@ -273,7 +272,7 @@ export const HomePage: FC<{
           {rest.length > 0 ? (
             <section class="mb-8">
               <SectionTitle>ทั้งหมด</SectionTitle>
-              <div class="grid gap-3">
+              <div>
                 {rest.map((doc) => (
                   <DocRow key={doc.id} doc={doc} />
                 ))}
@@ -282,7 +281,7 @@ export const HomePage: FC<{
           ) : null}
 
           {filtered.length === 0 ? (
-            <p class="text-sm text-(--d-text-subtle)">
+            <p class="mt-4 text-sm text-(--d-text-subtle)">
               {tag ? `ไม่มีเอกสารที่มีแท็ก #${tag}` : "ยังไม่มีเอกสาร"}
             </p>
           ) : null}
@@ -310,9 +309,9 @@ export const NotFoundPage: FC<{
       <div class="mx-auto flex max-w-6xl">
         <Sidebar tree={tree} />
         <main class="min-w-0 flex-1 px-4 py-16">
-          <div class="mx-auto max-w-[var(--k-measure)] rounded-(--d-radius-lg) border border-(--d-border) bg-(--k-bg) p-(--d-space-8) text-center shadow-(--k-shadow-md)">
-            <p class="font-(family-name:--d-font-mono) text-4xl text-(--d-text-subtle)">404</p>
-            <p class="mt-2 text-(--d-text-muted)">{message}</p>
+          <div class="mx-auto max-w-[var(--k-measure)] text-center">
+            <p class="font-(family-name:--d-font-mono) text-3xl text-(--d-text-subtle)">404</p>
+            <p class="mt-2 text-sm text-(--d-text-muted)">{message}</p>
             <a href="/" class="mt-4 inline-block text-sm text-(--d-accent) underline">
               กลับหน้าแรก
             </a>
@@ -341,26 +340,21 @@ export const StyleGuidePage: FC<{ tree: TreeNode[]; blocks: StyleGuideSection[] 
       <Sidebar tree={tree} activeId="__styleguide__" />
       <main class="min-w-0 flex-1 px-4 py-8">
         <header class="mb-8">
-          <h1 class="text-3xl font-semibold text-(--k-text)">Styleguide</h1>
+          <h1 class="text-2xl font-semibold text-(--k-text)">Styleguide</h1>
           <p class="mt-1 text-sm text-(--d-text-muted)">
             {blocks.length} blocks — ทุก block พร้อม syntax และตัวอย่าง (docs/03 §9)
           </p>
         </header>
-        <div class="grid gap-6">
+        <div>
           {blocks.map((block) => (
-            <section
-              id={`block-${block.name}`}
-              class="rounded-(--d-radius-lg) border border-(--d-border) bg-(--k-bg) p-6"
-            >
+            <section id={`block-${block.name}`} class="mb-8 border-t border-(--d-border) pt-6">
               <div class="mb-4 flex items-baseline justify-between gap-3">
-                <h2 class="font-(family-name:--d-font-mono) text-lg font-semibold text-(--k-text)">
+                <h2 class="font-(family-name:--d-font-mono) text-base font-medium text-(--k-text)">
                   <a href={`#block-${block.name}`} class="no-underline text-(--k-text)">
                     {block.name}
                   </a>
                 </h2>
-                <span class="rounded-(--d-radius-pill) border border-(--d-border) px-2 py-0.5 text-xs text-(--d-text-subtle)">
-                  {block.kind}
-                </span>
+                <span class="text-xs text-(--d-text-subtle)">{block.kind}</span>
               </div>
               <pre class="mb-4 overflow-auto rounded-(--d-radius-sm) border border-(--d-border) bg-(--d-bg-subtle) p-3 text-xs text-(--d-text-muted)">
                 <code>{block.syntax}</code>

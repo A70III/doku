@@ -7,11 +7,11 @@
 export const PROSE_CSS = `
 * { box-sizing: border-box; }
 
-.doku-doc-header { margin-bottom: var(--d-space-8); }
+.doku-doc-header { margin-bottom: var(--d-space-6); }
 .doku-doc-header .doku-doc-title {
   margin: 0 0 var(--d-space-2);
-  font-size: var(--d-text-3xl);
-  line-height: 1.25;
+  font-size: var(--d-text-2xl);
+  line-height: 1.3;
   text-wrap: balance;
 }
 .doku-doc-meta {
@@ -80,14 +80,14 @@ export const PROSE_CSS = `
   scroll-margin-top: var(--d-space-8);
 }
 .doku-prose > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
-.doku-prose h1 { font-size: var(--d-text-3xl); }
-.doku-prose h2 { font-size: var(--d-text-2xl); padding-bottom: var(--d-space-2); border-bottom: 1px solid var(--d-border); }
-.doku-prose h3 { font-size: var(--d-text-xl); }
-.doku-prose h4 { font-size: var(--d-text-lg); }
+.doku-prose h1 { font-size: var(--d-text-3xl); font-weight: 600; }
+.doku-prose h2 { font-size: var(--d-text-2xl); font-weight: 600; padding-bottom: var(--d-space-2); border-bottom: 1px solid var(--d-border); }
+.doku-prose h3 { font-size: var(--d-text-xl); font-weight: 600; }
+.doku-prose h4 { font-size: var(--d-text-lg); font-weight: 600; }
 .doku-prose p { margin: 0; text-wrap: pretty; }
 .doku-prose :lang(th) { line-height: 1.9; }
 .doku-prose a { color: var(--d-accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
-.doku-prose strong { font-weight: 650; }
+.doku-prose strong { font-weight: 600; }
 .doku-prose :is(ul, ol) { padding-left: 1.5rem; }
 .doku-prose li + li { margin-top: var(--d-space-1); }
 .doku-prose li.task-list-item { list-style: none; margin-left: -1.5rem; }

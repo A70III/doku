@@ -8,20 +8,20 @@
 
 export const TOKENS_CSS = `
 :root {
-  /* ── surface ── */
-  --k-app-bg: #f4f7fd;
-  --k-bg: #ffffff;
-  --d-bg-subtle: #f6f8fa;
-  --d-bg-muted: #eef2f5;
+  /* ── surface (warm neutrals — same family as lines and ink) ── */
+  --k-app-bg: #f7f5f1;
+  --k-bg: #fffefb;
+  --d-bg-subtle: #f1eee8;
+  --d-bg-muted: #e9e5dd;
 
-  /* ── line ── */
-  --d-border: #d8dee6;
-  --d-border-strong: #c2cbd6;
+  /* ── line (warm grey, one family) ── */
+  --d-border: #e0dbd2;
+  --d-border-strong: #cfc8bc;
 
-  /* ── text ── */
-  --k-text: #1f2328;
-  --d-text-muted: #656d76;
-  --d-text-subtle: #8b949e;
+  /* ── text (warm ink, not pure black) ── */
+  --k-text: #1c1a17;
+  --d-text-muted: #5d574e;
+  --d-text-subtle: #8a8378;
 
   /* ── accent (default; override ได้ต่อเอกสาร) ── */
   --d-accent: #3b7df0;
@@ -64,11 +64,11 @@ export const TOKENS_CSS = `
   --d-space-1: 0.25rem; --d-space-2: 0.5rem;  --d-space-3: 0.75rem; --d-space-4: 1rem;
   --d-space-6: 1.5rem;  --d-space-8: 2rem;    --d-space-12: 3rem;
 
-  --d-radius-sm: 0.5rem; --d-radius-md: 0.75rem; --d-radius-lg: 1rem; --d-radius-pill: 999px;
+  --d-radius-sm: 2px; --d-radius-md: 4px; --d-radius-lg: 6px; --d-radius-pill: 999px;
 
-  --k-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --k-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --k-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+  --k-shadow-sm: 0 1px 2px rgba(28, 26, 23, 0.05);
+  --k-shadow-md: 0 2px 8px rgba(28, 26, 23, 0.08);
+  --k-shadow-lg: 0 4px 16px rgba(28, 26, 23, 0.10);
 
   /* ── motion ── */
   --d-dur-fast: 120ms;
@@ -79,17 +79,17 @@ export const TOKENS_CSS = `
 }
 
 [data-theme='dark'] {
-  --k-app-bg: #0a0d12;
-  --k-bg: #0d1117;
-  --d-bg-subtle: #161b22;
-  --d-bg-muted: #21262d;
+  --k-app-bg: #14120f;
+  --k-bg: #1a1815;
+  --d-bg-subtle: #221f1a;
+  --d-bg-muted: #2b2721;
 
-  --d-border: #30363d;
-  --d-border-strong: #484f58;
+  --d-border: #332f28;
+  --d-border-strong: #4a443a;
 
-  --k-text: #e6edf3;
-  --d-text-muted: #8b949e;
-  --d-text-subtle: #6e7681;
+  --k-text: #ece7de;
+  --d-text-muted: #a8a196;
+  --d-text-subtle: #7d766a;
 
   --d-accent: #58a6ff;
   --d-accent-weak: rgba(88, 166, 255, 0.14);
@@ -109,9 +109,9 @@ export const TOKENS_CSS = `
   --k-blue: #58a6ff;
   --k-purple: #bc8cff;
 
-  --k-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --k-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --k-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --k-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --k-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --k-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 /* per-document accent (docs/03 §1.2) — Zod validate #rrggbb มาก่อนแล้ว */

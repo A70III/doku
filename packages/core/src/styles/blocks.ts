@@ -60,7 +60,7 @@ export const BLOCKS_CSS = `
 .doku-prose [data-block='callout'] > * + * { margin-top: var(--d-space-2); }
 .doku-prose [data-part='callout-title'] {
   margin: 0;
-  font-weight: 650;
+  font-weight: 600;
   color: var(--dk-color);
 }
 ${CALLOUT_VARIANTS}
@@ -197,7 +197,7 @@ ${FIGURE_WIDTH_CSS}
   transform: translateY(-1px);
 }
 .doku-prose [data-block='card'] [data-part='card-head'] { display: flex; align-items: center; gap: var(--d-space-2); }
-.doku-prose [data-block='card'] [data-part='card-title'] { font-weight: 650; color: var(--k-text); }
+.doku-prose [data-block='card'] [data-part='card-title'] { font-weight: 600; color: var(--k-text); }
 .doku-prose [data-block='card'] [data-part='card-badge'] { margin-inline-start: auto; }
 .doku-prose [data-block='card'] [data-part='card-body'] {
   display: block;
@@ -331,7 +331,7 @@ ${FIGURE_WIDTH_CSS}
   display: block;
   color: var(--d-text-muted);
   font-size: var(--d-text-sm);
-  font-weight: 650;
+  font-weight: 600;
 }
 .doku-prose [data-part='timeline-text'] { display: block; }
 
