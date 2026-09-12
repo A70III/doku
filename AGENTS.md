@@ -22,7 +22,7 @@ bun run gen:schema   # z.toJSONSchema() → schema/  (ไม่ commit)
 ```
 
 CLI `kairn` (รายละเอียดครบใน `docs/05`): `new` `mkdir` `render` `check` `tree --json`
-`list --tag` `search` `mv` `serve` `build --out` — ทุกคำสั่งสำคัญมี `--json` ให้ agent parse
+`list --tag` `search` `mv` `serve` `build --out` `restore` `audit` `mcp` — ทุกคำสั่งสำคัญมี `--json` ให้ agent parse
 
 ## โครง repo + ทิศทาง dependency
 

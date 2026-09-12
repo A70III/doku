@@ -92,13 +92,6 @@
 
 ---
 
-## M6 — (ว่าง)
-
-Obsidian plugin ถูกตัดออกจาก scope แล้ว — ดูเหตุผลใน [08](08-decisions.md)
-ถ้าจะกลับมาทำ ค่อยเปิด milestone ใหม่
-
----
-
 ## หลัง v1
 
 - D2 diagram code block (server-side SVG + cache)

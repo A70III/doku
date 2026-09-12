@@ -65,7 +65,7 @@ tags: [guide]
   "created": "2025-09-12T00:00:00Z",
   "authors": [{ "name": "เย่เว่ย", "type": "human" }],
   "theme": { "accent": "#7c3aed", "mode": "auto" },
-  "render": { "toc": true, "math": true, "motion": true },
+  "render": { "toc": true, "math": true, "motion": true, "diagram": true },
   "relations": { "related": ["projects/kairn/research"], "moved_from": [] },
   "agent": { "last_editor": "hermes", "generated": false },
   "pinned": false,
