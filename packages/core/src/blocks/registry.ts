@@ -4,7 +4,7 @@
  * สถานะ M0: ลงทะเบียน "ชื่อที่รู้จัก" ครบแล้ว แต่ยังไม่ implement renderer
  *   → render เป็น code block + warning `block_unimplemented` (ตาม docs/01 error handling)
  *   → M2 จะเติม `render`/`validate` แล้วปิด warning พร้อมทำ `/styleguide`
- * ชื่อที่ไม่อยู่ใน registry เลย = `block_unknown` (พิมพ์ผิด) ซึ่งจะกลายเป็น error ที่ `kairn check`
+ * ชื่อที่ไม่อยู่ใน registry เลย = `block_unknown` (พิมพ์ผิด) ซึ่งจะกลายเป็น error ที่ `doku check`
  */
 
 export type DirectiveKind = "container" | "leaf" | "text"

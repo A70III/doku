@@ -62,7 +62,7 @@ export interface WikiTargetResolution {
   ambiguous: boolean
 }
 
-/** `[[design]]` = basename · `[[projects/kairn/design]]` = path ตรงจาก vault */
+/** `[[design]]` = basename · `[[projects/doku/design]]` = path ตรงจาก vault */
 export function resolveWikiTarget(
   index: Map<string, string[]>,
   target: string,

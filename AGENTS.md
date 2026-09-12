@@ -4,7 +4,7 @@
 
 ## วัตถุประสงค์โปรเจกต์
 
-Kairn = document hub ส่วนตัวบน home server — เขียน Markdown เก็บเป็น vault
+Doku = document hub ส่วนตัวบน home server — เขียน Markdown เก็บเป็น vault
 (โฟลเดอร์ซ้อนได้เหมือน Obsidian) แล้ว render เป็น HTML ตอนเปิดดู คนและ AI อ่าน-เขียนได้
 **LAN only ไม่มี auth ไม่ publish** — ใช้เก็บและอ่านเองในบ้าน
 
@@ -21,17 +21,17 @@ bun run check        # biome check (lint + format)
 bun run gen:schema   # z.toJSONSchema() → schema/  (ไม่ commit)
 ```
 
-CLI `kairn` (รายละเอียดครบใน `docs/05`): `new` `mkdir` `render` `check` `tree --json`
+CLI `doku` (รายละเอียดครบใน `docs/05`): `new` `mkdir` `render` `check` `tree --json`
 `list --tag` `search` `mv` `serve` `build --out` `restore` `audit` `mcp` — ทุกคำสั่งสำคัญมี `--json` ให้ agent parse
 
 ## โครง repo + ทิศทาง dependency
 
 ```
-packages/core/     @kairn/core     resolve · render · blocks · validate · vault
-packages/fs-node/  @kairn/fs-node  VaultFs adapter (node:fs)              (dep: core)
-packages/server/   @kairn/server   Hono + JSX + Tailwind + watch + index (dep: core, fs-node)
-packages/cli/      @kairn/cli      kairn binary                          (dep: core, fs-node)
-packages/mcp/      @kairn/mcp      MCP stdio                             (dep: core, fs-node)
+packages/core/     @doku/core     resolve · render · blocks · validate · vault
+packages/fs-node/  @doku/fs-node  VaultFs adapter (node:fs)              (dep: core)
+packages/server/   @doku/server   Hono + JSX + Tailwind + watch + index (dep: core, fs-node)
+packages/cli/      @doku/cli      doku binary                          (dep: core, fs-node)
+packages/mcp/      @doku/mcp      MCP stdio                             (dep: core, fs-node)
 vault/             เนื้อหา = source of truth (gitignore)
 docs/              เอกสารออกแบบ 01–08
 examples/          vault ตัวอย่าง (commit เป็น fixture)
@@ -40,7 +40,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - **ทิศทาง dependency: `cli` / `server` / `mcp` → `core` (+ `fs-node` ที่เป็น leaf) เท่านั้น**
   ห้าม package กลุ่มแรก import กันเอง และห้าม `core` import package อื่น (docs/08 ข้อ 22)
 - `core` เป็น isomorphic — **ห้ามรู้จัก HTTP และห้ามผูก filesystem ตรงๆ** ให้รับ fs adapter เข้ามา
-  (adapter ของ Node/Bun อยู่ที่ `@kairn/fs-node` เพื่อให้ render ได้ทั้งใน test, CLI และ server)
+  (adapter ของ Node/Bun อยู่ที่ `@doku/fs-node` เพื่อให้ render ได้ทั้งใน test, CLI และ server)
 
 ## Conventions
 
@@ -52,7 +52,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - **Template: Hono JSX** — ห้ามเพิ่ม React
 - **Runtime: Bun** — ใช้ `bun test`, `bun:sqlite`, `Bun.file`; ห้ามเพิ่ม jest/vitest/node:sqlite
 - **CSS:** Tailwind v4 สำหรับ app chrome (sidebar/toolbar/editor) · เนื้อหาเอกสารใช้ CSS layer
-  `.kairn-prose` / `.kairn-block` + design token (`--accent` ฯลฯ) — **ห้ามใช้ Tailwind กับ content block**
+  `.doku-prose` / `.doku-block` + design token (`--accent` ฯลฯ) — **ห้ามใช้ Tailwind กับ content block**
 - **Validate: Zod 4** เป็น single source (TS type + runtime + `z.toJSONSchema()`)
 
 ## หลักการที่ห้ามละเมิด
@@ -85,14 +85,14 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 ## สถานะปัจจุบัน
 
 - **M0 (static render) เสร็จแล้ว** — monorepo Bun + `packages/core` + `packages/cli`
-  - `kairn render <path>` / `render --stdin` / `kairn check [path]` ใช้ได้ (มี `--json` ทุกคำสั่ง)
+  - `doku render <path>` / `render --stdin` / `doku check [path]` ใช้ได้ (มี `--json` ทุกคำสั่ง)
   - render pipeline: resolve → blocks → sanitize → asset rewrite → KaTeX/Shiki → HTML
   - ยังไม่มี: Tailwind + server (M1), block renderer จริง (M2), index/search (M5)
-- **ถัดไป: M1** — Hono server + `/d/*path` + sidebar tree + watcher/SSE + `kairn serve`
-  (`bun run dev` / `kairn serve` จะใช้ได้ตั้งแต่ M1)
+- **ถัดไป: M1** — Hono server + `/d/*path` + sidebar tree + watcher/SSE + `doku serve`
+  (`bun run dev` / `doku serve` จะใช้ได้ตั้งแต่ M1)
 - **MVP = M0 + M1 + M2** · port `7667` · vault default `vault/`
 - ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#3b7df0`
-- ล็อกเพิ่มตอน M0: Tailwind เริ่มที่ M1 · node fs adapter = `@kairn/fs-node` · KaTeX preview = ไฟล์เดียวจบ
+- ล็อกเพิ่มตอน M0: Tailwind เริ่มที่ M1 · node fs adapter = `@doku/fs-node` · KaTeX preview = ไฟล์เดียวจบ
   · `:::` ซ้อนกันต้องให้ชั้นนอกยาวกว่า (docs/08 ข้อ 21–24)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)

@@ -89,15 +89,15 @@ function safeJoin(vault: string, rel: string) {
 `var/audit.log` (JSONL):
 
 ```json
-{"ts":"2025-09-12T10:00:00Z","actor":"hermes","token":"ci...","action":"doc.write","path":"projects/kairn/design","etag":"abc","ip":"192.168.1.105"}
+{"ts":"2025-09-12T10:00:00Z","actor":"hermes","token":"ci...","action":"doc.write","path":"projects/doku/design","etag":"abc","ip":"192.168.1.105"}
 ```
 
-`kairn audit --path projects/kairn/design` ดูย้อนหลัง
+`doku audit --path projects/doku/design` ดูย้อนหลัง
 
 ## Revision / undo (safety net หลัก)
 
 ก่อน write/move/delete ทุกครั้ง สำเนาไป `var/revisions/<path>/<timestamp>.{md,meta.json}`
-เก็บ 20 rev/doc (rotate) + ปุ่ม restore ใน UI + `kairn restore <path> [ts]`
+เก็บ 20 rev/doc (rotate) + ปุ่ม restore ใน UI + `doku restore <path> [ts]`
 
 ลบ = **soft-delete** ย้ายไป `vault/.trash/<ts>/...` เสมอ
 `vault/.trash/**` เป็น dotfolder → watcher/tree/index ข้ามอัตโนมัติ (ไม่ถูก index เป็นเอกสาร)

@@ -44,7 +44,7 @@ export interface NormalizePathOptions {
 
 /**
  * แปลง input จากคน/agent เป็น vault path สะอาด
- * รับได้ทั้ง `projects/kairn/design`, `/d/projects/kairn/design`, `./design.md`, `vault/design.md`
+ * รับได้ทั้ง `projects/doku/design`, `/d/projects/doku/design`, `./design.md`, `vault/design.md`
  */
 export function normalizeVaultPath(input: string, options: NormalizePathOptions = {}): string {
   const { vaultName, stripSuffix = true } = options
@@ -131,7 +131,7 @@ export function encodeVaultUrl(prefix: string, vaultPath: string, suffix = ""): 
   return `${prefix}/${encoded}${suffix}`
 }
 
-/** path id → URL ของหน้าเอกสาร (`/d/projects/kairn/design`) */
+/** path id → URL ของหน้าเอกสาร (`/d/projects/doku/design`) */
 export function docUrl(id: string): string {
   return encodeVaultUrl("/d", id)
 }

@@ -1,5 +1,5 @@
 /**
- * `@kairn/core` — resolve · render · blocks · validate · vault
+ * `@doku/core` — resolve · render · blocks · validate · vault
  *
  * Isomorphic: ไม่ import HTTP และไม่ผูก `node:fs` ตรงๆ
  * ผู้ใช้ (CLI / server / mcp / test) ส่ง `VaultFs` adapter เข้ามาเอง
@@ -10,7 +10,7 @@ export {
   createAssetResolver,
   type ResolvedAsset,
 } from "./assets.ts"
-export { type KairnDirectiveOptions, remarkKairnDirectives } from "./blocks/directive.ts"
+export { type DokuDirectiveOptions, remarkDokuDirectives } from "./blocks/directive.ts"
 export {
   BLOCKS,
   type BlockDefinition,
@@ -64,7 +64,7 @@ export {
   resolveInline,
 } from "./resolve.ts"
 export { type RewriteOptions, rehypeRewrite } from "./rewrite.ts"
-export { kairnSanitizeSchema } from "./sanitize.ts"
+export { dokuSanitizeSchema } from "./sanitize.ts"
 export {
   type DocScan,
   type LinkKind,

@@ -10,17 +10,17 @@
 ## M0 — Static render
 
 - [x] workspace setup (`packages/core` + `tsconfig.base` + Biome)
-- [x] `kairn render <path>` + `--stdin`
+- [x] `doku render <path>` + `--stdin`
 - [x] resolve path → md + optional meta.json (Zod schema)
 - [x] unified: remark-parse + gfm + directive + rehype
 - [x] rehype-slug + autolink + **rehype-sanitize**
 - [x] **Shiki** (`@shikijs/rehype`) + **KaTeX** (rehype-katex)
-- [x] layout HTML + typography — `kairn render` คืนหน้า HTML เดียวจบ (preview shell + `.kairn-prose` + token ตาม [03](03-blocks-and-design-system.md))
+- [x] layout HTML + typography — `doku render` คืนหน้า HTML เดียวจบ (preview shell + `.doku-prose` + token ตาม [03](03-blocks-and-design-system.md))
       · **Tailwind ย้ายไป M1** ตาม [08 ข้อ 21](08-decisions.md) (M0 ไม่มี app chrome และ render ต้องไม่พึ่ง build step)
 - [x] asset rewrite
-- [x] `kairn check`
+- [x] `doku check`
 
-**เสร็จ:** `kairn render projects/kairn/design > out.html` เปิด browser สวย มี code สี + สมการ
+**เสร็จ:** `doku render projects/doku/design > out.html` เปิด browser สวย มี code สี + สมการ
 
 ---
 
@@ -31,7 +31,7 @@
 - [ ] home: pinned / recent / tag filter
 - [ ] HTML cache ตาม content hash
 - [ ] watcher + **SSE** live-reload
-- [ ] `kairn serve` (default :7667)
+- [ ] `doku serve` (default :7667)
 
 **เสร็จ:** วางโฟลเดอร์+ไฟล์ → tree ถูก → แก้ md แล้ว refresh เอง
 
@@ -39,7 +39,7 @@
 
 ## M2 — Design system + custom blocks
 
-- [ ] design tokens `tokens.css` + prose layer `.kairn-prose` (ตาม [03](03-blocks-and-design-system.md))
+- [ ] design tokens `tokens.css` + prose layer `.doku-prose` (ตาม [03](03-blocks-and-design-system.md))
 - [ ] block registry `packages/core/src/blocks/` (data-block/data-variant)
 - [ ] callout, figure, motion
 - [ ] mark สี, badge, details, tabs, grid, card
@@ -59,7 +59,7 @@
 - [ ] create / rename / move / delete (UI + API)
 - [ ] `_folder.meta.json` (order/icon/color) + drag-drop
 - [ ] **trash**: soft-delete list / restore / empty (คนเท่านั้น)
-- [ ] revision ต่อ write + `kairn restore`
+- [ ] revision ต่อ write + `doku restore`
 - [ ] ETag / `If-Match` / 409
 - [ ] **web editor** (CodeMirror 6 + live preview) + meta form
 - [ ] reading UX เพิ่ม: **zen mode** + **command palette (Ctrl+K)**
@@ -73,7 +73,7 @@
 - [ ] REST ครบ (docs/folders/assets/render/tree/trash)
 - [ ] `/context/*path`, `/schema` (จาก Zod)
 - [ ] audit log
-- [ ] `kairn mcp` (stdio) tools ตาม [05](05-api-and-agent-access.md) — ยกเว้น `doc_search` (รอ index ที่ M5)
+- [ ] `doku mcp` (stdio) tools ตาม [05](05-api-and-agent-access.md) — ยกเว้น `doc_search` (รอ index ที่ M5)
 
 **เสร็จ:** Hermes สร้าง/แก้/จัดโฟลเดอร์ผ่าน MCP ได้ (ลบได้แค่ soft)
 
@@ -85,7 +85,7 @@
 - [ ] incremental index ตาม file hash
 - [ ] `/api/search` + หน้า search + MCP `doc_search`
 - [ ] backlinks + wikilink resolve
-- [ ] `kairn build` export offline
+- [ ] `doku build` export offline
 - [ ] **วางโครง docker** (`Dockerfile` + `docker-compose.yml` + volume) — ยังไม่ build
 - [ ] backup script (auto-git vault)
 

@@ -1,7 +1,7 @@
 /**
  * KaTeX CSS สำหรับหน้า preview แบบไฟล์เดียว
  *
- * ทำไม inline: `kairn render > out.html` ต้องเปิดได้แบบ offline ไม่พึ่ง CDN
+ * ทำไม inline: `doku render > out.html` ต้องเปิดได้แบบ offline ไม่พึ่ง CDN
  * (docs/06: ไม่มี CDN ภายนอก) และไม่พึ่งไฟล์ข้าง ๆ
  * → ฝัง woff2 เป็น data URI เฉพาะตัวที่ CSS อ้าง (ตัด woff/ttf fallback ทิ้ง)
  */

@@ -43,7 +43,7 @@ Tailwind CLI → app.css (build/dev-watch, ครั้งเดียว)   ←
 | เรื่อง | วิธี |
 |---|---|
 | class เยอะใน JSX | ใช้ helper `cn()` + component ย่อย (Layout, Card, Button) |
-| content ของเอกสาร (callout, motion) | **ไม่ใช้ Tailwind** — เขียน CSS layer เอง `.kairn-prose`, `.kairn-block` เพราะต้องคุม theme var + motion เป๊ะ |
+| content ของเอกสาร (callout, motion) | **ไม่ใช้ Tailwind** — เขียน CSS layer เอง `.doku-prose`, `.doku-block` เพราะต้องคุม theme var + motion เป๊ะ |
 | purge/content scan | v4 auto-detect; ชี้ `@source` ไป `packages/server/src/**/*.tsx` |
 | static export | CSS ถูก generate ตอน build อยู่แล้ว → export ได้เลย |
 
@@ -85,11 +85,11 @@ package.json          workspaces: ["packages/*"]
 tsconfig.base.json    strict, moduleResolution: bundler
 biome.json
 packages/
-  core/    @kairn/core      render/resolve/blocks/validate/vault   (zero server dep)
-  server/  @kairn/server    Hono + JSX + Tailwind + watch + index (dep: core)
-  cli/     @kairn/cli       kairn binary                          (dep: core)
-  mcp/     @kairn/mcp       MCP stdio                             (dep: core)
-  fs-node/ @kairn/fs-node   VaultFs adapter (node:fs)              (dep: core)
+  core/    @doku/core      render/resolve/blocks/validate/vault   (zero server dep)
+  server/  @doku/server    Hono + JSX + Tailwind + watch + index (dep: core)
+  cli/     @doku/cli       doku binary                          (dep: core)
+  mcp/     @doku/mcp       MCP stdio                             (dep: core)
+  fs-node/ @doku/fs-node   VaultFs adapter (node:fs)              (dep: core)
 vault/                   default vault (mount เป็น volume)
 ```
 
@@ -117,7 +117,7 @@ optional: d2 (binary, ยังไม่ใส่)   kroki (service, ตอน�
 
 - `docker-compose.yml` + `Dockerfile` วางไว้ในเรพ แต่**ยังไม่ build**
 - volume: `./vault:/app/vault`, `./var:/app/var`, `./config:/app/config`
-- env: `KAIRN_VAULT`, `KAIRN_PORT=7667`, `KAIRN_HOST=0.0.0.0`
+- env: `DOKU_VAULT`, `DOKU_PORT=7667`, `DOKU_HOST=0.0.0.0`
 - dev บนเครื่องก่อน: `bun run dev` → `localhost:7667`
 - อนาคตค่อยต่อ nginx-proxy-manager (ไม่ต้องมี auth เพราะ LAN)
 

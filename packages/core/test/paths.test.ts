@@ -10,15 +10,15 @@ import {
 
 describe("normalizeVaultPath", () => {
   test("รับ path หลายรูปแบบให้ได้ id เดียวกัน", () => {
-    const expected = "projects/kairn/design"
+    const expected = "projects/doku/design"
     for (const input of [
-      "projects/kairn/design",
-      "/projects/kairn/design",
-      "./projects/kairn/design",
-      "projects/kairn/design.md",
-      "projects/kairn/design.meta.json",
-      "/d/projects/kairn/design",
-      "projects//kairn///design",
+      "projects/doku/design",
+      "/projects/doku/design",
+      "./projects/doku/design",
+      "projects/doku/design.md",
+      "projects/doku/design.meta.json",
+      "/d/projects/doku/design",
+      "projects//doku///design",
     ]) {
       expect(normalizeVaultPath(input)).toBe(expected)
     }
@@ -65,13 +65,11 @@ describe("isSafeVaultPath", () => {
 
 describe("resolveRelativePath", () => {
   test("resolve relative จากโฟลเดอร์ของเอกสาร", () => {
-    expect(resolveRelativePath("projects/kairn", "assets/diagram.svg")).toBe(
-      "projects/kairn/assets/diagram.svg",
+    expect(resolveRelativePath("projects/doku", "assets/diagram.svg")).toBe(
+      "projects/doku/assets/diagram.svg",
     )
-    expect(resolveRelativePath("projects/kairn", "./research.md")).toBe(
-      "projects/kairn/research.md",
-    )
-    expect(resolveRelativePath("projects/kairn", "../shared/logo.png")).toBe(
+    expect(resolveRelativePath("projects/doku", "./research.md")).toBe("projects/doku/research.md")
+    expect(resolveRelativePath("projects/doku", "../shared/logo.png")).toBe(
       "projects/shared/logo.png",
     )
   })
@@ -90,12 +88,12 @@ describe("resolveRelativePath", () => {
 
 describe("URL helpers", () => {
   test("encode path เป็น URL (path = id)", () => {
-    expect(docUrl("projects/kairn/design")).toBe("/d/projects/kairn/design")
+    expect(docUrl("projects/doku/design")).toBe("/d/projects/doku/design")
     expect(docUrl("โน้ต/ไอเดีย")).toBe(
       `/d/${encodeURIComponent("โน้ต")}/${encodeURIComponent("ไอเดีย")}`,
     )
-    expect(assetUrl("projects/kairn/assets/diagram.svg", "abc123")).toBe(
-      "/assets/projects/kairn/assets/diagram.svg?h=abc123",
+    expect(assetUrl("projects/doku/assets/diagram.svg", "abc123")).toBe(
+      "/assets/projects/doku/assets/diagram.svg?h=abc123",
     )
   })
 })

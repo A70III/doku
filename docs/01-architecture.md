@@ -23,26 +23,26 @@
 ## Mono repo
 
 ```
-kairn/
+doku/
   package.json            workspaces: ["packages/*"]
   bunfig.toml
   tsconfig.base.json
   packages/
-    core/                 @kairn/core    (ไม่มี dep ของ server)
+    core/                 @doku/core    (ไม่มี dep ของ server)
       src/resolve.ts      path → doc
       src/render.ts       md → html
       src/blocks/         custom block registry
       src/validate.ts
       src/sanitize.ts
       src/vault.ts        tree walk, folder ops (pure fs)
-    server/               @kairn/server  (dep: core)
+    server/               @doku/server  (dep: core)
       src/http.ts         Hono routes
       src/watch.ts        chokidar → SSE reload + index
       src/index-db.ts     Drizzle + bun:sqlite FTS5
       src/web/            layout templates + css/js
-    cli/                  @kairn/cli     (dep: core)
-    mcp/                  @kairn/mcp     (dep: core)
-    fs-node/              @kairn/fs-node VaultFs adapter (node:fs) — ใช้ร่วม cli/server
+    cli/                  @doku/cli     (dep: core)
+    mcp/                  @doku/mcp     (dep: core)
+    fs-node/              @doku/fs-node VaultFs adapter (node:fs) — ใช้ร่วม cli/server
   vault/                  เนื้อหา (default, mount volume)
   docs/
   examples/
@@ -55,14 +55,14 @@ kairn/
 
 ## Data flow
 
-`GET /d/projects/kairn/design`
+`GET /d/projects/doku/design`
 
-1. **Resolve** — path `projects/kairn/design` → `vault/projects/kairn/design.md`
+1. **Resolve** — path `projects/doku/design` → `vault/projects/doku/design.md`
    + อ่าน `design.meta.json` ถ้ามี (ไม่มี → default)
 2. **Validate meta** — ผิด schema คืน warning ไม่ล้ม
 3. **Cache key** = `sha256(md + meta + rendererVersion + theme)`
 4. hit → คืน HTML / miss → render → เขียน cache
-5. **Asset rewrite** — `assets/diagram.svg` (relative) → `/assets/projects/kairn/assets/diagram.svg?h=<hash>`
+5. **Asset rewrite** — `assets/diagram.svg` (relative) → `/assets/projects/doku/assets/diagram.svg?h=<hash>`
    path ของ asset = path ใน vault เต็ม → ไม่กำกวม (ดู [05](05-api-and-agent-access.md))
 
 ## Render pipeline
@@ -111,7 +111,7 @@ Fallback: rescan interval ถ้า watcher เงียบ (บาง volume)
 
 ## Static export (optional, M5)
 
-`kairn build` ใช้ pipeline เดียวกัน ไล่ vault → `dist/` HTML + assets
+`doku build` ใช้ pipeline เดียวกัน ไล่ vault → `dist/` HTML + assets
 ไว้ทำ backup/archive อ่าน offline ไม่ใช่การ publish
 
 ## Error handling

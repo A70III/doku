@@ -29,7 +29,7 @@ export type WarningCode =
   | "wikilink_ambiguous"
   // code
   | "code_language_unsupported"
-  // vault level (kairn check)
+  // vault level (doku check)
   | "orphan_asset"
   | "missing_title"
 

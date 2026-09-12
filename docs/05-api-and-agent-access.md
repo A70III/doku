@@ -1,11 +1,11 @@
 # 05 — API & Agent Access
 
 เป้าหมาย: **AI (Hermes/OpenClaw) อ่าน-เขียน-จัดโฟลเดอร์ได้เหมือนคน**
-ทุกทางแชร์ `@kairn/core` เดียวกัน
+ทุกทางแชร์ `@doku/core` เดียวกัน
 
 ## Identity
 
-ทุก operation อ้างเอกสารด้วย **path ใน vault** เช่น `projects/kairn/design`
+ทุก operation อ้างเอกสารด้วย **path ใน vault** เช่น `projects/doku/design`
 ไม่ใช่ slug แบน (ดู [02](02-content-format.md#identity--path))
 
 ---
@@ -15,9 +15,9 @@
 Agent เขียนไฟล์ตรงๆ ได้เลย:
 
 ```
-vault/projects/kairn/design.md
-vault/projects/kairn/design.meta.json
-vault/projects/kairn/assets/diagram.png
+vault/projects/doku/design.md
+vault/projects/doku/design.meta.json
+vault/projects/doku/assets/diagram.png
 ```
 
 watcher เห็น → index อัปเดต → หน้าเว็บเปลี่ยนทันที (watcher ข้าม `.trash/**` และ dotfile/dotfolder)
@@ -28,17 +28,17 @@ watcher เห็น → index อัปเดต → หน้าเว็บ�
 ## 2. CLI
 
 ```bash
-kairn new projects/kairn/design --title "Kairn Design"
-kairn mkdir projects/kairn/assets
-kairn render projects/kairn/design            # md → html (stdout)
-kairn render --stdin                          # stateless
-kairn check [path]                            # validate
-kairn tree --json                             # โครงสร้าง vault
-kairn list --tag design --json
-kairn search "คำค้น"
-kairn mv old/path new/path                    # ย้าย (เขียน moved_from ให้)
-kairn serve --port 7667
-kairn build --out dist/                       # export ไว้อ่าน offline
+doku new projects/doku/design --title "Doku Design"
+doku mkdir projects/doku/assets
+doku render projects/doku/design            # md → html (stdout)
+doku render --stdin                          # stateless
+doku check [path]                            # validate
+doku tree --json                             # โครงสร้าง vault
+doku list --tag design --json
+doku search "คำค้น"
+doku mv old/path new/path                    # ย้าย (เขียน moved_from ให้)
+doku serve --port 7667
+doku build --out dist/                       # export ไว้อ่าน offline
 ```
 
 ทุกคำสั่งสำคัญมี `--json` ให้ agent parse
@@ -89,17 +89,17 @@ Base: `http://<host>:7667/api`
 
 ```bash
 # อ่าน
-curl -s localhost:7667/api/docs/projects/kairn/design | jq
+curl -s localhost:7667/api/docs/projects/doku/design | jq
 
 # สร้างโฟลเดอร์ + เอกสาร
-curl -sX POST localhost:7667/api/folders/projects/kairn
-curl -sX POST localhost:7667/api/docs/projects/kairn/design \
+curl -sX POST localhost:7667/api/folders/projects/doku
+curl -sX POST localhost:7667/api/docs/projects/doku/design \
   -H 'Content-Type: application/json' \
-  -d '{"md":"# Design\n...","meta":{"title":"Kairn Design","tags":["design"]}}'
+  -d '{"md":"# Design\n...","meta":{"title":"Doku Design","tags":["design"]}}'
 
 # แก้ (optimistic concurrency)
-ETAG=$(curl -sI localhost:7667/api/docs/projects/kairn/design | grep -i etag | cut -d'"' -f2)
-curl -sX PUT localhost:7667/api/docs/projects/kairn/design \
+ETAG=$(curl -sI localhost:7667/api/docs/projects/doku/design | grep -i etag | cut -d'"' -f2)
+curl -sX PUT localhost:7667/api/docs/projects/doku/design \
   -H "If-Match: $ETAG" -H 'Content-Type: application/json' \
   -d '{"md":"# Design (updated)\n..."}'
 # 409 ถ้าคนอื่นแก้ไปแล้ว
@@ -128,7 +128,7 @@ codes: `not_found` `already_exists` `meta_invalid` `too_large` `conflict` `asset
 
 ## 4. MCP Server
 
-`kairn mcp` เปิด stdio MCP ให้ Hermes เรียกเป็น tool
+`doku mcp` เปิด stdio MCP ให้ Hermes เรียกเป็น tool
 
 | tool | input | output |
 |---|---|---|
@@ -163,14 +163,14 @@ codes: `not_found` `already_exists` `meta_invalid` `too_large` `conflict` `asset
 | จำกัด asset/ครั้ง | 25 MB, ≤ 20 ไฟล์/คำขอ |
 | ลบ (soft) | AI ลบได้ → ย้ายเข้า `.trash/` (กู้ได้เสมอ) |
 | ลบถาวร (empty trash) | **AI ทำไม่ได้** — เฉพาะคนกดในเว็บ/CLI |
-| ก่อนทับทุกครั้ง | เก็บ revision → `kairn restore` ได้ |
+| ก่อนทับทุกครั้ง | เก็บ revision → `doku restore` ได้ |
 
 flow ปกติของ Hermes:
 1. `folder_list` / `doc_search` หาเป้า
 2. `doc_read` เอา md + meta
 3. `doc_render` เช็คก่อน (ได้ warnings)
 4. `doc_write mode=patch`
-5. ถ้าพลาด → `kairn restore` หรือ `doc_write` ทับกลับ (มี revision)
+5. ถ้าพลาด → `doku restore` หรือ `doc_write` ทับกลับ (มี revision)
 
 ---
 

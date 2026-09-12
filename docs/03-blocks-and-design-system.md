@@ -44,7 +44,7 @@ BBBB
 ::::              ← ปิด tabs
 ```
 
-`kairn check` ตรวจให้ (error `block_nesting_ambiguous`) ถ้าซ้อนด้วย fence ยาวเท่ากัน/สั้นกว่า
+`doku check` ตรวจให้ (error `block_nesting_ambiguous`) ถ้าซ้อนด้วย fence ยาวเท่ากัน/สั้นกว่า
 
 ## Callout
 
@@ -103,7 +103,7 @@ type: `note` `info` `tip` `success` `warning` `danger` `quote`
 ## Card
 
 ```md
-:::card{title="Kairn Design" href="/d/projects/kairn/design" badge=BETA}
+:::card{title="Doku Design" href="/d/projects/doku/design" badge=BETA}
 สรุปสั้นของเอกสาร
 :::
 ```
@@ -295,7 +295,7 @@ fenced ```` ```d2 ```` → เรียก binary → SVG → cache `var/diagram
 
 ## Links & Backlinks
 
-- ลิงก์ภายใน: `[ชื่อ](./other.md)`, `[ชื่อ](/d/projects/kairn/design)` หรือ `[[design]]` / `[[projects/kairn/design]]`
+- ลิงก์ภายใน: `[ชื่อ](./other.md)`, `[ชื่อ](/d/projects/doku/design)` หรือ `[[design]]` / `[[projects/doku/design]]`
 - resolve ตาม path ใน vault (ดู [02](02-content-format.md#links))
 - renderer เก็บกราฟ links ตอน index → แสดง "เอกสารถูกอ้างถึง" ท้ายหน้า
 - footnote GFM ใช้ได้ปกติ
@@ -333,7 +333,7 @@ export default {
 ## หลักการ
 
 1. **Token-first** — สี/ระยะ/ฟอนต์/เงา มาจาก CSS variable เท่านั้น ห้าม hardcode ใน component
-2. **Chrome ≠ Content** — Tailwind คุม app chrome, CSS layer `.kairn-*` คุมเนื้อหาเอกสาร
+2. **Chrome ≠ Content** — Tailwind คุม app chrome, CSS layer `.doku-*` คุมเนื้อหาเอกสาร
 3. **Component vocabulary ไม่ใช่ class ต่อเนื้อหา** — primitive น้อยๆ แล้วประกอบ
 4. **Thai-first typography** — line-height/ฟอนต์รองรับไทยโดยไม่ทำให้ latin หลุด
 5. **Motion เบา** — scroll-reveal สั้นๆ เคารพ `prefers-reduced-motion`
@@ -348,35 +348,35 @@ export default {
   /* surface */
   --k-app-bg:      #f4f7fd;   /* พื้นหลังหลังการ์ด */
   --k-bg:          #ffffff;   /* พื้นการ์ด/เนื้อหา */
-  --k-bg-subtle:   #f6f8fa;   /* code, blockquote */
-  --k-bg-muted:    #eef2f5;   /* hover, zebra */
+  --d-bg-subtle:   #f6f8fa;   /* code, blockquote */
+  --d-bg-muted:    #eef2f5;   /* hover, zebra */
 
   /* line */
-  --k-border:        #d8dee6;
-  --k-border-strong: #c2cbd6;
+  --d-border:        #d8dee6;
+  --d-border-strong: #c2cbd6;
 
   /* text */
   --k-text:        #1f2328;
-  --k-text-muted:  #656d76;
-  --k-text-subtle: #8b949e;
+  --d-text-muted:  #656d76;
+  --d-text-subtle: #8b949e;
 
   /* accent (default; override ได้ต่อเอกสาร) */
-  --k-accent:      #3b7df0;
-  --k-accent-weak: rgba(59,125,240,.10);
+  --d-accent:      #3b7df0;
+  --d-accent-weak: rgba(59,125,240,.10);
 }
 
 [data-theme="dark"] {
   --k-app-bg:      #0a0d12;
   --k-bg:          #0d1117;
-  --k-bg-subtle:   #161b22;
-  --k-bg-muted:    #21262d;
-  --k-border:        #30363d;
-  --k-border-strong: #484f58;
+  --d-bg-subtle:   #161b22;
+  --d-bg-muted:    #21262d;
+  --d-border:        #30363d;
+  --d-border-strong: #484f58;
   --k-text:        #e6edf3;
-  --k-text-muted:  #8b949e;
-  --k-text-subtle: #6e7681;
-  --k-accent:      #58a6ff;
-  --k-accent-weak: rgba(88,166,255,.14);
+  --d-text-muted:  #8b949e;
+  --d-text-subtle: #6e7681;
+  --d-accent:      #58a6ff;
+  --d-accent-weak: rgba(88,166,255,.14);
 }
 ```
 
@@ -389,30 +389,30 @@ export default {
 | `--k-danger` | `#cf222e` | `#f85149` | danger |
 | `--k-info` | `#0969da` | `#58a6ff` | info, note |
 | `--k-tip` | `#8250df` | `#bc8cff` | tip |
-| `--k-quote` | `--k-text-muted` | เดียวกัน | quote |
+| `--k-quote` | `--d-text-muted` | เดียวกัน | quote |
 
 แต่ละสีมีคู่ soft bg: `--k-<name>-bg` (light tint) — ใช้เป็นพื้น callout
 
 ### 1.2 Per-doc accent
 
 - `meta.theme.accent` (hex) → set `--doc-accent` บน `<html data-accent>`
-- CSS: `html[data-accent] { --k-accent: var(--doc-accent); --k-accent-weak: color-mix(in srgb, var(--doc-accent) 12%, transparent); }`
+- CSS: `html[data-accent] { --d-accent: var(--doc-accent); --d-accent-weak: color-mix(in srgb, var(--doc-accent) 12%, transparent); }`
 - ไม่มี → ใช้ default กลาง (ไม่ผูกหมวด เพราะไม่มี category)
 - validate เฉพาะ `#rrggbb` (กัน CSS injection — ดู [06](06-security.md))
 
 ### 1.3 Typography
 
 ```css
---k-font-sans: 'Inter', 'Noto Sans Thai', system-ui, sans-serif;
---k-font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+--d-font-sans: 'Inter', 'Noto Sans Thai', system-ui, sans-serif;
+--d-font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
 
---k-text-xs:   .75rem;    /* 12 */
---k-text-sm:   .875rem;   /* 14 */
---k-text-base: 1rem;      /* 16 */
---k-text-lg:   1.125rem;  /* 18 */
---k-text-xl:   1.375rem;  /* 22 */
---k-text-2xl:  clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
---k-text-3xl:  clamp(1.75rem, 1.5rem + 1.4vw, 2.25rem);
+--d-text-xs:   .75rem;    /* 12 */
+--d-text-sm:   .875rem;   /* 14 */
+--d-text-base: 1rem;      /* 16 */
+--d-text-lg:   1.125rem;  /* 18 */
+--d-text-xl:   1.375rem;  /* 22 */
+--d-text-2xl:  clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
+--d-text-3xl:  clamp(1.75rem, 1.5rem + 1.4vw, 2.25rem);
 
 --k-leading-body: 1.75;   /* latin */
 --k-measure: 68ch;        /* ความกว้างอ่านสบาย */
@@ -425,10 +425,10 @@ export default {
 ### 1.4 Space / Radius / Shadow
 
 ```css
---k-space-1:.25rem; --k-space-2:.5rem;  --k-space-3:.75rem; --k-space-4:1rem;
---k-space-6:1.5rem; --k-space-8:2rem;   --k-space-12:3rem;
+--d-space-1:.25rem; --d-space-2:.5rem;  --d-space-3:.75rem; --d-space-4:1rem;
+--d-space-6:1.5rem; --d-space-8:2rem;   --d-space-12:3rem;
 
---k-radius-sm:.5rem; --k-radius-md:.75rem; --k-radius-lg:1rem; --k-radius-pill:999px;
+--d-radius-sm:.5rem; --d-radius-md:.75rem; --d-radius-lg:1rem; --d-radius-pill:999px;
 
 --k-shadow-sm: 0 1px 2px rgba(0,0,0,.06);
 --k-shadow-md: 0 4px 16px rgba(0,0,0,.08);
@@ -438,8 +438,8 @@ export default {
 ### 1.5 Motion
 
 ```css
---k-dur-fast: 120ms;  --k-dur: 200ms;  --k-dur-slow: 320ms;
---k-ease: cubic-bezier(.2,.8,.2,1);
+--d-dur-fast: 120ms;  --d-dur: 200ms;  --d-dur-slow: 320ms;
+--d-ease: cubic-bezier(.2,.8,.2,1);
 --k-reveal-y: 8px;
 ```
 
@@ -571,7 +571,7 @@ CSS ยิงด้วย `[data-block="callout"][data-variant="warning"]` → �
 | ส่วน | วิธี |
 |---|---|
 | App chrome | Tailwind utility + component TSX (`<Sidebar>`, `<FileTree>`) |
-| เนื้อหา | CSS layer `.kairn-prose` + `[data-block="…"]` |
+| เนื้อหา | CSS layer `.doku-prose` + `[data-block="…"]` |
 | Token | `--k-*` |
 | CSS file | `packages/server/src/web/styles/tokens.css`, `prose.css`, `blocks.css` |
 | Block renderer | `packages/core/src/blocks/<name>.ts` (ดู [Extension registry](#extension-registry)) |

@@ -23,7 +23,7 @@ describe("render: markdown พื้นฐาน", () => {
   test("heading มี id + anchor ที่คลิกกลับได้ และเก็บ TOC (h2/h3)", async () => {
     const { html, toc } = await render("# หัวเรื่อง\n\n## ส่วนที่ 1\n\n### ย่อย\n")
     expect(html).toContain('id="ส่วนที่-1"')
-    expect(html).toContain("kairn-anchor")
+    expect(html).toContain("doku-anchor")
     expect(toc.map((entry) => entry.text)).toEqual(["ส่วนที่ 1", "ย่อย"])
   })
 
@@ -142,14 +142,14 @@ describe("render: blocks (M0 = ทุก block ยังไม่ implement)", (
 describe("render: posts", () => {
   test("asset relative → /assets/<vault-path>?h=<hash>", async () => {
     const fs = memoryVaultFs({
-      "projects/kairn/design.md": "# d\n",
-      "projects/kairn/assets/diagram.svg": "<svg></svg>",
+      "projects/doku/design.md": "# d\n",
+      "projects/doku/assets/diagram.svg": "<svg></svg>",
     })
     const { html, warnings } = await render("![รูป](assets/diagram.svg)\n", {
-      docId: "projects/kairn/design",
+      docId: "projects/doku/design",
       vault: { fs, index: new Map() },
     })
-    expect(html).toMatch(/src="\/assets\/projects\/kairn\/assets\/diagram\.svg\?h=[0-9a-f]{12}"/)
+    expect(html).toMatch(/src="\/assets\/projects\/doku\/assets\/diagram\.svg\?h=[0-9a-f]{12}"/)
     expect(warnings.some((entry) => entry.code === "asset_missing")).toBe(false)
   })
 
@@ -183,39 +183,39 @@ describe("render: posts", () => {
 describe("render: links", () => {
   const fs = memoryVaultFs({
     "design.md": "# d",
-    "projects/kairn/research.md": "# r",
-    "projects/kairn/shared/other.md": "# o",
+    "projects/doku/research.md": "# r",
+    "projects/doku/shared/other.md": "# o",
   })
-  const index = buildDocIndex(["design", "projects/kairn/research", "projects/kairn/shared/other"])
+  const index = buildDocIndex(["design", "projects/doku/research", "projects/doku/shared/other"])
   const hasDoc = (id: string) => index.has(id.slice(id.lastIndexOf("/") + 1))
 
   test("ลิงก์ relative .md → /d/<path id>", async () => {
     const { html } = await render("[research](./research.md)\n", {
-      docId: "projects/kairn/design",
+      docId: "projects/doku/design",
       vault: { fs, index, hasDoc },
     })
-    expect(html).toContain('href="/d/projects/kairn/research"')
+    expect(html).toContain('href="/d/projects/doku/research"')
   })
 
   test("ลิงก์ absolute ในเว็บไม่ถูกแตะ", async () => {
-    const { html } = await render("[x](/d/projects/kairn/research) · [y](https://example.com)\n", {
+    const { html } = await render("[x](/d/projects/doku/research) · [y](https://example.com)\n", {
       docId: "design",
       vault: { fs, index, hasDoc },
     })
-    expect(html).toContain('href="/d/projects/kairn/research"')
+    expect(html).toContain('href="/d/projects/doku/research"')
     expect(html).toContain('href="https://example.com"')
   })
 
   test("wikilink: basename / path / alias", async () => {
     const { html, warnings } = await render(
-      "[[research]] · [[projects/kairn/shared/other]] · [[research|งานวิจัย]]\n",
+      "[[research]] · [[projects/doku/shared/other]] · [[research|งานวิจัย]]\n",
       {
         docId: "design",
         vault: { fs, index, hasDoc },
       },
     )
-    expect(html).toContain('href="/d/projects/kairn/research"')
-    expect(html).toContain('href="/d/projects/kairn/shared/other"')
+    expect(html).toContain('href="/d/projects/doku/research"')
+    expect(html).toContain('href="/d/projects/doku/shared/other"')
     expect(html).toContain(">งานวิจัย</a>")
     expect(warnings.some((entry) => entry.code === "wikilink_missing")).toBe(false)
   })
@@ -245,12 +245,12 @@ describe("render: links", () => {
       vault: { fs, index, hasDoc },
     })
     expect(html).toContain("[[research]]")
-    expect(html).not.toContain('href="/d/projects/kairn/research"')
+    expect(html).not.toContain('href="/d/projects/doku/research"')
   })
 
   test("ลิงก์ไปเอกสารที่ไม่มี → warning link_broken", async () => {
     const { warnings } = await render("[x](./missing.md)\n", {
-      docId: "projects/kairn/design",
+      docId: "projects/doku/design",
       vault: { fs, index, hasDoc },
     })
     expect(warnings.some((entry) => entry.code === "link_broken")).toBe(true)

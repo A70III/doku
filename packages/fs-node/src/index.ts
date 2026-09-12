@@ -1,7 +1,7 @@
 /**
- * `@kairn/fs-node` — VaultFs adapter สำหรับ Bun/Node (เจ้าของ I/O จริง)
+ * `@doku/fs-node` — VaultFs adapter สำหรับ Bun/Node (เจ้าของ I/O จริง)
  *
- * ทำไมแยก package: CLI และ server (M1) ต้องใช้ adapter ตัวเดียวกัน และ `@kairn/core`
+ * ทำไมแยก package: CLI และ server (M1) ต้องใช้ adapter ตัวเดียวกัน และ `@doku/core`
  * ห้ามผูก `node:fs` (hard invariant) → แยกเป็น leaf package ที่ทั้งคู่ depend ได้
  * (decision ใน docs/08 — node fs adapter)
  *
@@ -12,7 +12,7 @@
 import type { Dirent } from "node:fs"
 import { readdir, readFile, realpath } from "node:fs/promises"
 import { resolve as resolvePath, sep } from "node:path"
-import { isDotEntry, isSafeVaultPath, type VaultEntry, type VaultFs } from "@kairn/core"
+import { isDotEntry, isSafeVaultPath, type VaultEntry, type VaultFs } from "@doku/core"
 
 export interface NodeVaultFs extends VaultFs {
   /** absolute path ของ vault root (ผ่าน realpath แล้ว) */

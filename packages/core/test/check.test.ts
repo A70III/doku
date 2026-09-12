@@ -105,11 +105,11 @@ describe("checkVault", () => {
 describe("resolveDoc", () => {
   test("อ่าน md + meta ข้างไฟล์", async () => {
     const fs = memoryVaultFs({
-      "projects/kairn/design.md": "---\ntitle: fm\n---\n\n# หัว\n",
-      "projects/kairn/design.meta.json": JSON.stringify({ title: "Design", tags: ["design"] }),
+      "projects/doku/design.md": "---\ntitle: fm\n---\n\n# หัว\n",
+      "projects/doku/design.meta.json": JSON.stringify({ title: "Design", tags: ["design"] }),
     })
-    const doc = await resolveDoc("projects/kairn/design.md", fs)
-    expect(doc.id).toBe("projects/kairn/design")
+    const doc = await resolveDoc("projects/doku/design.md", fs)
+    expect(doc.id).toBe("projects/doku/design")
     expect(doc.meta.title).toBe("Design")
     expect(doc.metaSource).toBe("sidecar")
     expect(doc.body.startsWith("# หัว")).toBe(true)

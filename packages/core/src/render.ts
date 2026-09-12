@@ -24,14 +24,14 @@ import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 import { type AssetResolver, createAssetResolver } from "./assets.ts"
-import { remarkKairnDirectives } from "./blocks/directive.ts"
+import { remarkDokuDirectives } from "./blocks/directive.ts"
 import { analyzeDirectiveFences, describeFenceProblem, type FenceProblem } from "./blocks/fences.ts"
 import { splitFrontmatter } from "./frontmatter.ts"
 import type { VaultFs } from "./fs.ts"
 import { rehypeCollectToc, type TocEntry } from "./plugins/toc.ts"
 import { remarkWikilinks } from "./plugins/wikilink.ts"
 import { rehypeRewrite } from "./rewrite.ts"
-import { kairnSanitizeSchema } from "./sanitize.ts"
+import { dokuSanitizeSchema } from "./sanitize.ts"
 import { defaultMeta, type Meta } from "./schema.ts"
 import { type Warning, type WarningCode, warning } from "./types.ts"
 
@@ -49,7 +49,7 @@ export interface RenderOptions {
   meta?: Meta
   /** vault ที่ผูกอยู่ — ไม่มี = stateless (ไม่มี wikilink/asset resolve) */
   vault?: RenderVault
-  /** ปิด syntax highlighting (ใช้ตอน `kairn check` ให้เร็ว) */
+  /** ปิด syntax highlighting (ใช้ตอน `doku check` ให้เร็ว) */
   highlight?: boolean
   /** array ที่ผู้เรียกรับ warning ต่อ (ถ้าไม่ส่ง จะสร้างใหม่) */
   warnings?: Warning[]
@@ -105,7 +105,7 @@ export async function renderMarkdown(
     .use(remarkGfm)
     .use(remarkDirective)
     .use(remarkMath)
-    .use(remarkKairnDirectives, { source: body, onWarning: collect, docId })
+    .use(remarkDokuDirectives, { source: body, onWarning: collect, docId })
     .use(remarkWikilinks, { docId, index: options.vault?.index, onWarning: collect })
     .use(remarkRehype)
     .use(rehypeSlug)
@@ -113,15 +113,15 @@ export async function renderMarkdown(
     .use(rehypeCollectToc, { onEntry: (entry) => toc.push(entry) })
     .use(rehypeAutolinkHeadings, {
       behavior: "append",
-      properties: { className: ["kairn-anchor"], ariaHidden: "true", tabIndex: -1 },
+      properties: { className: ["doku-anchor"], ariaHidden: "true", tabIndex: -1 },
       content: {
         type: "element",
         tagName: "span",
-        properties: { className: ["kairn-anchor-icon"] },
+        properties: { className: ["doku-anchor-icon"] },
         children: [{ type: "text", value: "#" }],
       },
     })
-    .use(rehypeSanitize, kairnSanitizeSchema)
+    .use(rehypeSanitize, dokuSanitizeSchema)
     .use(rehypeRewrite, {
       docId,
       assets,

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * `kairn` CLI — M0: `render` + `check` (คำสั่งอื่นตาม docs/05 ทยอยเพิ่มใน M1–M5)
+ * `doku` CLI — M0: `render` + `check` (คำสั่งอื่นตาม docs/05 ทยอยเพิ่มใน M1–M5)
  *
  * ทุกคำสั่งสำคัญมี `--json` ให้ agent parse
  */
@@ -19,8 +19,8 @@ import {
   type VaultFs,
   type Warning,
   walkVault,
-} from "@kairn/core"
-import { createNodeVaultFs } from "@kairn/fs-node"
+} from "@doku/core"
+import { createNodeVaultFs } from "@doku/fs-node"
 import { loadKatexCss } from "./preview/katex-css.ts"
 import { renderPreviewPage } from "./preview/page.ts"
 
@@ -72,15 +72,15 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
 class UsageError extends Error {}
 
 export function usage(): string {
-  return `kairn — document hub (M0)
+  return `doku — document hub (M0)
 
 คำสั่ง:
-  kairn render <path>            render เอกสาร → HTML (stdout)
-  kairn render --stdin           render markdown จาก stdin (stateless)
-  kairn check [path]             validate vault / เอกสาร
+  doku render <path>            render เอกสาร → HTML (stdout)
+  doku render --stdin           render markdown จาก stdin (stateless)
+  doku check [path]             validate vault / เอกสาร
 
 ตัวเลือก:
-  --vault <dir>     vault root (default: $KAIRN_VAULT หรือ ./vault)
+  --vault <dir>     vault root (default: $DOKU_VAULT หรือ ./vault)
   --fragment        render เฉพาะ HTML fragment (ไม่ห่อ layout)
   --json            ผลลัพธ์เป็น JSON (ให้ agent parse)
   --out <file>      เขียนผลลัพธ์ลงไฟล์แทน stdout
@@ -90,10 +90,10 @@ export function usage(): string {
   -v, --version     แสดงเวอร์ชัน
 
 ตัวอย่าง:
-  kairn render projects/kairn/design > out.html
-  kairn render --vault examples/vault projects/kairn/design --out /tmp/design.html
-  echo '# hi' | kairn render --stdin --fragment
-  kairn check --vault examples/vault --json
+  doku render projects/doku/design > out.html
+  doku render --vault examples/vault projects/doku/design --out /tmp/design.html
+  echo '# hi' | doku render --stdin --fragment
+  doku check --vault examples/vault --json
 `
 }
 
@@ -111,7 +111,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     return 0
   }
   if (args.flags.has("version") || args.flags.has("v") || args.command === "version") {
-    process.stdout.write(`kairn ${VERSION}\n`)
+    process.stdout.write(`doku ${VERSION}\n`)
     return 0
   }
 
@@ -137,7 +137,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 
 /** หา vault root + fs adapter ที่ผ่าน path safety (docs/06) */
 async function openVault(flagValue: string | boolean | undefined) {
-  const raw = typeof flagValue === "string" ? flagValue : (process.env.KAIRN_VAULT ?? "vault")
+  const raw = typeof flagValue === "string" ? flagValue : (process.env.DOKU_VAULT ?? "vault")
   const root = resolvePath(raw)
   const fs = await createNodeVaultFs(root).catch(() => {
     throw new UsageError(
@@ -301,7 +301,7 @@ async function commandCheck(args: ParsedArgs): Promise<number> {
     }
     const counts = countByLevel(report.warnings)
     process.stdout.write(
-      `kairn check: ${report.stats.docs} docs · ${report.stats.assets} assets · ${report.stats.blocks} blocks · ` +
+      `doku check: ${report.stats.docs} docs · ${report.stats.assets} assets · ${report.stats.blocks} blocks · ` +
         `${report.errors.length} errors · ${counts.warning} warnings\n`,
     )
   }

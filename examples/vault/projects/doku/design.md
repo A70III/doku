@@ -1,6 +1,6 @@
-# Kairn Design
+# Doku Design
 
-เอกสารตัวอย่าง — path `projects/kairn/design`, ใช้ทุก feature
+เอกสารตัวอย่าง — path `projects/doku/design`, ใช้ทุก feature
 
 ## Markdown พื้นฐาน
 
@@ -16,7 +16,7 @@
 :::
 
 :::tip{title="เคล็ดลับ"}
-ใช้ `kairn render --stdin` เพื่อ preview ก่อนเขียน
+ใช้ `doku render --stdin` เพื่อ preview ก่อนเขียน
 :::
 
 ## Diagram (ASCII)
@@ -71,7 +71,7 @@ curl -fsSL https://bun.sh/install | bash
 
 ```ts title="server.ts" {2}
 const app = new Hono()
-app.get("/", (c) => c.text("kairn"))
+app.get("/", (c) => c.text("doku"))
 ```
 
 ## Badge

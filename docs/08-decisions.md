@@ -26,10 +26,10 @@
 | 18 | Obsidian plugin | **ตัดออกจาก scope** — เปิด vault ด้วย Obsidian ได้ตรงๆ แบบอ่าน/แก้ไฟล์ ไม่มี plugin |
 | 19 | diagram เริ่มต้น | Excalidraw SVG + ASCII; D2 หลัง v1; Kroki เป็น option |
 | 20 | vault default | `vault/` |
-| 21 | Tailwind setup | อยู่ที่ **M1** — M0 ยังไม่มี app chrome และ `kairn render` ต้องไม่พึ่ง build step (preview shell ใช้ CSS layer + token) |
-| 22 | node fs adapter | แยก **`packages/fs-node` (`@kairn/fs-node`)** — leaf package ที่ cli/server/mcp depend ได้ · `core` ยัง isomorphic (ห้ามผูก `node:fs`) |
+| 21 | Tailwind setup | อยู่ที่ **M1** — M0 ยังไม่มี app chrome และ `doku render` ต้องไม่พึ่ง build step (preview shell ใช้ CSS layer + token) |
+| 22 | node fs adapter | แยก **`packages/fs-node` (`@doku/fs-node`)** — leaf package ที่ cli/server/mcp depend ได้ · `core` ยัง isomorphic (ห้ามผูก `node:fs`) |
 | 23 | KaTeX ใน preview | **ไฟล์เดียวจบ** — ฝัง woff2 ทั้งหมดเป็น data URI (~380 KB เมื่อมีสมการ) เพื่อให้เปิด offline ได้ 100% |
-| 24 | การซ้อน directive | **`:::` ชั้นนอกต้องยาวกว่าชั้นใน** (เช่น `::::tabs` + `:::tab`) — `kairn check` ตรวจเป็น error (`block_nesting_ambiguous`) |
+| 24 | การซ้อน directive | **`:::` ชั้นนอกต้องยาวกว่าชั้นใน** (เช่น `::::tabs` + `:::tab`) — `doku check` ตรวจเป็น error (`block_nesting_ambiguous`) |
 
 ## รอเคาะ
 

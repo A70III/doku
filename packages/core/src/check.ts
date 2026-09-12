@@ -1,5 +1,5 @@
 /**
- * `kairn check` — validate vault (docs/02 Validation)
+ * `doku check` — validate vault (docs/02 Validation)
  * - meta ผ่าน Zod
  * - asset ที่อ้างมีจริง + ไม่หลุด vault
  * - ลิงก์ภายใน resolve ได้ / wikilink ไม่ซ้ำ
@@ -18,7 +18,7 @@ import { FolderMetaSchema } from "./schema.ts"
 import { type Warning, type WarningCode, type WarningLevel, warning } from "./types.ts"
 import { buildDocIndex, walkVault } from "./vault-walk.ts"
 
-/** ระดับความรุนแรงเมื่อใช้เป็น gate ของ `kairn check` (producer ไม่ต้องรู้) */
+/** ระดับความรุนแรงเมื่อใช้เป็น gate ของ `doku check` (producer ไม่ต้องรู้) */
 const CHECK_LEVELS: Partial<Record<WarningCode, WarningLevel>> = {
   doc_not_found: "error",
   path_invalid: "error",

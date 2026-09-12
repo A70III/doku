@@ -1,5 +1,5 @@
 {
-  "name": "kairn",
+  "name": "doku",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,11 +12,11 @@
     "check:fix": "biome check --write .",
     "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/fs-node/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json",
     "gen:schema": "bun run scripts/gen-schema.ts",
-    "kairn": "bun run packages/cli/src/index.ts"
+    "doku": "bun run packages/cli/src/index.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",
-    "@kairn/core": "workspace:*",
+    "@doku/core": "workspace:*",
     "@types/bun": "^1.2.0",
     "typescript": "^5.7.0",
     "zod": "^4.0.0"

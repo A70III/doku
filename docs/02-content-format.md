@@ -11,7 +11,7 @@
 ```
 vault/
   projects/
-    kairn/
+    doku/
       design.md
       design.meta.json        ← optional
       assets/
@@ -29,7 +29,7 @@ path ของไฟล์ relative จาก vault ตัด `.md` ออก �
 | ไฟล์ | id | URL |
 |---|---|---|
 | `vault/design.md` | `design` | `/d/design` |
-| `vault/projects/kairn/design.md` | `projects/kairn/design` | `/d/projects/kairn/design` |
+| `vault/projects/doku/design.md` | `projects/doku/design` | `/d/projects/doku/design` |
 
 ไม่มี field `id` ใน meta — path คือ id (ย้ายไฟล์ = เปลี่ยน id แต่ทำ redirect ได้ด้วย `relations.moved_from`)
 
@@ -57,16 +57,16 @@ tags: [guide]
 
 ```json
 {
-  "$schema": "https://kairn.local/schema/meta.schema.json",
-  "title": "Kairn Design",
+  "$schema": "https://doku.local/schema/meta.schema.json",
+  "title": "Doku Design",
   "summary": "ออกแบบระบบ",
-  "tags": ["design", "kairn"],
+  "tags": ["design", "doku"],
   "status": "active",
   "created": "2025-09-12T00:00:00Z",
   "authors": [{ "name": "เย่เว่ย", "type": "human" }],
   "theme": { "accent": "#7c3aed", "mode": "auto" },
   "render": { "toc": true, "math": true, "motion": true, "diagram": true },
-  "relations": { "related": ["projects/kairn/research"], "moved_from": [] },
+  "relations": { "related": ["projects/doku/research"], "moved_from": [] },
   "agent": { "last_editor": "hermes", "generated": false },
   "pinned": false,
   "order": 10
@@ -134,9 +134,9 @@ tags: [guide]
 | รูปแบบ | resolve ยังไง |
 |---|---|
 | `[x](./design.md)` | path สัมพัทธ์ |
-| `[x](/d/projects/kairn/design)` | absolute ในเว็บ |
+| `[x](/d/projects/doku/design)` | absolute ในเว็บ |
 | `[[design]]` | หา basename ทั้ง vault — ซ้ำ = เตือน เลือกตัวแรก |
-| `[[projects/kairn/design]]` | path ตรงจาก vault |
+| `[[projects/doku/design]]` | path ตรงจาก vault |
 | `[[design\|ชื่อที่แสดง]]` | มี alias |
 
 ทุก link ถูกเก็บลง link table ตอน index → ทำ backlinks ได้
@@ -148,7 +148,7 @@ tags: [guide]
 - URL encode ฝั่ง server อัตโนมัติ
 - validate ด้วย `path.resolve` + เช็ค prefix เสมอ (ดู [06](06-security.md))
 
-## Validation (`kairn check`)
+## Validation (`doku check`)
 
 - meta ผ่าน JSON Schema, `title`/`tags` รูปถูก
 - asset path ที่อ้างมีจริง + ไม่หลุด vault
@@ -162,10 +162,10 @@ exit code ≠ 0 ถ้ามี error → ใช้ pre-commit/CI
 ## ใช้ร่วมกับ Obsidian
 
 vault เปิดด้วย Obsidian ได้ตรงๆ (`.md` + frontmatter + relative asset) เพื่อ **อ่าน/แก้ไฟล์**
-แต่ Kairn เป็นเจ้าของ vault และเป็น renderer จริง — ยังไม่มี plugin (ตัดออกจาก scope)
+แต่ Doku เป็นเจ้าของ vault และเป็น renderer จริง — ยังไม่มี plugin (ตัดออกจาก scope)
 
 - `design.meta.json` / `_folder.meta.json` จะโผล่ใน file explorer ของ Obsidian — ซ่อนด้วย "Excluded files" ได้
-- frontmatter YAML: Obsidian เห็น, Kairn merge (meta.json ชนะ)
+- frontmatter YAML: Obsidian เห็น, Doku merge (meta.json ชนะ)
 
 ## ตัวอย่าง
 

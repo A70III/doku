@@ -3,29 +3,29 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "kairn",
+      "name": "doku",
       "devDependencies": {
         "@biomejs/biome": "^2.2.0",
-        "@kairn/core": "workspace:*",
+        "@doku/core": "workspace:*",
         "@types/bun": "^1.2.0",
         "typescript": "^5.7.0",
         "zod": "^4.0.0",
       },
     },
     "packages/cli": {
-      "name": "@kairn/cli",
+      "name": "@doku/cli",
       "version": "0.0.0",
       "bin": {
-        "kairn": "./src/index.ts",
+        "doku": "./src/index.ts",
       },
       "dependencies": {
-        "@kairn/core": "workspace:*",
-        "@kairn/fs-node": "workspace:*",
+        "@doku/core": "workspace:*",
+        "@doku/fs-node": "workspace:*",
         "katex": "^0.16.0",
       },
     },
     "packages/core": {
-      "name": "@kairn/core",
+      "name": "@doku/core",
       "version": "0.0.0",
       "dependencies": {
         "@shikijs/rehype": "^3.0.0",
@@ -52,10 +52,10 @@
       },
     },
     "packages/fs-node": {
-      "name": "@kairn/fs-node",
+      "name": "@doku/fs-node",
       "version": "0.0.0",
       "dependencies": {
-        "@kairn/core": "workspace:*",
+        "@doku/core": "workspace:*",
       },
     },
   },
@@ -78,11 +78,11 @@
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.5.13", "", { "os": "win32", "cpu": "x64" }, "sha512-VOofU/nW761XWzUeUNE8zzYNyPrxuMuNFMizL0qz7J75yeV8N7WFheUlk1/K6dOkaFpH9wJ+lDKlwjAbw0346w=="],
 
-    "@kairn/cli": ["@kairn/cli@workspace:packages/cli"],
+    "@doku/cli": ["@doku/cli@workspace:packages/cli"],
 
-    "@kairn/core": ["@kairn/core@workspace:packages/core"],
+    "@doku/core": ["@doku/core@workspace:packages/core"],
 
-    "@kairn/fs-node": ["@kairn/fs-node@workspace:packages/fs-node"],
+    "@doku/fs-node": ["@doku/fs-node@workspace:packages/fs-node"],
 
     "@shikijs/core": ["@shikijs/core@3.23.0", "", { "dependencies": { "@shikijs/types": "3.23.0", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4", "hast-util-to-html": "^9.0.5" } }, "sha512-NSWQz0riNb67xthdm5br6lAkvpDJRTgB36fxlo37ZzM2yq0PQFFzbd8psqC2XMPgCzo1fW6cVi18+ArJ44wqgA=="],
 

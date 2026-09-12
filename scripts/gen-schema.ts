@@ -7,7 +7,7 @@
 
 import { mkdir } from "node:fs/promises"
 import { resolve } from "node:path"
-import { BLOCKS, FolderMetaSchema, MetaSchema } from "@kairn/core"
+import { BLOCKS, FolderMetaSchema, MetaSchema } from "@doku/core"
 import { z } from "zod"
 
 const OUT_DIR = resolve(import.meta.dir, "../schema")
@@ -15,13 +15,13 @@ const OUT_DIR = resolve(import.meta.dir, "../schema")
 const metaSchema = z.toJSONSchema(MetaSchema, {
   target: "draft-2020-12",
   io: "input",
-  $id: "https://kairn.local/schema/meta.schema.json",
+  $id: "https://doku.local/schema/meta.schema.json",
 })
 
 const folderSchema = z.toJSONSchema(FolderMetaSchema, {
   target: "draft-2020-12",
   io: "input",
-  $id: "https://kairn.local/schema/folder-meta.schema.json",
+  $id: "https://doku.local/schema/folder-meta.schema.json",
 })
 
 /** block manifest — generate จาก registry (ไม่ใช่ Zod: เป็นข้อมูล ไม่ใช่ schema) */

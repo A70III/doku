@@ -1,6 +1,6 @@
 {
-  "$schema": "https://kairn.local/schema/meta.schema.json",
-  "title": "Kairn Design",
+  "$schema": "https://doku.local/schema/meta.schema.json",
+  "title": "Doku Design",
   "summary": "เอกสารตัวอย่างที่ใช้ทุก feature",
   "tags": ["design", "demo"],
   "status": "active",
@@ -8,7 +8,7 @@
   "authors": [{ "name": "เย่เว่ย", "type": "human" }],
   "theme": { "accent": "#7c3aed", "mode": "auto" },
   "render": { "toc": true, "math": true, "motion": true, "diagram": true },
-  "relations": { "related": ["projects/kairn/research"], "moved_from": [] },
+  "relations": { "related": ["projects/doku/research"], "moved_from": [] },
   "agent": { "last_editor": "เย่เว่ย", "generated": false },
   "pinned": true,
   "order": 10

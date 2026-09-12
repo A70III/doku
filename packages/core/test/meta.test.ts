@@ -5,7 +5,7 @@ import { defaultMeta, FolderMetaSchema, MetaSchema } from "../src/schema.ts"
 
 describe("MetaSchema", () => {
   test("ไม่มี meta → default จากชื่อไฟล์", () => {
-    const meta = defaultMeta("projects/kairn/design")
+    const meta = defaultMeta("projects/doku/design")
     expect(meta.title).toBe("design")
     expect(meta.tags).toEqual([])
     expect(meta.status).toBe("active")
@@ -17,15 +17,15 @@ describe("MetaSchema", () => {
 
   test("full meta ผ่าน schema", () => {
     const parsed = MetaSchema.parse({
-      title: "Kairn Design",
+      title: "Doku Design",
       summary: "ออกแบบระบบ",
-      tags: ["design", "kairn"],
+      tags: ["design", "doku"],
       status: "draft",
       created: "2025-09-12T00:00:00Z",
       authors: [{ name: "เย่เว่ย", type: "human" }],
       theme: { accent: "#7c3aed", mode: "dark" },
       render: { toc: true, math: false, motion: true, diagram: false },
-      relations: { related: ["projects/kairn/research"], moved_from: [] },
+      relations: { related: ["projects/doku/research"], moved_from: [] },
       agent: { last_editor: "hermes", generated: false },
       pinned: true,
       order: 10,

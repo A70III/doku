@@ -1,5 +1,5 @@
 /**
- * rehype-sanitize allowlist ของ Kairn
+ * rehype-sanitize allowlist ของ Doku
  *
  * หลักการ (docs/06):
  * - raw HTML ไม่ผ่านตั้งแต่ remark-rehype (ไม่เปิด allowDangerousHtml) → นี่คือชั้นที่ 2
@@ -15,7 +15,7 @@
 import type { Options as SanitizeOptions } from "rehype-sanitize"
 import { defaultSchema } from "rehype-sanitize"
 
-const K = /^kairn-/
+const K = /^doku-/
 
 /** รูปแบบ attribute entry ของ hast-util-sanitize: `"id"` = อะไรก็ได้ · `["className", ...allowed]` */
 type AttrList = NonNullable<NonNullable<SanitizeOptions["attributes"]>[string]>
@@ -68,7 +68,7 @@ const GLOBAL_EXTRA: AttrList = [
   "ariaControls",
 ]
 
-export const kairnSanitizeSchema: SanitizeOptions = {
+export const dokuSanitizeSchema: SanitizeOptions = {
   ...defaultSchema,
   // id ที่ rehype-slug สร้างเป็นของเรา (ไม่มี raw HTML ที่แอบตั้ง id ได้) → ไม่ต้อง prefix
   clobber: [],

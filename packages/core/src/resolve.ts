@@ -82,7 +82,7 @@ export async function resolveDoc(
 
 /**
  * เอกสารแบบไม่มี vault (stateless) — meta มาจาก frontmatter เท่านั้น
- * ใช้ทั้ง `kairn render --stdin`, REST `POST /render`, MCP `doc_render`
+ * ใช้ทั้ง `doku render --stdin`, REST `POST /render`, MCP `doc_render`
  */
 export function resolveInline(markdown: string, id = "untitled"): ResolvedDoc {
   const { data: frontmatter, body } = splitFrontmatter(markdown)

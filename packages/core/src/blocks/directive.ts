@@ -28,7 +28,7 @@ const DIRECTIVE_TYPES: Record<string, DirectiveKind> = {
 /** บรรทัดที่เป็น fence เปล่า ๆ (artifact ของ `:::` ที่ไม่เข้าคู่) */
 const STRAY_FENCE = /^:{3,}$/
 
-export interface KairnDirectiveOptions {
+export interface DokuDirectiveOptions {
   /** md ต้นฉบับ (ตัด frontmatter แล้ว) — ใช้ slice ข้อความดิบของ directive */
   source: string
   onWarning: (w: Warning) => void
@@ -48,7 +48,7 @@ interface DirectiveLike {
   position?: Position
 }
 
-export function remarkKairnDirectives(options: KairnDirectiveOptions) {
+export function remarkDokuDirectives(options: DokuDirectiveOptions) {
   return (tree: Root): void => {
     visit(tree, (node, index, parent) => {
       if (!parent || index === undefined) return

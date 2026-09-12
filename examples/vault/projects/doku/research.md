@@ -4,7 +4,7 @@
 เปิดใน Obsidian ก็อ่านได้ปกติ
 
 - link กลับไป [[design]]
-- tag ใน frontmatter ก็ได้ (Obsidian เห็น แต่ Kairn ใช้ meta.json ก่อนถ้ามี)
+- tag ใน frontmatter ก็ได้ (Obsidian เห็น แต่ Doku ใช้ meta.json ก่อนถ้ามี)
 
 ```md
 ---

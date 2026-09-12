@@ -1,4 +1,4 @@
-# Kairn
+# Doku
 
 Document hub ส่วนตัวบน home server — เขียน Markdown เก็บเป็น vault (โฟลเดอร์ซ้อนได้เหมือน Obsidian), render เป็น HTML ตอนเปิดดู, คนและ AI อ่าน-เขียนได้
 
@@ -6,9 +6,9 @@ Document hub ส่วนตัวบน home server — เขียน Markdow
 
 ```
 vault/                        ← vault ของตัวเอง (เปิดด้วย Obsidian ได้)
-  projects/kairn/design.md
-  projects/kairn/design.meta.json   ← optional
-  projects/kairn/assets/diagram.svg
+  projects/doku/design.md
+  projects/doku/design.meta.json   ← optional
+  projects/doku/assets/diagram.svg
   daily/2025-09-12.md
         │
         ▼
@@ -36,7 +36,7 @@ packages/
   core/              render, resolve, validate, sanitize, blocks
   fs-node/           VaultFs adapter (node:fs) — ใช้ร่วม cli/server
   server/            Hono + JSX + Tailwind + SSE      (M1)
-  cli/               kairn binary
+  cli/               doku binary
   mcp/               MCP stdio server                  (M4)
 vault/      เนื้อหา (default vault, mount เป็น volume)
 docs/       เอกสารออกแบบ
@@ -70,8 +70,8 @@ examples/   ตัวอย่าง
 bun install
 bun test                                    # 92 tests
 bun run typecheck && bun run check          # tsc + Biome
-bun run kairn render --vault examples/vault projects/kairn/design > out.html
-bun run kairn check --vault examples/vault --json
+bun run doku render --vault examples/vault projects/doku/design > out.html
+bun run doku check --vault examples/vault --json
 bun run gen:schema                          # Zod → schema/ (ไม่ commit)
 ```
 

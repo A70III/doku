@@ -1,5 +1,5 @@
 /**
- * สแกน md แบบเบา (ไม่ render) — ใช้โดย `kairn check`
+ * สแกน md แบบเบา (ไม่ render) — ใช้โดย `doku check`
  * เก็บ: headings, ลิงก์ (doc/asset/external), wikilink, block directive, จำนวนคำ
  */
 
