@@ -1,4 +1,9 @@
 import { describe, expect, test } from "bun:test"
+// ใช้ node:child_process แทน Bun.spawn เฉพาะไฟล์นี้ — เป็น workaround ของบั๊ก Bun 1.4.x
+// ที่อ่าน stdout ขนาดใหญ่ (~400KB จาก KaTeX CSS ที่ฝัง) จาก subprocess แล้ว truncate เป็นครั้งคราว
+// วัดผล: Bun.spawn 1/40 · Bun.readableStreamToText 4/40 · Bun.spawnSync 4/25 · node spawnSync 0/25
+// (subprocess ที่เขียนลงไฟล์เองก็ 0/25 — แปลว่า CLI ฝั่งเขียนถูก ตัวจับ pipe ของ Bun เป็นตัวปัญหา)
+import { spawnSync } from "node:child_process"
 import { resolve } from "node:path"
 import { parseArgs } from "../src/index.ts"
 
@@ -12,18 +17,13 @@ interface RunResult {
   stderr: string
 }
 
-async function doku(args: string[], stdin?: string): Promise<RunResult> {
-  const proc = Bun.spawn(["bun", "run", CLI, ...args], {
-    stdout: "pipe",
-    stderr: "pipe",
-    stdin: stdin === undefined ? "ignore" : new Blob([stdin]),
+function doku(args: string[], stdin?: string): RunResult {
+  const result = spawnSync("bun", ["run", CLI, ...args], {
+    input: stdin ?? "",
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
   })
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ])
-  return { code, stdout, stderr }
+  return { code: result.status ?? 1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" }
 }
 
 /** CLI test spawns a subprocess (~2.5s each) — default 5s timeout ทำให้ flaky เมื่อรันทั้ง suite พร้อมกัน */
