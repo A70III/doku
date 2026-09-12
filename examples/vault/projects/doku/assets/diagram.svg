@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-label="Doku render pipeline">
-  <rect width="640" height="180" fill="#f6f8fa"/>
-  <g font-family="system-ui, sans-serif" font-size="15" fill="#1f2328" text-anchor="middle">
-    <rect x="20" y="70" width="110" height="40" rx="10" fill="#ffffff" stroke="#c2cbd6"/>
+  <rect width="640" height="180" fill="#f7f5f1"/>
+  <g font-family="system-ui, sans-serif" font-size="15" fill="#1c1a17" text-anchor="middle">
+    <rect x="20" y="70" width="110" height="40" rx="10" fill="#fffefb" stroke="#cfc8bc"/>
     <text x="75" y="95">vault/*.md</text>
-    <rect x="170" y="70" width="110" height="40" rx="10" fill="#ffffff" stroke="#c2cbd6"/>
+    <rect x="170" y="70" width="110" height="40" rx="10" fill="#fffefb" stroke="#cfc8bc"/>
     <text x="225" y="95">resolve</text>
-    <rect x="320" y="70" width="110" height="40" rx="10" fill="#ffffff" stroke="#c2cbd6"/>
+    <rect x="320" y="70" width="110" height="40" rx="10" fill="#fffefb" stroke="#cfc8bc"/>
     <text x="375" y="95">render</text>
-    <rect x="470" y="70" width="150" height="40" rx="10" fill="#3b7df0"/>
-    <text x="545" y="95" fill="#ffffff">/d/&lt;path&gt;</text>
-    <g stroke="#8b949e" stroke-width="2" marker-end="url(#a)">
+    <rect x="470" y="70" width="150" height="40" rx="10" fill="#2b5fc4"/>
+    <text x="545" y="95" fill="#fffefb">/d/&lt;path&gt;</text>
+    <g stroke="#6f695f" stroke-width="2" marker-end="url(#a)">
       <line x1="130" y1="90" x2="165" y2="90"/>
       <line x1="280" y1="90" x2="315" y2="90"/>
       <line x1="430" y1="90" x2="465" y2="90"/>
@@ -17,7 +17,7 @@
   </g>
   <defs>
     <marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-      <path d="M0,0 L6,3 L0,6 z" fill="#8b949e"/>
+      <path d="M0,0 L6,3 L0,6 z" fill="#6f695f"/>
     </marker>
   </defs>
 </svg>
