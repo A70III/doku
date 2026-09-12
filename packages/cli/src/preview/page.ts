@@ -7,7 +7,7 @@
  */
 
 import type { Meta, TocEntry, Warning } from "@doku/core"
-import { CONTENT_CSS } from "@doku/core"
+import { CONTENT_CSS, INTERACTIONS_JS } from "@doku/core"
 import { PREVIEW_CHROME_CSS } from "./style.ts"
 
 export interface PreviewPageInput {
@@ -52,6 +52,7 @@ ${input.html}
 </article>
 <footer class="doku-footer">doku · ${escapeHtml(input.docId || "(inline)")} · ${escapeHtml(meta.status)}</footer>
 </div>
+<script>${INTERACTIONS_JS}</script>
 </body>
 </html>
 `

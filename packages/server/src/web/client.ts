@@ -1,14 +1,20 @@
 /**
- * client JS — serve ที่ `/static/client.js` (script-src 'self' ตาม CSP, ไม่มี inline script)
- * งานของมัน: จำ state การพับของ sidebar tree (localStorage) + live-reload ผ่าน `/sse`
+ * client JS ของเว็บแอป — serve ที่ `/static/client.js` (script-src 'self' ตาม CSP)
+ *
+ * ประกอบจาก:
+ * - `INTERACTIONS_JS` จาก `@doku/core` — reading UX ของ block (progress/TOC/motion/tabs/zoom/copy)
+ *   ตัวเดียวกับที่ CLI preview ใช้ (ไม่ให้ logic ซ้ำ)
+ * - ส่วนของ server: จำ state การพับ sidebar (localStorage) + live-reload ผ่าน `/sse`
  */
+
+import { INTERACTIONS_JS } from "@doku/core"
 
 export const CLIENT_JS = `(() => {
   "use strict";
 
-  const TREE_KEY = "doku.tree-state";
-
+${INTERACTIONS_JS}
   // ── sidebar tree: จำ state การพับ (localStorage — ไม่แตะ vault, docs/01) ──
+  const TREE_KEY = "doku.tree-state";
   let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem(TREE_KEY) ?? "{}");

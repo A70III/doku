@@ -36,6 +36,7 @@ export {
   checkVault,
   type DocCheck,
 } from "./check.ts"
+export { INTERACTIONS_JS } from "./client.ts"
 export { type FrontmatterSplit, splitFrontmatter } from "./frontmatter.ts"
 export {
   isDotEntry,
