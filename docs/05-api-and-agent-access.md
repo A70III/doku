@@ -37,6 +37,8 @@ doku tree --json                             # โครงสร้าง vault
 doku list --tag design --json
 doku search "คำค้น"
 doku mv old/path new/path                    # ย้าย (เขียน moved_from ให้)
+doku restore <path> [ts]                     # กู้จาก revision (ไม่ระบุ ts = ล่าสุด)
+doku restore <path> --list                    # ดู revision ที่มี
 doku serve --port 7667
 doku build --out dist/                       # export ไว้อ่าน offline
 ```
@@ -119,10 +121,21 @@ codes: `not_found` `already_exists` `meta_invalid` `too_large` `conflict` `asset
 
 ### Concurrency
 
-- ทุก GET คืน `ETag` = hash `{md, meta}`
-- PUT/PATCH ต้องส่ง `If-Match` → ไม่ตรง `409` + ETag ปัจจุบัน
+- ทุก GET คืน `ETag` = hash `{md, meta}` (รวมหน้าเว็บ `/d/*` และ `/api/docs/*`)
+- PUT/PATCH **ต้อง** ส่ง `If-Match` — ไม่ส่ง = `428 precondition_required` · ไม่ตรง = `409 conflict` + ETag ปัจจุบัน
+  - รับ `If-Match: *` (มีอยู่ก็พอ) และ weak prefix `W/` ได้
 - write เป็น atomic: temp → `rename`
-- เก็บ revision ก่อนทับที่ `var/revisions/<path>/<ts>.md`
+- เก็บ revision ก่อนทับ/move/delete ที่ `var/revisions/<path>/<ts>.{md,meta.json}` (rotate 20 rev/doc)
+  - `<ts>` = `20250912T100000000Z` (เรียงตามเวลาได้) — `GET/POST /api/revisions/*path`
+
+### Move + links
+
+`POST /docs/*path/move` และ `POST /folders/*path/move` รับ `{to, update_links?}` (default `update_links: true`)
+
+- อัปเดตลิงก์ทั้ง vault ที่ชี้ไปยัง path ที่ย้าย: `[[path/design]]` · `/d/<path>` · relative `[x](./a.md)`
+  (wikilink แบบ basename ที่**กำกวม** = ไม่แตะ — ปล่อยให้ `doku check` เตือน)
+- เขียน `relations.moved_from` ใน meta ของเอกสารที่ย้าย
+- ปลายทางซ้ำ = `409 already_exists` · ต้นทางไม่มี = `404 not_found`
 
 ---
 

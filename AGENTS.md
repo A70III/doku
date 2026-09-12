@@ -19,6 +19,8 @@ bun run dev          # dev server → localhost:7667 (bun --hot + tailwind)
 bun test             # bun test
 bun run check        # biome check (lint + format)
 bun run gen:schema   # z.toJSONSchema() → schema/  (ไม่ commit)
+bun run build:editor # bundle CodeMirror 6 → packages/server/public/editor.js (ไม่ commit)
+bun run gen:icons    # generate Lucide subset → packages/core/src/icons/lucide.ts (commit)
 ```
 
 CLI `doku` (รายละเอียดครบใน `docs/05`): `new` `mkdir` `render` `check` `tree --json`
@@ -96,13 +98,25 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - **M2 (design system + blocks) เสร็จแล้ว** — `packages/core/src/blocks/` (registry + renderer คืน hast)
   · content CSS ที่ `packages/core/src/styles/` ใช้ร่วม CLI + server · `/styleguide` · reading UX (progress/TOC/zoom/copy)
   · `examples/vault/projects/doku/design` ใช้ทุก block, `doku check` = 0 errors/0 warnings
-- **ถัดไป: M3** — folder mgmt + trash/restore + revision + ETag/If-Match + web editor + zen/command palette
+- **M3 (folder mgmt + editor) เสร็จแล้ว** — REST `/api/*` + UI ครบ
+  - `/api/docs` CRUD + `/move` (auto-update links + `moved_from`) · `/api/folders` CRUD/move · `/api/tree`
+  - ETag/`If-Match` (428 ถ้าไม่ส่ง · 409 + ETag ปัจจุบันถ้าไม่ตรง) · rate limit write 60/min · render 120/min
+  - trash `vault/.trash/<id>/` + manifest → `/trash` + restore/empty (คนเท่านั้น) + purge 30 วัน
+  - revision `var/revisions/<path>/<ts>.*` (rotate 20/doc) + `doku restore <path> [ts] [--list]`
+  - web editor (CodeMirror 6 + live preview ผ่าน `/api/render`) · meta form · folder settings
+  - sidebar drag-drop + row menu · command palette (Ctrl+K) · zen mode · theme cycle
+  - Lucide subset vendored (`packages/core/src/icons/`) → `<Icon>` chrome + block icon ผ่าน CSS mask
+  - asset ที่ generate (gitignore): `public/app.css`, `public/editor.js` · `scripts/dev.sh` build ให้ทั้งคู่
+- **ถัดไป: M4** — REST ครบ (assets/context/schema) + audit log + `doku mcp`
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)
 - ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#2b5fc4`
 - UI pass (M0–M2) เสร็จ: token warm neutral ตาม docs/03 §1.1 · แก้ dark mode `auto` ให้ตาม OS · ชื่อเรื่องเดียว (h1 นำหน้า) · ตัด gradient ประดับ · rail ซ่อนใต้ `md` (docs/08 ข้อ 36)
 - ล็อกเพิ่มตอน M1: `doku serve` = spawn subprocess (ข้อ 25) · cache file = JSON envelope (ข้อ 26)
   · CSP `font-src 'self' data:` + route `/sse`,`/static/*` (ข้อ 27) · ตาม docs/08 ข้อ 21–27
+- ล็อกเพิ่มตอน M3: editor bundle + fallback textarea (ข้อ 37) · Lucide regenerate ด้วย devDependency (ข้อ 38)
+  · trash manifest 1 รายการ = 1 โฟลเดอร์ (ข้อ 39) · 428/409 semantics (ข้อ 40) · move API + link rules (ข้อ 41)
+  · static asset ETag/304 (ข้อ 42) · tree เดินจาก filesystem + folder color (ข้อ 43)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
 

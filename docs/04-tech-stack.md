@@ -17,6 +17,7 @@
 | Math | **KaTeX** | block/inline |
 | Diagram | **Excalidraw SVG + ASCII** (หลัก), **D2** (code-first, เพิ่มทีหลัง) | ไม่ใช้ Mermaid |
 | Icons | **Lucide** (vendored subset, ไม่มี runtime dep) | line icon ชุดเดียว · static SVG ใช้ได้โดยไม่มี JS · ISC · ปรับ stroke ให้บางตามทิศทาง UI ได้ — [08 ข้อ 34–35](08-decisions.md) |
+| Editor | **CodeMirror 6** bundled ด้วย `Bun.build` → `public/editor.js` | CSP `script-src 'self'` → self-host เท่านั้น (ห้าม CDN) · bundle เป็น static artifact — [08 ข้อ 17/37](08-decisions.md) |
 | Live | **SSE** | one-way พอ, ง่ายกว่า WS |
 | Lint/Format | **Biome** | tool เดียว |
 | Test | **bun test** + `tsc --build` | CI gate |
@@ -110,11 +111,23 @@ dependency: `cli/server/mcp/fs-node → core` เท่านั้น (fs-node 
 runtime:  hono  zod  drizzle-orm  unified  remark-parse  remark-gfm  remark-directive
           remark-rehype  rehype-sanitize  rehype-slug  rehype-autolink-headings
           rehype-stringify  @shikijs/rehype  katex  rehype-katex  chokidar
+          @codemirror/{state,view,commands,language,search}  @codemirror/lang-markdown
+          (codemirror อยู่ใน server เท่านั้น — ใช้ตอน bundle `public/editor.js` ไม่ได้รันใน process)
 dev:      typescript  @biomejs/biome  @types/bun  tailwindcss  bun-plugin-tailwind  drizzle-kit
+          lucide-static (generate `packages/core/src/icons/lucide.ts` — ไม่ ship)
 optional: d2 (binary, ยังไม่ใส่)   kroki (service, ตอนมี docker)
 ```
 
-เขียนเอง: blocks, cache, indexer, TOC wrapper, tree builder, typed sqlite/drizzle schema, trash, editor
+เขียนเอง: blocks, cache, indexer, TOC wrapper, tree builder, typed sqlite/drizzle schema, trash, revision
+
+**Artifact ที่ generate (ไม่ commit — อยู่ใน `.gitignore`)**
+
+| ไฟล์ | คำสั่ง | ที่มา |
+|---|---|---|
+| `packages/server/public/app.css` | `bun run build:css` (dev = `--watch`) | Tailwind v4 |
+| `packages/server/public/editor.js` | `bun run build:editor` | `Bun.build` จาก `packages/server/src/web/editor.ts` |
+| `packages/core/src/icons/lucide.ts` | `bun run gen:icons` (**commit** — vendored) | `lucide-static` (devDependency) |
+| `schema/*.json` | `bun run gen:schema` | `z.toJSONSchema()` |
 
 > `_folder.meta.json` validate ด้วย Zod object เดียวกับ meta — ไม่มี schema ไฟล์แยก (ดู [08](08-decisions.md))
 

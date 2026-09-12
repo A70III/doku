@@ -115,6 +115,25 @@ tags: [guide]
 - โฟลเดอร์ย่อย sort: `order` → ตามด้วยชื่อ
 - ไฟล์ sort: `pinned` → `order` → ตามด้วยชื่อ
 - ย้าย/สร้าง/ลบโฟลเดอร์ผ่าน UI หรือ API ได้ (ดู [05](05-api-and-agent-access.md))
+- โฟลเดอร์ว่างก็ปรากฏใน sidebar (สร้างแล้วเห็นทันที) — tree มาจากการเดิน filesystem ไม่ใช่จากรายการเอกสาร
+- `color` ที่ผ่าน Zod (`#rrggbb`) ถูกใช้ tint ไอคอนโฟลเดอร์บน sidebar
+
+## Trash (soft-delete)
+
+ลบเอกสาร/โฟลเดอร์ = **ย้าย** ไม่ใช่ลบถาวร (ดู [06](06-security.md))
+
+```
+vault/.trash/
+  2025-09-12T10-00-00-000Z-ab12/      ← id = timestamp + suffix
+    .doku-trash.json                  ← manifest (path เดิม, kind, deletedAt, bytes)
+    projects/doku/design.md           ← โครงสร้างเดิมคงไว้ → กู้คืนได้ตรงที่
+    projects/doku/design.meta.json
+```
+
+- `.trash` เป็น dotfolder → watcher/tree/index ข้ามอัตโนมัติ (ไม่ถูก index เป็นเอกสาร/asset)
+- manifest `.doku-trash.json` เป็น dotfile เช่นกัน → ไม่ถูกนับเป็น asset
+- กู้คืน = ย้ายกลับ path เดิม · ถ้า path เดิมมีอยู่แล้ว = ปฏิเสธ (ไม่ทับ)
+- ล้างอัตโนมัติหลัง 30 วัน (`TRASH_RETENTION_DAYS`) หรือคนกดเคลียร์เอง
 
 ## Assets
 

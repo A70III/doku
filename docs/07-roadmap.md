@@ -58,17 +58,17 @@
 
 ## M3 — Folder mgmt + editor
 
-- [ ] create / rename / move / delete (UI + API)
-- [ ] `_folder.meta.json` (order/icon/color) + drag-drop
-- [ ] **trash**: soft-delete list / restore / empty (คนเท่านั้น)
-- [ ] revision ต่อ write + `doku restore`
-- [ ] ETag / `If-Match` / 409
-- [ ] **web editor** (CodeMirror 6 + live preview) + meta form
-- [ ] reading UX เพิ่ม: **zen mode** + **command palette (Ctrl+K)**
-- [ ] **UI pass ตามทิศทาง Digital Archivist** — token warm neutral ([03 §1.1](03-blocks-and-design-system.md) · [08 ข้อ 33](08-decisions.md))
+- [x] create / rename / move / delete (UI + API) — `/api/docs` CRUD + `/api/folders` + drag-drop บน sidebar
+- [x] `_folder.meta.json` (order/icon/color) + drag-drop — PATCH merge + ฟอร์มตั้งค่าโฟลเดอร์ + tint ไอคอนตาม `color`
+- [x] **trash**: soft-delete list / restore / empty (คนเท่านั้น) — `vault/.trash/<id>/` + manifest, `/trash`, purge 30 วัน
+- [x] revision ต่อ write + `doku restore` — `var/revisions/<path>/<ts>.*` rotate 20/doc
+- [x] ETag / `If-Match` / 409 — ไม่ส่ง `If-Match` = 428, ไม่ตรง = 409 + ETag ปัจจุบัน
+- [x] **web editor** (CodeMirror 6 + live preview) + meta form — bundle `public/editor.js` + `/api/render`
+- [x] reading UX เพิ่ม: **zen mode** + **command palette (Ctrl+K)**
+- [x] **UI pass ตามทิศทาง Digital Archivist** — token warm neutral ([03 §1.1](03-blocks-and-design-system.md) · [08 ข้อ 33](08-decisions.md))
       + รื้อ chrome ที่ยังเป็น "การ์ดลอย / เงา / มุมโค้งใหญ่" เป็น **hairline + whitespace** ([08 ข้อ 32](08-decisions.md))
       + vendor subset **Lucide** + `<Icon>` (chrome) + icon ของ block ผ่าน CSS mask ([08 ข้อ 34–35](08-decisions.md))
-      _(สถานะ: token warm neutral + รื้อ chrome เสร็จแล้วใน UI pass M0–M2 ([08 ข้อ 36](08-decisions.md)) — ข้อนี้จึงเหลือเฉพาะ Lucide/`<Icon>`)_
+      _(สถานะ: token warm neutral + รื้อ chrome ทำใน UI pass M0–M2 ([08 ข้อ 36](08-decisions.md)) · Lucide/`<Icon>` + mask ทำครบใน M3)_
 
 **เสร็จ:** จัดโฟลเดอร์ + เขียน/แก้เอกสารในเว็บได้ ไม่ต้องพึ่ง editor ภายนอก · หน้าตาตรงทิศทาง Digital Archivist (list แบบ catalogue · ไม่ใช่กริดการ์ด)
 
