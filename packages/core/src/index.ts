@@ -37,15 +37,26 @@ export {
   type DocCheck,
 } from "./check.ts"
 export { INTERACTIONS_JS } from "./client.ts"
+export { docEtag, etagHeader, matchesIfMatch } from "./etag.ts"
 export { type FrontmatterSplit, splitFrontmatter } from "./frontmatter.ts"
 export {
   isDotEntry,
+  isWritableVaultFs,
   memoryVaultFs,
   type VaultEntry,
   type VaultFs,
   type VaultStat,
+  type VaultWriter,
+  type WritableVaultFs,
 } from "./fs.ts"
 export { sha256Hex, shortHash } from "./hash.ts"
+export {
+  isEmptyPlan,
+  type MovePlan,
+  planMove,
+  relativeVaultLink,
+  rewriteMarkdownLinks,
+} from "./links.ts"
 export { loadMeta, type MetaLoadResult, type MetaSource } from "./meta.ts"
 export {
   assetUrl,
@@ -78,6 +89,16 @@ export {
   resolveDoc,
   resolveInline,
 } from "./resolve.ts"
+export {
+  isRevisionTs,
+  memoryRevisionStore,
+  parseRevisionTs,
+  REVISION_KEEP,
+  type RevisionEntry,
+  type RevisionSnapshot,
+  type RevisionStore,
+  revisionTs,
+} from "./revision.ts"
 export { type RewriteOptions, rehypeRewrite } from "./rewrite.ts"
 export { dokuSanitizeSchema } from "./sanitize.ts"
 export {
@@ -105,6 +126,19 @@ export {
 } from "./schema.ts"
 export { BLOCKS_CSS, CONTENT_CSS, PROSE_CSS, TOKENS_CSS } from "./styles/index.ts"
 export {
+  isTrashId,
+  memoryTrashStoreOver,
+  parseTrashManifest,
+  TRASH_DIR,
+  TRASH_MANIFEST,
+  TRASH_RETENTION_DAYS,
+  type TrashItem,
+  type TrashKind,
+  type TrashStore,
+  trashId,
+  trashManifestPath,
+} from "./trash.ts"
+export {
   countByLevel,
   type Warning,
   type WarningCode,
@@ -116,7 +150,6 @@ export {
   isDocPath,
   isMetaSidecar,
   resolveWikiTarget,
-  TRASH_DIR,
   type VaultListing,
   walkVault,
 } from "./vault-walk.ts"

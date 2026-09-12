@@ -2,8 +2,6 @@
 
 import { isDotEntry, type VaultFs } from "./fs.ts"
 
-export const TRASH_DIR = ".trash"
-
 export function isDocPath(path: string): boolean {
   return path.endsWith(".md")
 }
