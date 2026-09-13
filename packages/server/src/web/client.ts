@@ -809,9 +809,11 @@ ${INTERACTIONS_JS}
     setDocStatus("clean", "");
   }
 
-  async function renderFragment(md) {
-    const result = await jsonRequest("POST", "/api/render", { md, path: writing.path });
-    return result;
+  /** fragment ของ "เอกสาร" ที่ render แล้ว — path เดียวกับหน้า /d/* (DocRenderer)
+   *  ใช้ตอนออกโหมดเขียน: ต้องเป็น renderer ตัวเดียวกับตอน refresh
+   *  ไม่งั้นชื่อเรื่อง/h1 ไม่ตรง (เช่น /api/render เป็น stateless — title คงเป็น default) */
+  async function renderDocFragment(docId) {
+    return api("/api/docs/" + encodePath(docId) + "?format=html");
   }
 
   /** ชื่อเรื่อง/สรุป อยู่ที่ header นอกส่วนที่แก้ — อัปเดตจาก meta ที่ server คืนมา */
@@ -837,8 +839,8 @@ ${INTERACTIONS_JS}
   }
 
   /** วาด HTML กลับเข้าที่เดิม + sync TOC/colophon ให้ตรงกับเนื้อหาใหม่ */
-  async function paintRendered(md) {
-    const result = await renderFragment(md);
+  async function paintRendered(md, docId) {
+    const result = await renderDocFragment(docId);
     bodyEl.innerHTML = result.html;
     syncHeader(result.meta);
     syncTocFromBody();
@@ -947,9 +949,11 @@ ${INTERACTIONS_JS}
 
   async function exitWriting() {
     if (!writing.editing) return;
+    // ต้องจำ doc id ก่อน teardown — ไม่งั้น paint จะ render เป็น "untitled"
+    const docId = writing.path;
     const md = await flushAndTeardown();
     try {
-      await paintRendered(md);
+      await paintRendered(md, docId);
     } catch (error) {
       fail(error);
       reload();
