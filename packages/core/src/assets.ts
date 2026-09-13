@@ -12,6 +12,18 @@ export interface ResolvedAsset {
   exists: boolean
 }
 
+/** ไฟล์วิดีโอ — poster หาเองข้าง ๆ ได้ (docs/08 ข้อ 65) */
+export const VIDEO_ASSET = /\.(mp4|webm|mov|m4v|ogv)$/i
+/** นามสกุลของ poster ที่ยอมรับ (หาไฟล์ชื่อเดียวกันในโฟลเดอร์เดียวกับวิดีโอ) */
+export const POSTER_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "avif"] as const
+
+/** path ของ poster ที่ renderer จะหาให้เองจาก `src` — คืน [] เมื่อไม่ใช่ไฟล์วิดีโอ */
+export function posterCandidates(path: string): string[] {
+  if (!VIDEO_ASSET.test(path)) return []
+  const base = path.replace(/\.[a-z0-9]+$/i, "")
+  return POSTER_EXTENSIONS.map((extension) => `${base}.${extension}`)
+}
+
 export interface AssetResolver {
   resolve(vaultPath: string): Promise<ResolvedAsset>
 }

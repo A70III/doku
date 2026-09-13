@@ -50,6 +50,20 @@ describe("checkVault", () => {
     expect(report.errors.some((item) => item.code === "asset_missing")).toBe(false)
   })
 
+  test("poster ที่ renderer หาเองข้างวิดีโอ ไม่ถูกนับเป็น orphan asset (docs/08 ข้อ 65)", async () => {
+    const fs = memoryVaultFs({
+      "design.md": "# D\n\n:::video{src=assets/clip.mp4}\n:::\n",
+      "assets/clip.mp4": "v",
+      "assets/clip.png": "p",
+      "assets/notposter.png": "x",
+    })
+    const report = await checkVault(fs)
+    const orphans = report.warnings.filter((item) => item.code === "orphan_asset")
+    expect(orphans.map((item) => item.message)).toEqual([
+      "asset ที่ไม่มีเอกสารอ้างถึง: assets/notposter.png",
+    ])
+  })
+
   test("block เปิดไม่ปิด → block_unclosed", async () => {
     const fs = memoryVaultFs({ "design.md": "# D\n\n:::warning{title=x}\nยังไม่ปิด\n" })
     const report = await checkVault(fs)

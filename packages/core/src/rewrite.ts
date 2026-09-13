@@ -7,7 +7,7 @@
 
 import type { Element, Root } from "hast"
 import { visit } from "unist-util-visit"
-import type { AssetResolver } from "./assets.ts"
+import { type AssetResolver, posterCandidates } from "./assets.ts"
 import { dirnameOf, docIdFromMdPath, docUrl, resolveRelativePath } from "./paths.ts"
 import { type Warning, warning } from "./types.ts"
 
@@ -25,12 +25,6 @@ const URL_LIKE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/|#)/i
 /** embed เดียวที่ยอมให้อยู่ในเนื้อหา — ต้องเป็น URL ที่ renderer สร้างเองเท่านั้น (docs/08 ข้อ 65) */
 const ALLOWED_EMBED =
   /^https:\/\/www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]{6,20}(?:\?[\w=&.-]*)?$/
-
-/** ไฟล์เสียง — ไม่มี poster */
-const AUDIO = /\.(mp3|m4a|wav|ogg|opus|flac)$/i
-
-/** นามสกุลของ poster ที่หาเองข้างไฟล์วิดีโอ (basename เดียวกัน) — docs/08 ข้อ 65 */
-const POSTER_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "avif"] as const
 
 /** asset tag → URL attribute ที่ต้อง rewrite (source อาจมี src) — docs/03 */
 const ASSET_ATTRS: Record<string, readonly string[]> = {
@@ -118,11 +112,8 @@ async function applyPosterFromSrc(node: Element, options: RewriteOptions): Promi
     : URL_LIKE.test(target)
       ? ""
       : resolveRelativePath(dirnameOf(options.docId), target)
-  if (!assetPath || AUDIO.test(assetPath)) return
-
-  const base = assetPath.replace(/\.[a-z0-9]+$/i, "")
-  for (const extension of POSTER_EXTENSIONS) {
-    const asset = await assets.resolve(`${base}.${extension}`)
+  for (const candidate of assetPath ? posterCandidates(assetPath) : []) {
+    const asset = await assets.resolve(candidate)
     if (asset.exists) {
       node.properties.poster = asset.url
       return

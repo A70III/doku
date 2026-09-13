@@ -10,6 +10,7 @@
  * exit code ≠ 0 เมื่อมี error (ใช้เป็น pre-commit/CI gate)
  */
 
+import { posterCandidates } from "./assets.ts"
 import { describeFenceProblem, type FenceProblem } from "./blocks/fences.ts"
 import type { VaultFs } from "./fs.ts"
 import { DocNotFoundError, MAX_MD_BYTES, resolveDoc } from "./resolve.ts"
@@ -195,6 +196,8 @@ export async function checkVault(fs: VaultFs, options: CheckOptions = {}): Promi
         continue
       }
       usedAssets.add(link.resolved)
+      // poster ที่ renderer หาเองจากไฟล์ข้างวิดีโอ (docs/08 ข้อ 65) — ต้องไม่ถูกนับเป็น orphan
+      for (const poster of posterCandidates(link.resolved)) usedAssets.add(poster)
       if (!knownAssets.has(link.resolved)) {
         emit(
           warning("asset_missing", `asset ไม่มีอยู่จริง: ${link.resolved}`, "error", {
