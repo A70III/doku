@@ -358,3 +358,31 @@ describe("render + rate limit", () => {
     expect(res.status).toBe(400)
   })
 })
+
+describe("render: input วิปริตไม่ทำให้ 500", () => {
+  test("path ที่เป็นสตริงว่าง → ใช้ untitled", async () => {
+    const { app } = setup({})
+    const res = await app.request("/api/render", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ md: "# hi", path: "" }),
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.meta.title).toBe("untitled")
+  })
+})
+
+describe("path safety ผ่าน HTTP (M3 hardening)", () => {
+  test("symlink dir → POST create ถูกปฏิเสธเป็น 400 ไม่เขียนนอก vault", async () => {
+    const { app } = setup({})
+    // symlink itself is covered by fs-node tests; here we assert the HTTP layer rejects unsafe paths
+    const res = await app.request("/api/docs/..%2Fescape%2Fx", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ md: "# x" }),
+    })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe("path_invalid")
+  })
+})

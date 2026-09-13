@@ -78,16 +78,10 @@ export type FolderMeta = z.infer<typeof FolderMetaSchema>
 export const FOLDER_META_KEYS = new Set<string>(["title", "icon", "color", "order", "collapsed"])
 
 /**
- * meta ที่รับจาก REST/MCP (partial) — derive จาก MetaSchema ตัวเดียวกัน (docs/04: Zod single source)
- * nested object เป็น partial ด้วย เพราะ agent ส่งมาแค่ field ที่แก้
+ * หมายเหตุ: REST/MCP รับ meta บาง field เป็น object ธรรมดา แล้ว merge ก่อน validate ด้วย `MetaSchema`
+ * (ดู `packages/server/src/api.ts`) — **ห้าม**ใช้ `MetaSchema.partial()` เพราะ Zod ยังใส่ default
+ * ติดมาแม้ไม่มี key (จะ reset ค่าเดิมของผู้ใช้เงียบ ๆ)
  */
-export const MetaPatchSchema = MetaSchema.partial().extend({
-  theme: ThemeSchema.partial().optional(),
-  render: RenderSchema.partial().optional(),
-  relations: RelationsSchema.partial().optional(),
-})
-
-export type MetaPatch = z.infer<typeof MetaPatchSchema>
 
 /** key ที่รู้จัก — ใช้ตรวจ unknown field (ค่าที่ไม่รู้จัก = ignore + เตือน) */
 export const META_KNOWN_KEYS = new Set<string>([
@@ -108,6 +102,7 @@ export const META_KNOWN_KEYS = new Set<string>([
 
 /** meta default ล้วน — ใช้เมื่อไม่มี sidecar (title เดาจากชื่อไฟล์) */
 export function defaultMeta(docId: string): Meta {
-  const name = docId.slice(docId.lastIndexOf("/") + 1)
-  return MetaSchema.parse({ title: name })
+  const name = docId.slice(docId.lastIndexOf("/") + 1).trim()
+  // path ว่าง/ลงท้ายด้วย "/" = ยังไม่มีชื่อ → ใช้ "untitled" (title มี .min(1) — ต้องไม่ throw)
+  return MetaSchema.parse({ title: name || "untitled" })
 }

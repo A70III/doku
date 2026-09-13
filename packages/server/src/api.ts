@@ -67,12 +67,13 @@ export type ApiErrorCode =
   | "invalid_json"
   | "rate_limited"
   | "read_only"
+  | "internal_error"
 
 type ApiErrorStatus = 400 | 404 | 409 | 413 | 428 | 429 | 503
 
 export function apiError(
   context: Context,
-  status: ApiErrorStatus,
+  status: ApiErrorStatus | 500,
   code: ApiErrorCode,
   message: string,
   fields?: string[],
@@ -704,7 +705,8 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
       return apiError(context, 413, "too_large", `md ใหญ่กว่า limit ${MAX_MD_BYTES} bytes`)
     }
 
-    const inline = resolveInline(body.md, typeof body.path === "string" ? body.path : "untitled")
+    const requestedPath = typeof body.path === "string" ? body.path.trim() : ""
+    const inline = resolveInline(body.md, requestedPath || "untitled")
     const listing = await walkVault(fs)
     const index = buildDocIndex(listing.docs)
     const known = new Set(listing.docs)
@@ -777,6 +779,15 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     if (snapshot.meta !== null) await writable?.writeText(`${id}.meta.json`, snapshot.meta)
     touch()
     return context.json({ ok: true, path: id, ts: target })
+  })
+
+  // error ที่ยังไม่ถูกจับ → ตอบ JSON เสมอ (และ map path-safety error เป็น 400)
+  api.onError((error, context) => {
+    const message = error instanceof Error ? error.message : String(error)
+    if (/symlink|ออกนอก vault|ไม่ปลอดภัย|path escapes/i.test(message)) {
+      return apiError(context, 400, "path_invalid", message)
+    }
+    return apiError(context, 500, "internal_error", "เกิดข้อผิดพลาดภายใน")
   })
 
   return api

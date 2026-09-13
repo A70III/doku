@@ -130,8 +130,6 @@ export {
   HEX_COLOR_PATTERN,
   META_KNOWN_KEYS,
   type Meta,
-  type MetaPatch,
-  MetaPatchSchema,
   MetaSchema,
   RelationsSchema,
   RenderSchema,

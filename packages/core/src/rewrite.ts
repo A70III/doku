@@ -22,33 +22,41 @@ export interface RewriteOptions {
 /** URL ที่ไม่ต้องแตะ: scheme (`http:`), protocol-relative (`//`), absolute (`/d/...`, `/assets/...`), anchor */
 const URL_LIKE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/|#)/i
 
-const ASSET_TAGS = new Set(["img", "video", "audio", "source"])
+/** asset tag → URL attribute ที่ต้อง rewrite (video มี poster, source อาจมี src) — docs/03 */
+const ASSET_ATTRS: Record<string, readonly string[]> = {
+  img: ["src"],
+  video: ["src", "poster"],
+  audio: ["src"],
+  source: ["src"],
+}
 
 export function rehypeRewrite(options: RewriteOptions) {
   return async (tree: Root): Promise<void> => {
     const jobs: Array<Promise<void>> = []
 
     visit(tree, "element", (node: Element) => {
-      const isAsset = ASSET_TAGS.has(node.tagName)
-      if (!isAsset && node.tagName !== "a") return
+      const isAsset = node.tagName !== "a"
+      const keys = isAsset ? ASSET_ATTRS[node.tagName] : ["href"]
+      if (!keys) return
 
-      const key = isAsset ? "src" : "href"
-      const raw = node.properties?.[key]
-      if (typeof raw !== "string" || raw.length === 0) return
-      if (URL_LIKE.test(raw)) return
+      for (const key of keys) {
+        const raw = node.properties?.[key]
+        if (typeof raw !== "string" || raw.length === 0) continue
+        if (URL_LIKE.test(raw)) continue
 
-      jobs.push(
-        rewriteOne(node, key, raw, isAsset, options).catch((error: unknown) => {
-          options.onWarning(
-            warning(
-              isAsset ? "asset_unresolved" : "link_broken",
-              `rewrite ไม่สำเร็จ (${raw}): ${(error as Error).message}`,
-              "warning",
-              { path: options.docId },
-            ),
-          )
-        }),
-      )
+        jobs.push(
+          rewriteOne(node, key, raw, isAsset, options).catch((error: unknown) => {
+            options.onWarning(
+              warning(
+                isAsset ? "asset_unresolved" : "link_broken",
+                `rewrite ไม่สำเร็จ (${raw}): ${(error as Error).message}`,
+                "warning",
+                { path: options.docId },
+              ),
+            )
+          }),
+        )
+      }
     })
 
     await Promise.all(jobs)
@@ -57,7 +65,7 @@ export function rehypeRewrite(options: RewriteOptions) {
 
 async function rewriteOne(
   node: Element,
-  key: "src" | "href",
+  key: string,
   raw: string,
   isAsset: boolean,
   options: RewriteOptions,

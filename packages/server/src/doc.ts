@@ -1,13 +1,19 @@
 /**
  * DocRenderer — resolve → cache key → render (หรือ hit cache) → fragment ของการ์ดเนื้อหา
  *
- * cache key = sha256(md + meta + rendererVersion + theme + listingHash) — docs/01
- * listingHash ทำให้ fragment ที่อ้าง asset/wikilink ถูก render ใหม่เมื่อโครง vault เปลี่ยน
+ * cache key = sha256(path id + md + meta + metaSource + warnings + rendererVersion + theme + listingHash)
+ *
+ * - **path id ต้องอยู่ใน key** เพราะ render ขึ้นกับตำแหน่งของเอกสาร (relative link/asset)
+ *   → เอกสารต่างโฟลเดอร์ที่ md+meta เหมือนกันเคย hash ชนกันและได้ fragment ของกัน (บั๊ก M1–M2)
+ * - metaSource + warnings จำเป็นเพราะทั้งคู่เปลี่ยน HTML (ตัด h1 / warnings banner) โดยไม่เปลี่ยน meta ที่ parse แล้ว
+ * - listingHash ทำให้ fragment ที่อ้าง asset/wikilink ถูก render ใหม่เมื่อโครง vault เปลี่ยน
+ * (docs/01 §Caching · docs/08 ข้อ 44)
  */
 
 import {
   type Meta,
   RENDERER_VERSION,
+  type ResolvedDoc,
   renderMarkdown,
   resolveDoc,
   sha256Hex,
@@ -41,7 +47,7 @@ export class DocRenderer {
   async render(docId: string): Promise<CachedDoc> {
     const resolved = await resolveDoc(docId, this.#fs)
     const { listingHash, docs } = await this.#state.get()
-    const key = await this.cacheKey(resolved.markdown, resolved.meta, listingHash)
+    const key = await this.cacheKey(resolved, listingHash)
     const hit = await this.#cache.load(key)
     if (hit) return hit
 
@@ -85,23 +91,20 @@ export class DocRenderer {
     return doc as CachedDoc
   }
 
-  cacheKey(markdown: string, meta: Meta, listingHash = ""): Promise<string> {
+  cacheKey(resolved: ResolvedDoc, listingHash = ""): Promise<string> {
     return sha256Hex(
       [
-        markdown,
-        JSON.stringify(meta),
+        resolved.id,
+        resolved.markdown,
+        JSON.stringify(resolved.meta),
+        resolved.metaSource,
+        resolved.warnings.map((item) => `${item.level}:${item.code}:${item.field ?? ""}`).join("|"),
         RENDERER_VERSION,
-        meta.theme.mode,
-        meta.theme.accent ?? "",
+        resolved.meta.theme.mode,
+        resolved.meta.theme.accent ?? "",
         listingHash,
       ].join("\u0000"),
     )
-  }
-
-  /** อ่าน listingHash จาก state แล้วค่อยคำนวณ key จริง (ให้ renderer ใช้ตอน render) */
-  async cacheKeyWithListing(markdown: string, meta: Meta): Promise<string> {
-    const { listingHash } = await this.#state.get()
-    return this.cacheKey(markdown, meta, listingHash)
   }
 
   /** HTML ภายในการ์ดเนื้อหา — header + warnings + toc + prose (fragment ที่ cache จริง) */

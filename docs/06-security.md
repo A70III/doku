@@ -126,10 +126,10 @@ in-memory counter ไม่ต้อง Redis
 
 ## Checklist ก่อนใช้
 
-- [ ] safeJoin ทดสอบ `../../etc/passwd`, symlink หลุด vault
-- [ ] sanitize ทดสอบ XSS payload มาตรฐาน
+- [x] safeJoin ทดสอบ `../../etc/passwd`, symlink หลุด vault (รวม write/mkdir/move/trash — ดู docs/08 ข้อ 45)
+- [x] sanitize ทดสอบ XSS payload มาตรฐาน
 - [ ] CSP ทดสอบ devtools ไม่มี violation
-- [ ] raw HTML ปิด confirmed
-- [ ] revision เขียนจริง + restore ได้
+- [x] raw HTML ปิด confirmed
+- [x] revision เขียนจริง + restore ได้
 - [ ] audit log เขียนจริง
 - [ ] ถ้าเปิดออกนอก LAN → ใส่ token + HTTPS ผ่าน proxy

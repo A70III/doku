@@ -330,3 +330,50 @@ describe("render: ไม่มี vault (stateless)", () => {
     expect(html).toContain("หัว")
   })
 })
+
+describe("M3 fixes: asset attrs / tabs / fences / figure", () => {
+  test("video: relative poster ถูก rewrite เป็น /assets/<path>?h=<hash>", async () => {
+    const fs = memoryVaultFs({
+      "a/design.md": "# d\n",
+      "a/assets/clip.mp4": "v",
+      "a/assets/cover.png": "p",
+    })
+    const { html, warnings } = await render(
+      ':::video{src="assets/clip.mp4" poster="assets/cover.png"}\n:::\n',
+      { docId: "a/design", vault: { fs } },
+    )
+    expect(html).toMatch(/src="\/assets\/a\/assets\/clip\.mp4\?h=[0-9a-f]+"/)
+    expect(html).toMatch(/poster="\/assets\/a\/assets\/cover\.png\?h=[0-9a-f]+"/)
+    expect(warnings.some((item) => item.code === "asset_missing")).toBe(false)
+  })
+
+  test("video: poster หาย → warning asset_missing (ไม่ใช่ 500)", async () => {
+    const fs = memoryVaultFs({ "a/design.md": "# d\n", "a/assets/clip.mp4": "v" })
+    const { html, warnings } = await render(
+      ':::video{src="assets/clip.mp4" poster="assets/nope.png"}\n:::\n',
+      { docId: "a/design", vault: { fs } },
+    )
+    expect(html).toContain('poster="/assets/a/assets/nope.png?h=missing"')
+    expect(warnings.some((item) => item.code === "asset_missing")).toBe(true)
+  })
+
+  test("tabs: มี HTML/definition ก่อน tab → เนื้อหาไม่หาย", async () => {
+    const { html } = await render(
+      '::::tabs\n<div>x</div>\n\n:::tab{label="a"}\nAAA\n:::\n:::tab{label="b"}\nBBB\n:::\n::::\n',
+    )
+    expect(html).toContain("AAA")
+    expect(html).toContain("BBB")
+    expect((html.match(/data-part="tab-panel"/g) ?? []).length).toBe(2)
+  })
+
+  test("`:::` ใน indented code block ไม่ถูกนับเป็น directive", async () => {
+    const { warnings } = await render("ย่อหน้า\n\n    :::note\n    โค้ด\n\nจบ\n")
+    expect(warnings.some((item) => item.code === "block_unclosed")).toBe(false)
+  })
+
+  test("figure: width=70% ใช้ได้ (docs/03 เขียนแบบมี %)", async () => {
+    const { html, warnings } = await render(':::figure{src="a.png" width=70%}\n:::\n')
+    expect(html).toContain('data-width="70"')
+    expect(warnings.some((item) => item.message.includes("width"))).toBe(false)
+  })
+})

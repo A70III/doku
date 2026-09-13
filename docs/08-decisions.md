@@ -50,6 +50,9 @@
 | 41 | move API | `POST /api/docs/*path/move` + `POST /api/folders/*path/move` รับ `{to, update_links?}` (`update_links` default **true**) · อัปเดตลิงก์ทั้ง vault (wikilink path form · `/d/…` · relative) + เขียน `relations.moved_from` · wikilink basename ที่กำกวม = **ไม่แตะ** (ให้ `doku check` เตือน) |
 | 42 | static asset caching | `/static/app.css` + `/static/editor.js` ตอบ `ETag` และรองรับ `If-None-Match` → `304` (editor bundle ~510KB ไม่ถูกโหลดซ้ำ) · `editor.js` cache ใน memory (build ครั้งเดียว) · `app.css` อ่านใหม่ทุก request เพราะ Tailwind `--watch` |
 | 43 | folder tree + color | tree เดินจาก **filesystem** ไม่ใช่รายการเอกสาร → โฟลเดอร์ว่างปรากฏใน sidebar ทันที (M3) · `_folder.meta.json.color` (ผ่าน Zod `#rrggbb`) ใช้ tint ไอคอนโฟลเดอร์ · ค่าที่ไม่ผ่าน = ไม่ใช้ (ไม่Throw) |
+| 44 | cache key | `sha256(path id + md + meta + metaSource + warnings + rendererVersion + theme + listingHash)` — **path id ต้องอยู่ใน key** เพราะ render ขึ้นกับตำแหน่งเอกสาร (relative link/asset) · metaSource + warnings เปลี่ยน HTML (ตัด h1 / warnings banner) โดยไม่เปลี่ยน meta ที่ parse แล้ว · แก้บั๊ก M1–M2 ที่เอกสารต่างโฟลเดอร์ hash ชนกัน (อัปเดต docs/01 §Caching) |
+| 45 | path safety ของ write/move/trash | `safeJoin` ต้องเช็ค **realpath ของบรรพบุรุษที่มีอยู่จริงลึกสุด** ไม่ใช่แค่ `realpath(target)` (target ใหม่ยังไม่มี → ENOENT → เดิมข้ามการเช็ค = symlink dir หลุด vault ได้) · trash store ใช้ guard ตัวเดียวกัน (เดิม prefix-only) · `restore` ห้ามทับ path เดิม **ที่ชั้น adapter ด้วย** (ไม่พึ่ง API อย่างเดียว) · `ENOTDIR` = "ไม่มีไฟล์" (คืน null/false ไม่ throw) |
+| 46 | asset route | `/assets/*` **ห้าม strip ชื่อ vault** (path นี้ server generate เอง — docs/08 ข้อ 9) · extension ต้องมาจาก basename และต้องมี `.` จริง (ไฟล์ชื่อ `png` ไม่กลายเป็น `image/png`) · `/static/*` เทียบ `If-None-Match` แบบ weak/list ผ่าน `matchesIfMatch` (RFC 9110) · badge trash อ่านสด (ไม่ cache 2 วิ) |
 
 ## รอเคาะ
 

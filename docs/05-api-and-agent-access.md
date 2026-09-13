@@ -118,6 +118,7 @@ curl -sX POST localhost:7667/api/render \
 ```
 
 codes: `not_found` `already_exists` `meta_invalid` `too_large` `conflict` `asset_type_rejected` `folder_not_empty`
+· `path_invalid` `precondition_required` `invalid_body` `invalid_json` `rate_limited` `read_only` `internal_error`
 
 ### Concurrency
 

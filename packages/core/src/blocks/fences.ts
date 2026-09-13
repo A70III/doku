@@ -13,7 +13,7 @@
  * - บรรทัด `:::name{…}:::` = เปิด+ปิดในบรรทัดเดียว (ไม่ค้าง stack)
  * - บรรทัด `:::` ที่ไม่มีอะไรให้ปิด = stray
  * - ซ้อน container โดย fence ชั้นในยาว >= ชั้นนอก = จะถูกปิดพร้อมกัน (ambiguous)
- * - เนื้อใน code fence (` ``` ` / `~~~`) ไม่นับ
+ * - เนื้อใน code fence (` ``` ` / `~~~`) ไม่นับ · บรรทัดที่ย่อ 4 ช่องขึ้นไป (indented code block) ไม่นับ
  */
 
 export type FenceProblemKind = "unclosed" | "stray" | "ambiguous-nesting"
@@ -35,7 +35,8 @@ interface OpenDirective {
 }
 
 const CODE_FENCE = /^\s*(`{3,}|~{3,})/
-const DIRECTIVE_FENCE = /^\s*(:{3,})\s*(.*)$/
+/** CommonMark: directive fence ย่อได้ไม่เกิน 3 ช่อง — ย่อ 4+ ช่อง = indented code block */
+const DIRECTIVE_FENCE = /^( {0,3})(:{3,})[ \t]*(.*)$/
 
 export function analyzeDirectiveFences(source: string): FenceProblem[] {
   const problems: FenceProblem[] = []
@@ -61,8 +62,8 @@ export function analyzeDirectiveFences(source: string): FenceProblem[] {
     const fence = DIRECTIVE_FENCE.exec(line)
     if (!fence) continue
 
-    const length = (fence[1] ?? "").length
-    const rest = (fence[2] ?? "").trim()
+    const length = (fence[2] ?? "").length
+    const rest = (fence[3] ?? "").trim()
 
     // ปิด: `:::` เปล่า หรือมีแต่ attribute
     if (rest === "" || rest.startsWith("{")) {

@@ -30,7 +30,8 @@ export const figureDefinition: BlockDefinition = {
       dataAlign: ctx.attrs.align ?? "center",
     }
     if (width !== undefined) {
-      const value = intAttr(width, 5, 100)
+      // รับทั้ง `70` และ `70%` (docs/03 เขียน `width=70%`)
+      const value = intAttr(width.replace(/%$/, "").trim(), 5, 100)
       if (value !== null && value % 5 === 0) properties.dataWidth = String(value)
       else ctx.warn("block_attribute_unknown", `figure width ต้องเป็น 5–100 (สเต็ป 5): ${width}`)
     }

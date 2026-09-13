@@ -215,3 +215,35 @@ describe("link rewrite on move", () => {
     expect(out).toBe("[[design-v2]]")
   })
 })
+
+describe("link rewrite: เอกสารที่ถูกย้าย → rebase ลิงก์ที่ไม่ได้ย้ายด้วย", () => {
+  test("relative link ไปไฟล์/asset ที่ไม่อยู่ในแผน ถูก rebase จากตำแหน่งใหม่", () => {
+    const listing = { docs: ["a/design", "research"], assets: ["a/assets/pic.png"] }
+    const index = buildDocIndex(listing.docs)
+    const plan = planMove("a/design.md", "deep/nested/design.md", listing)
+    const body = "[r](../research.md)\n\n![x](assets/pic.png)\n"
+    const out = rewriteMarkdownLinks(body, "a/design", plan, index, {
+      newDocId: "deep/nested/design",
+    })
+    expect(out).toContain("(../../research.md)")
+    expect(out).toContain("(../../a/assets/pic.png)")
+  })
+
+  test("ย้ายโฟลเดอร์: เอกสารข้างใน rebase ลิงก์ที่ชี้ข้างนอกโฟลเดอร์", () => {
+    const listing = { docs: ["a/design", "research"], assets: [] }
+    const index = buildDocIndex(listing.docs)
+    const plan = planMove("a", "x/y/a", listing)
+    const out = rewriteMarkdownLinks("[r](../research.md)\n", "a/design", plan, index, {
+      newDocId: "x/y/a/design",
+    })
+    expect(out).toContain("(../../../research.md)")
+  })
+
+  test("เอกสารที่ไม่ถูกย้าย = ไม่แตะลิงก์ที่ไม่อยู่ในแผน", () => {
+    const listing = { docs: ["a/design", "research"], assets: [] }
+    const index = buildDocIndex(listing.docs)
+    const plan = planMove("a", "x/a", listing)
+    const out = rewriteMarkdownLinks("[r](../research.md)\n", "other", plan, index)
+    expect(out).toBe("[r](../research.md)\n")
+  })
+})

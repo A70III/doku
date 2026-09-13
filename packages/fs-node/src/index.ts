@@ -42,29 +42,61 @@ export interface NodeVaultFs extends WritableVaultFs {
   trashStore(): TrashStore
 }
 
+/**
+ * realpath ของ path ที่อาจยังไม่มี — ถ้า leaf ยังไม่มี ให้ไล่ขึ้นไปจนเจอบรรพบุรุษที่มีอยู่จริง
+ * (จำเป็นสำหรับ write/mkdir/move: parent อาจเป็น symlink ที่ชี้หลุด vault — docs/06)
+ */
+async function resolveRealPath(abs: string): Promise<string> {
+  try {
+    return await realpath(abs)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== "ENOENT" && code !== "ENOTDIR") throw error
+  }
+  let current = dirname(abs)
+  for (;;) {
+    try {
+      return await realpath(current)
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== "ENOENT" && code !== "ENOTDIR") throw error
+    }
+    const parent = dirname(current)
+    if (parent === current) return current
+    current = parent
+  }
+}
+
+/** guard ของ path ที่ resolve ใต้ `root` — คืน absolute พร้อมเช็ค prefix + realpath (รวม ancestor) */
+function createRealpathGuard(root: string) {
+  const realRoot = root.endsWith(sep) ? root.slice(0, -1) : root
+  const prefix = realRoot + sep
+  return {
+    realRoot,
+    prefix,
+    async check(abs: string, label: string): Promise<string> {
+      if (abs !== realRoot && !abs.startsWith(prefix)) {
+        throw new Error(`path ออกนอก vault: ${label}`)
+      }
+      const real = await resolveRealPath(abs)
+      if (real !== realRoot && !real.startsWith(prefix)) {
+        throw new Error(`symlink ออกนอก vault: ${label}`)
+      }
+      return abs
+    },
+  }
+}
+
 export async function createNodeVaultFs(root: string): Promise<NodeVaultFs> {
   const realRoot = await realpath(resolvePath(root))
-  const prefix = realRoot.endsWith(sep) ? realRoot : realRoot + sep
+  const guard = createRealpathGuard(realRoot)
 
   /** rel (ปลอดภัยแล้ว) → absolute ที่อยู่ใน vault จริง (ทั้ง path และ realpath) */
   async function safeJoin(rel: string): Promise<string> {
     if (rel !== "" && !isSafeVaultPath(rel)) {
       throw new Error(`path ไม่ปลอดภัย: ${rel}`)
     }
-    const abs = resolvePath(realRoot, rel)
-    if (abs !== realRoot && !abs.startsWith(prefix)) {
-      throw new Error(`path ออกนอก vault: ${rel}`)
-    }
-    try {
-      const real = await realpath(abs)
-      if (real !== realRoot && !real.startsWith(prefix)) {
-        throw new Error(`symlink ออกนอก vault: ${rel}`)
-      }
-    } catch (error) {
-      // ไม่มีไฟล์ = ยังไม่ต้องเช็ค realpath (ผู้เรียกจัดการ null เอง)
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
-    }
-    return abs
+    return guard.check(resolvePath(realRoot, rel), rel)
   }
 
   async function read(rel: string): Promise<Buffer | null> {
@@ -72,7 +104,7 @@ export async function createNodeVaultFs(root: string): Promise<NodeVaultFs> {
       return await readFile(await safeJoin(rel))
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code
-      if (code === "ENOENT" || code === "EISDIR") return null
+      if (code === "ENOENT" || code === "EISDIR" || code === "ENOTDIR") return null
       throw error
     }
   }
@@ -111,7 +143,7 @@ export async function createNodeVaultFs(root: string): Promise<NodeVaultFs> {
         return { mtimeMs: info.mtimeMs, size: info.size }
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code
-        if (code === "ENOENT" || code === "EISDIR") return null
+        if (code === "ENOENT" || code === "EISDIR" || code === "ENOTDIR") return null
         throw error
       }
     },
@@ -121,7 +153,8 @@ export async function createNodeVaultFs(root: string): Promise<NodeVaultFs> {
       try {
         entries = await readdir(abs, { withFileTypes: true })
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === "ENOENT") return []
+        const code = (error as NodeJS.ErrnoException).code
+        if (code === "ENOENT" || code === "ENOTDIR") return []
         throw error
       }
       return (
@@ -166,7 +199,7 @@ export async function createNodeVaultFs(root: string): Promise<NodeVaultFs> {
         return true
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code
-        if (code === "ENOENT") return false
+        if (code === "ENOENT" || code === "ENOTDIR") return false
         throw error
       }
     },
@@ -174,14 +207,6 @@ export async function createNodeVaultFs(root: string): Promise<NodeVaultFs> {
 }
 
 /* ── trash (docs/06 · docs/08 ข้อ 2/10) ───────────────────────────────── */
-
-/** absolute path ใต้ vault root — ใช้กับ `.trash` ที่เป็น dotfolder ซึ่งเราคุมเอง */
-function vaultAbs(vaultRoot: string, relative: string): string {
-  const abs = resolvePath(vaultRoot, relative)
-  const prefix = vaultRoot.endsWith(sep) ? vaultRoot : vaultRoot + sep
-  if (!abs.startsWith(prefix)) throw new Error(`path ออกนอก vault: ${relative}`)
-  return abs
-}
 
 async function sizeOf(abs: string): Promise<number> {
   try {
@@ -198,12 +223,16 @@ async function sizeOf(abs: string): Promise<number> {
 }
 
 export function createNodeTrashStore(vaultRoot: string): TrashStore {
-  const trashRoot = vaultAbs(vaultRoot, TRASH_DIR)
+  const guard = createRealpathGuard(vaultRoot)
+  /** path ใต้ vault (รวม `.trash` ที่เป็น dotfolder) พร้อม realpath check (docs/06/08 ข้อ 39) */
+  const vaultAbs = (relative: string): Promise<string> =>
+    guard.check(resolvePath(guard.realRoot, relative), relative)
+  const trashRoot = resolvePath(guard.realRoot, TRASH_DIR)
 
   const readManifest = async (id: string): Promise<TrashItem | null> => {
     if (!isTrashId(id)) return null
     try {
-      return parseTrashManifest(await readFile(vaultAbs(vaultRoot, trashManifestPath(id)), "utf8"))
+      return parseTrashManifest(await readFile(await vaultAbs(trashManifestPath(id)), "utf8"))
     } catch {
       return null
     }
@@ -220,8 +249,9 @@ export function createNodeTrashStore(vaultRoot: string): TrashStore {
     }
   }
 
-  const removeItem = (id: string): Promise<void> =>
-    rm(vaultAbs(vaultRoot, `${TRASH_DIR}/${id}`), { recursive: true, force: true })
+  const removeItem = async (id: string): Promise<void> => {
+    await rm(await vaultAbs(`${TRASH_DIR}/${id}`), { recursive: true, force: true })
+  }
 
   /** path ใต้ `.trash/<id>/…` ที่เราสร้างเอง — ปลอดภัยถ้า id และ rel ผ่าน validation */
   const isTrashPath = (path: string): boolean => {
@@ -234,10 +264,14 @@ export function createNodeTrashStore(vaultRoot: string): TrashStore {
 
   const movePath = async (from: string, to: string): Promise<void> => {
     if (!isSafeVaultPath(from) && !isTrashPath(from)) throw new Error(`path ไม่ปลอดภัย: ${from}`)
-    const target = vaultAbs(vaultRoot, to)
+    const target = await vaultAbs(to)
     await mkdir(dirname(target), { recursive: true })
-    await rename(vaultAbs(vaultRoot, from), target)
+    await rename(await vaultAbs(from), target)
   }
+
+  /** มี path อยู่แล้วหรือไม่ (ใช้กันการทับตอน restore — docs/08 ข้อ 39) */
+  const targetExists = async (relative: string): Promise<boolean> =>
+    (await stat(await vaultAbs(relative)).catch(() => null)) !== null
 
   return {
     async list() {
@@ -251,38 +285,54 @@ export function createNodeTrashStore(vaultRoot: string): TrashStore {
 
     async put(sources, options) {
       const deletedAt = options.deletedAt ?? new Date()
-      const id = trashId(deletedAt)
+      // id ซ้ำ = manifest ทับ item เก่า → หา id ว่างก่อน (แบบเดียวกับ revision store)
+      let id = trashId(deletedAt)
+      let counter = 1
+      while ((await stat(await vaultAbs(`${TRASH_DIR}/${id}`)).catch(() => null)) !== null) {
+        id = `${trashId(deletedAt)}-${counter}`
+        counter += 1
+      }
       let bytes = 0
       const kept: string[] = []
-      for (const source of sources) {
-        try {
-          await stat(vaultAbs(vaultRoot, source))
-        } catch {
-          continue // ไม่มีไฟล์ = ข้าม (เช่น meta.json ที่ไม่มี)
+      const writeManifest = async (): Promise<TrashItem> => {
+        const item: TrashItem = {
+          id,
+          label: options.label,
+          kind: options.kind,
+          sources: kept,
+          deletedAt: deletedAt.toISOString(),
+          bytes,
         }
-        bytes += await sizeOf(vaultAbs(vaultRoot, source))
-        await movePath(source, `${TRASH_DIR}/${id}/${source}`)
-        kept.push(source)
+        await writeFile(
+          await vaultAbs(trashManifestPath(id)),
+          JSON.stringify(item, null, 2),
+          "utf8",
+        )
+        return item
       }
-      const item: TrashItem = {
-        id,
-        label: options.label,
-        kind: options.kind,
-        sources: kept,
-        deletedAt: deletedAt.toISOString(),
-        bytes,
+      try {
+        for (const source of sources) {
+          const abs = await vaultAbs(source)
+          if ((await stat(abs).catch(() => null)) === null) continue // ไม่มีไฟล์ = ข้าม
+          bytes += await sizeOf(abs)
+          await movePath(source, `${TRASH_DIR}/${id}/${source}`)
+          kept.push(source)
+        }
+      } catch (error) {
+        // ล้มกลางทาง → เขียน manifest เท่าที่ย้ายสำเร็จ เพื่อไม่ให้ไฟล์ค้างแบบมองไม่เห็น
+        if (kept.length > 0) await writeManifest()
+        throw error
       }
-      await writeFile(
-        vaultAbs(vaultRoot, trashManifestPath(id)),
-        JSON.stringify(item, null, 2),
-        "utf8",
-      )
-      return item
+      return writeManifest()
     },
 
     async restore(id) {
       const item = await readManifest(id)
       if (!item) throw new Error(`ไม่พบรายการใน trash: ${id}`)
+      for (const source of item.sources) {
+        // กันทับ: path เดิมต้องว่าง (docs/08 ข้อ 39) — API ตรวจก่อนแล้ว แต่ adapter ต้องกันด้วย
+        if (await targetExists(source)) throw new Error(`path เดิมมีอยู่แล้ว: ${source}`)
+      }
       for (const source of item.sources) {
         await movePath(`${TRASH_DIR}/${id}/${source}`, source)
       }

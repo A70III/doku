@@ -130,6 +130,7 @@ export function rewriteMarkdownLinks(
   })
 
   // 3) relative markdown links (doc + asset)
+  const movedSelf = outputDir !== dir
   result = result.replace(RELATIVE_LINK, (whole, raw: string, title: string | undefined) => {
     if (!raw || /^[a-z][a-z0-9+.-]*:/i.test(raw) || raw.startsWith("#") || raw.startsWith("/")) {
       return whole
@@ -138,8 +139,9 @@ export function rewriteMarkdownLinks(
     const resolved = resolveRelativePath(dir, path)
     if (!resolved) return whole
     const mapped = plan.paths.get(resolved)
-    if (!mapped) return whole
-    return `](${relativeVaultLink(outputDir, mapped)}${suffix}${title ?? ""})`
+    // ปลายทางไม่อยู่ในแผน: ถ้าเอกสารนี้เองถูกย้าย ต้อง rebase จากตำแหน่งใหม่ด้วย
+    if (!mapped && !movedSelf) return whole
+    return `](${relativeVaultLink(outputDir, mapped ?? resolved)}${suffix}${title ?? ""})`
   })
 
   return result

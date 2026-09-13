@@ -10,6 +10,7 @@ import {
   DocNotFoundError,
   docEtag,
   etagHeader,
+  matchesIfMatch,
   normalizeVaultPath,
   PathError,
   type RevisionStore,
@@ -83,20 +84,14 @@ function tailPath(url: string, prefix: string): string {
 export function createDokuApp(deps: DokuAppDeps): Hono {
   const app = new Hono()
 
-  // จำนวนรายการใน trash สำหรับ badge บน sidebar — cache สั้น ๆ (ทุกหน้าไม่ควรยิง fs ถี่)
-  let trashCache: { at: number; count: number } | null = null
+  /** จำนวนรายการใน trash สำหรับ badge บน sidebar — อ่านสดเสมอ (หลัง delete/restore ต้องตรงทันที) */
   const trashCount = async (): Promise<number> => {
     if (!deps.trash) return 0
-    const now = Date.now()
-    if (trashCache && now - trashCache.at < 2000) return trashCache.count
-    let count = 0
     try {
-      count = (await deps.trash.list()).length
+      return (await deps.trash.list()).length
     } catch {
-      count = 0
+      return 0
     }
-    trashCache = { at: now, count }
-    return count
   }
 
   if (deps.trash && deps.revisions) {
@@ -155,8 +150,10 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
   ): Promise<Response> => {
     const content = await deps.readPublic?.(name)
     if (content === null || content === undefined) return context.notFound()
-    const etag = etagHeader(await sha256Hex(content))
-    if (context.req.header("if-none-match") === etag) {
+    const token = await sha256Hex(content)
+    const etag = etagHeader(token)
+    // If-None-Match ต้องเทียบแบบ weak (RFC 9110) → ใช้ matchesIfMatch ตัวเดียวกับ If-Match
+    if (matchesIfMatch(context.req.header("if-none-match"), token)) {
       return context.body(null, 304, { etag, "cache-control": "no-cache" })
     }
     return context.body(content, 200, {
@@ -292,14 +289,19 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     const raw = tailPath(context.req.raw.url, "/assets/")
     let assetPath: string
     try {
-      assetPath = normalizeVaultPath(raw, { stripSuffix: false, vaultName: deps.vaultName })
+      // path นี้ server เป็นคน generate เอง (docs/08 ข้อ 9) → ห้าม strip vaultName
+      // (ไม่งั้น `<vaultName>/x.png` จะกลายเป็น `x.png` แล้วเสิร์ฟผิดไฟล์/404)
+      assetPath = normalizeVaultPath(raw, { stripSuffix: false })
     } catch (error) {
       if (error instanceof PathError) return context.notFound()
       throw error
     }
 
-    const extension = assetPath.slice(assetPath.lastIndexOf(".") + 1).toLowerCase()
-    const mime = ASSET_MIME[extension]
+    // extension ต้องมาจาก basename และต้องมี `.` จริง (ไฟล์ชื่อ `png` ไม่ควรกลายเป็น image/png)
+    const base = assetPath.slice(assetPath.lastIndexOf("/") + 1)
+    const dot = base.lastIndexOf(".")
+    if (dot <= 0) return context.notFound()
+    const mime = ASSET_MIME[base.slice(dot + 1).toLowerCase()]
     if (!mime) return context.notFound() // mime allowlist (docs/06)
 
     const bytes = await deps.fs.readBytes(assetPath)

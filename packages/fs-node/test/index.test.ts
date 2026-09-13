@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { createNodeRevisionStore, createNodeVaultFs } from "../src/index.ts"
@@ -133,5 +133,54 @@ describe("write / trash / revision (M3)", () => {
     expect(list[0]?.at).toBe("2025-09-12T11:00:00.000Z")
     expect((await revisions.read("notes/b", "20250912T100000000Z"))?.md).toBe("# v1\n")
     await rm(join(root, "../doku-var-test"), { recursive: true, force: true })
+  })
+})
+
+describe("symlink write-path safety (docs/06 — regression)", () => {
+  test("writeText / mkdir / move ผ่าน symlink dir ออกนอก vault ถูกปฏิเสธ", async () => {
+    const escapeDir = await mkdtemp(join(tmpdir(), "doku-escape-"))
+    await symlink(escapeDir, join(root, "escape-write"))
+
+    await expect(fs.writeText("escape-write/evil.md", "pwned\n")).rejects.toThrow(/symlink/)
+    await expect(fs.mkdir("escape-write/newdir")).rejects.toThrow(/symlink/)
+    await expect(fs.move("projects/doku/design.md", "escape-write/moved.md")).rejects.toThrow(
+      /symlink/,
+    )
+
+    const leaked = await readdir(escapeDir).catch(() => [])
+    expect(leaked).toEqual([])
+    expect(await fs.readText("projects/doku/design.md")).toBe("# Design\n")
+    await rm(escapeDir, { recursive: true, force: true })
+  })
+
+  test("trash.put / restore ปฏิเสธ symlink ที่หลุด vault", async () => {
+    const escapeDir = await mkdtemp(join(tmpdir(), "doku-escape-trash-"))
+    await writeFile(join(escapeDir, "victim.md"), "# outside\n")
+    await symlink(escapeDir, join(root, "escape-trash"))
+
+    const trash = fs.trashStore()
+    await expect(
+      trash.put(["escape-trash/victim.md"], { label: "x", kind: "doc" }),
+    ).rejects.toThrow(/symlink/)
+    expect(await readFile(join(escapeDir, "victim.md"), "utf8")).toBe("# outside\n")
+    await rm(escapeDir, { recursive: true, force: true })
+  })
+
+  test("path ที่มี component กลางเป็นไฟล์ → คืน null/false ไม่ throw (parity กับ memoryVaultFs)", async () => {
+    expect(await fs.readText("projects/doku/design.md/nope")).toBeNull()
+    expect(await fs.readBytes("projects/doku/design.md/nope")).toBeNull()
+    expect(await fs.stat?.("projects/doku/design.md/nope")).toBeNull()
+    expect(await fs.list("projects/doku/design.md/nope")).toEqual([])
+    expect(await fs.exists("projects/doku/design.md/nope")).toBe(false)
+  })
+
+  test("trash.restore ไม่ทับ path เดิม (adapter level — docs/08 ข้อ 39)", async () => {
+    await fs.writeText("clobber.md", "# v1\n")
+    const trash = fs.trashStore()
+    const item = await trash.put(["clobber.md"], { label: "clobber", kind: "doc" })
+    await fs.writeText("clobber.md", "# v2\n")
+    await expect(trash.restore(item.id)).rejects.toThrow(/มีอยู่แล้ว/)
+    expect(await fs.readText("clobber.md")).toBe("# v2\n")
+    await trash.empty()
   })
 })

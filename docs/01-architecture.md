@@ -60,7 +60,8 @@ doku/
 1. **Resolve** — path `projects/doku/design` → `vault/projects/doku/design.md`
    + อ่าน `design.meta.json` ถ้ามี (ไม่มี → default)
 2. **Validate meta** — ผิด schema คืน warning ไม่ล้ม
-3. **Cache key** = `sha256(md + meta + rendererVersion + theme)`
+3. **Cache key** = `sha256(path id + md + meta + metaSource + warnings + rendererVersion + theme + listingHash)`
+   (ดู [08 ข้อ 44](08-decisions.md) — path id/metaSource/warnings ต้องอยู่ใน key ด้วย)
 4. hit → คืน HTML / miss → render → เขียน cache
 5. **Asset rewrite** — `assets/diagram.svg` (relative) → `/assets/projects/doku/assets/diagram.svg?h=<hash>`
    path ของ asset = path ใน vault เต็ม → ไม่กำกวม (ดู [05](05-api-and-agent-access.md))
@@ -101,6 +102,13 @@ Layout เป็น **server-rendered HTML + CSS** ใช้ JS เฉพาะ:
 
 Cache เป็น pure function ของ input → ไม่มี invalidation logic, ตาม hash
 Dev mode ปิด cache
+
+`listingHash` = hash ของรายการ doc id + (asset path, mtime) — ทำให้ fragment ที่อ้าง wikilink/asset
+ถูก render ใหม่เมื่อโครง vault เปลี่ยน
+
+**ทำไม path id ต้องอยู่ใน key**: render ขึ้นกับตำแหน่งของเอกสาร (relative link/asset resolve จาก `dirname(id)`)
+เอกสารต่างโฟลเดอร์ที่ md + meta เหมือนกัน (เช่น basename ตรงกัน + ไม่มี sidecar → `defaultMeta` ให้ title เท่ากัน)
+เคยได้ fragment ของกัน — เป็นบั๊กที่แก้ใน M3 (ดู [08 ข้อ 44](08-decisions.md))
 
 ## Indexer
 

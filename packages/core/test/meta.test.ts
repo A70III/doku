@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import { memoryVaultFs } from "../src/fs.ts"
 import { loadMeta } from "../src/meta.ts"
-import { defaultMeta, FolderMetaSchema, MetaSchema } from "../src/schema.ts"
+import {
+  defaultMeta,
+  FOLDER_META_KEYS,
+  FolderMetaSchema,
+  META_KNOWN_KEYS,
+  MetaSchema,
+} from "../src/schema.ts"
 
 describe("MetaSchema", () => {
   test("ไม่มี meta → default จากชื่อไฟล์", () => {
@@ -120,5 +126,15 @@ describe("loadMeta", () => {
     const result = await loadMeta(fs, "design", null)
     expect(result.meta.title).toBe("x")
     expect(result.warnings.some((item) => item.code === "meta_unknown_field")).toBe(true)
+  })
+})
+
+describe("schema key sets ต้องตรงกับ Zod schema (กัน drift)", () => {
+  test("META_KNOWN_KEYS = keys ของ MetaSchema", () => {
+    expect(Object.keys(MetaSchema.shape).sort()).toEqual([...META_KNOWN_KEYS].sort())
+  })
+
+  test("FOLDER_META_KEYS = keys ของ FolderMetaSchema", () => {
+    expect(Object.keys(FolderMetaSchema.shape).sort()).toEqual([...FOLDER_META_KEYS].sort())
   })
 })

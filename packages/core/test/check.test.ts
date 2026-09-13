@@ -147,3 +147,20 @@ describe("resolveDoc", () => {
     expect(doc.body.startsWith("# x")).toBe(true)
   })
 })
+
+describe("check: wikilink path form (M3 fix)", () => {
+  test("[[projects/nope]] ที่ไฟล์ไม่มีจริง → wikilink_missing (ไม่ใช่ผ่านเงียบ)", async () => {
+    const fs = memoryVaultFs({ "design.md": "# D\n\n[[projects/nope]]\n" })
+    const report = await checkVault(fs)
+    expect(report.errors.map((item) => item.code)).toContain("wikilink_missing")
+  })
+
+  test("[[projects/design]] ที่มีจริง → ไม่เตือน", async () => {
+    const fs = memoryVaultFs({
+      "design.md": "# D\n\n[[projects/design]]\n",
+      "projects/design.md": "# P\n",
+    })
+    const report = await checkVault(fs)
+    expect(report.errors.map((item) => item.code)).not.toContain("wikilink_missing")
+  })
+})

@@ -16,7 +16,7 @@ import { DocNotFoundError, MAX_MD_BYTES, resolveDoc } from "./resolve.ts"
 import { scanMarkdown } from "./scan.ts"
 import { FolderMetaSchema } from "./schema.ts"
 import { type Warning, type WarningCode, type WarningLevel, warning } from "./types.ts"
-import { buildDocIndex, walkVault } from "./vault-walk.ts"
+import { buildDocIndex, resolveWikiTarget, walkVault } from "./vault-walk.ts"
 
 /** ระดับความรุนแรงเมื่อใช้เป็น gate ของ `doku check` (producer ไม่ต้องรู้) */
 const CHECK_LEVELS: Partial<Record<WarningCode, WarningLevel>> = {
@@ -206,15 +206,18 @@ export async function checkVault(fs: VaultFs, options: CheckOptions = {}): Promi
     }
 
     for (const target of new Set(scan.wikilinks)) {
-      const candidates = index.get(target) ?? (target.includes("/") ? [target] : [])
-      if (candidates.length === 0) {
+      // ใช้ resolveWikiTarget ตัวเดียวกับ renderer → check/render เห็นตรงกัน
+      // (เดิม index.get(target) ทำให้ wikilink path form ที่ไฟล์ไม่มีจริงไม่ถูกจับ)
+      const resolved = resolveWikiTarget(index, target)
+      const candidates = target.includes("/") ? [] : (index.get(target) ?? [])
+      if (!resolved.id) {
         emit(
           warning("wikilink_missing", `wikilink [[${target}]] หาไม่เจอ`, "error", {
             path: id,
             field: target,
           }),
         )
-      } else if (candidates.length > 1) {
+      } else if (resolved.ambiguous && candidates.length > 1) {
         emit(
           warning(
             "wikilink_ambiguous",

@@ -117,6 +117,8 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - ล็อกเพิ่มตอน M3: editor bundle + fallback textarea (ข้อ 37) · Lucide regenerate ด้วย devDependency (ข้อ 38)
   · trash manifest 1 รายการ = 1 โฟลเดอร์ (ข้อ 39) · 428/409 semantics (ข้อ 40) · move API + link rules (ข้อ 41)
   · static asset ETag/304 (ข้อ 42) · tree เดินจาก filesystem + folder color (ข้อ 43)
+- ล็อกเพิ่มตอนแก้บั๊ก M3: cache key ต้องมี path id/metaSource/warnings (ข้อ 44)
+  · realpath ของบรรพบุรุษใน safeJoin + trash guard/restore ไม่ทับ (ข้อ 45) · asset route/mime/If-None-Match (ข้อ 46)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
 

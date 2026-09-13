@@ -445,7 +445,13 @@ export const Sidebar: FC<{
 
 const DocToolbar: FC<{ path: string }> = ({ path }) => (
   <div class="doku-doc-toolbar" data-path={path}>
-    <button type="button" class="doku-tool" data-action="edit" data-path={path} title="แก้ไข (Ctrl+E)">
+    <button
+      type="button"
+      class="doku-tool"
+      data-action="edit"
+      data-path={path}
+      title="แก้ไข (Ctrl+E)"
+    >
       <Icon name="pencil" size={15} /> <span>แก้ไข</span>
     </button>
     <button type="button" class="doku-tool" data-action="meta" data-path={path} title="คุณสมบัติ">

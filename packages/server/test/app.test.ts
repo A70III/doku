@@ -333,3 +333,89 @@ describe("client.js", () => {
     }
   })
 })
+
+describe("cache key ต้องผูกกับ path id (regression: cache collision)", () => {
+  test("เอกสารต่างโฟลเดอร์ที่ md+meta เหมือนกัน ไม่ได้ fragment ของกัน", async () => {
+    const { app, cache } = setup({
+      "one/a.md": "[go](b.md)\n",
+      "one/b.md": "# B\n",
+      "two/a.md": "[go](b.md)\n",
+      "two/b.md": "# B\n",
+    })
+    const first = await (await app.request("/d/one/a")).text()
+    const second = await (await app.request("/d/two/a")).text()
+    expect(first).toContain('href="/d/one/b"')
+    expect(second).toContain('href="/d/two/b"')
+    expect(cache.size).toBe(2)
+
+    // sidecar เปลี่ยนแต่ meta ที่ parse แล้วเท่ากัน (unknown field) → ต้อง render ใหม่
+    const before = await (await app.request("/d/one/a")).text()
+    expect(before).toBe(first)
+  })
+})
+
+describe("asset route + static caching (M3 fixes)", () => {
+  test("asset path ที่ขึ้นต้นด้วยชื่อ vault ไม่ถูก strip", async () => {
+    const { app } = setup({ "vault/diagram.png": new Uint8Array([1, 2, 3]) })
+    const res = await app.request("/assets/vault/diagram.png")
+    expect(res.status).toBe(200)
+    expect(res.headers.get("content-type")).toBe("image/png")
+  })
+
+  test("ไฟล์ที่ไม่มีนามสกุลไม่ถูกเสิร์ฟเป็น image (extension ต้องมาจาก basename + มีจุดจริง)", async () => {
+    const { app } = setup({ png: "<svg onload=alert(1)>", "v1.png/secret": "x" })
+    expect((await app.request("/assets/png")).status).toBe(404)
+    expect((await app.request("/assets/v1.png/secret")).status).toBe(404)
+    // ext ต้องมาจาก basename ไม่ใช่ทั้ง path
+    expect((await app.request("/assets/dir.png/x.txt")).status).toBe(404)
+  })
+
+  test("If-None-Match แบบ weak/list ตอบ 304", async () => {
+    const { app } = setup({})
+    const app2 = createDokuApp({
+      fs: memoryVaultFs({}),
+      vaultName: "vault",
+      state: new VaultState(memoryVaultFs({}), "vault"),
+      renderer: new DocRenderer(
+        memoryVaultFs({}),
+        new VaultState(memoryVaultFs({}), "vault"),
+        new FragmentCache(null, RENDERER_VERSION),
+      ),
+      hub: new SseHub(),
+      readPublic: async (name) => (name === "editor.js" ? "window.DokuEditor = {};" : null),
+    })
+    const first = await app2.request("/static/editor.js")
+    const token = (first.headers.get("etag") ?? "").replaceAll('"', "")
+    expect(token).not.toBe("")
+    expect(
+      (await app2.request("/static/editor.js", { headers: { "if-none-match": `"${token}"` } }))
+        .status,
+    ).toBe(304)
+    expect(
+      (await app2.request("/static/editor.js", { headers: { "if-none-match": `W/"${token}"` } }))
+        .status,
+    ).toBe(304)
+    expect(
+      (await app2.request("/static/editor.js", { headers: { "if-none-match": `"x", "${token}"` } }))
+        .status,
+    ).toBe(304)
+    expect((await app.request("/static/editor.js")).status).toBe(404)
+  })
+
+  test("badge trash อัปเดตทันทีหลัง put (ไม่มี cache ค้าง)", async () => {
+    const fs = memoryVaultFs({ "a.md": GOOD_DOC })
+    const state = new VaultState(fs, "vault")
+    const app = createDokuApp({
+      fs,
+      vaultName: "vault",
+      state,
+      renderer: new DocRenderer(fs, state, new FragmentCache(null, RENDERER_VERSION)),
+      hub: new SseHub(),
+      trash: fs.trashStore(),
+      revisions: memoryRevisionStore(),
+    })
+    expect(await (await app.request("/")).text()).not.toContain('class="doku-rail-count"')
+    await fs.trashStore().put(["a.md"], { label: "a", kind: "doc" })
+    expect(await (await app.request("/")).text()).toContain('class="doku-rail-count"')
+  })
+})

@@ -24,15 +24,13 @@ export const tabsDefinition: BlockDefinition = {
     '::::tabs\n:::tab{label="macOS"}\nคำสั่งสำหรับ mac\n:::\n:::tab{label="Linux"}\nคำสั่งสำหรับ linux\n:::\n::::',
   render(ctx) {
     const mdast = (ctx.node.children ?? []) as TabLike[]
-    const pairs = mdast
-      .map((child, index) => ({ child, hast: ctx.children[index] }))
-      .filter(
-        (pair): pair is { child: TabLike; hast: Element } =>
-          pair.child?.type === "dokuBlock" &&
-          pair.child.name === "tab" &&
-          Boolean(pair.hast) &&
-          (pair.hast as Element).type === "element",
-      )
+    // ⚠️ ห้ามจับคู่ด้วย index ของ mdast กับ ctx.children: remark-rehype ทิ้ง html/definition node
+    // → index เลื่อน → tab หายเงียบ. จับคู่ "เฉพาะ tab" เรียงตามลำดับทั้งสองฝั่งแทน
+    const tabNodes = mdast.filter((child) => child?.type === "dokuBlock" && child.name === "tab")
+    const tabElements = ctx.children.filter((child): child is Element => child.type === "element")
+    const pairs = tabNodes
+      .map((child, index) => ({ child, hast: tabElements[index] }))
+      .filter((pair): pair is { child: TabLike; hast: Element } => Boolean(pair.hast))
 
     if (pairs.length === 0) return blockElement("div", "tabs", {}, ctx.children)
 

@@ -195,19 +195,33 @@ export function memoryTrashStoreOver(backing: MemoryTrashBacking): TrashStore {
 
     async put(sources, options) {
       const deletedAt = options.deletedAt ?? new Date()
-      const id = trashId(deletedAt)
-      let bytes = 0
-      for (const source of sources) {
-        bytes += sizeOf(source)
-        movePath(source, `${TRASH_DIR}/${id}/${source}`)
+      // id ซ้ำ = manifest ทับ item เก่า → หา id ว่างก่อน (ให้ตรงกับ node store)
+      const base = trashId(deletedAt)
+      let id = base
+      let counter = 1
+      while (readManifest(id) !== null) {
+        id = `${base}-${counter}`
+        counter += 1
       }
       const item: TrashItem = {
         id,
         label: options.label,
         kind: options.kind,
-        sources: [...sources],
+        sources: [],
         deletedAt: deletedAt.toISOString(),
-        bytes,
+        bytes: 0,
+      }
+      try {
+        for (const source of sources) {
+          if (!entries.has(source) && !directories.has(source)) continue
+          item.bytes += sizeOf(source)
+          movePath(source, `${TRASH_DIR}/${id}/${source}`)
+          item.sources.push(source)
+        }
+      } catch (error) {
+        // ล้มกลางทาง → เขียน manifest เท่าที่ย้ายสำเร็จ (ไม่ให้ไฟล์ค้างแบบมองไม่เห็น)
+        if (item.sources.length > 0) writeManifest(item)
+        throw error
       }
       writeManifest(item)
       return item
@@ -216,6 +230,12 @@ export function memoryTrashStoreOver(backing: MemoryTrashBacking): TrashStore {
     async restore(id) {
       const item = readManifest(id)
       if (!item) throw new Error(`ไม่พบรายการใน trash: ${id}`)
+      for (const source of item.sources) {
+        // กันทับ path เดิม (docs/08 ข้อ 39) — ให้ตรงกับ node store
+        if (entries.has(source) || directories.has(source)) {
+          throw new Error(`path เดิมมีอยู่แล้ว: ${source}`)
+        }
+      }
       for (const source of item.sources) {
         movePath(`${TRASH_DIR}/${id}/${source}`, source)
       }
