@@ -155,6 +155,8 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 
 ```
 .z-doku-gutter      overlay ของ client — + / ⋮⋮ ลอยตามเมาส์ (position: absolute ใน host)
+                    เยื้องออกนอกคอลัมน์อ่านเสมอ (ไม่ทับอักขระแรก) แต่ clamp ไม่ให้ล้นขอบ
+                    viewport — `gutterOffset()` ใน `web/client/pure.ts` ([08 ข้อ 80](08-decisions.md))
 .z-doku-block-strip มีอยู่แล้ว (editor.ts:renderDirectiveStrip → client.ts:1242)
 .z-doku-inline-bar  ใหม่ — bubble toolbar เมื่อเลือกข้อความ (Track D)
 .cm-*               decoration + widget (Track B)
@@ -164,6 +166,8 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 **ข้อกำหนด overlay:** follow mouse ด้วย `pointermove` **ครั้งเดียวต่อ frame** (`requestAnimationFrame`)
 · delay ซ่อน 200ms + hit-area ยืดเข้าหา handle (บทเรียนจาก plugin ที่ handle "หนีมือ") · pin ได้
 · z-index/position relative กับ host (`client.ts:1297` มี delta tracking อยู่แล้ว — ใช้ต่อ)
+· กล่องลอยทุกตัว (เมนู/palette) ต้องอยู่ใน viewport — `placeFloating()` + `max-height`/`overflow-y`
+ของกล่องเอง ไม่ให้ยืดหน้า ([08 ข้อ 80](08-decisions.md))
 
 ---
 
@@ -209,7 +213,7 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 ### Track B — read-parity (M) · "ไม่เห็น markdown ดิบ" ✅
 
 - [x] GFM parser (`markdownLanguage`) + `markdownKeymap` (Enter สืบ list · Backspace ลบ marker) — Tab nest ตาม block model = C3
-- [x] widget: `:::` (หัว block จาก `BLOCK_LABELS` + พื้น tint ตาม variant) · math (`$…$` inline · `$$…$$` หลายบรรทัดผ่าน `blockMathField` เพราะ CM6 ห้าม plugin ทำ block decoration) · **checkbox คลิกได้** (เขียนกลับ `[x]`/`[ ]`) · `hr` · image · inline `:badge[…]` (attribute ชุดเดียวกับ renderer → CSS เดิมครอบ) · placeholder ต่อ block = E
+- [x] widget: `:::` (หัว block จาก `BLOCK_LABELS` + ข้อความของผู้ใช้ `title` → `label` → `caption` + พื้น tint ตาม variant) · **fence เปิด reveal เมื่อカーแตะ** (สมมาตรกับ fence ปิด — [08 ข้อ 79](08-decisions.md)) · math (`$…$` inline · `$$…$$` หลายบรรทัดผ่าน `blockMathField` เพราะ CM6 ห้าม plugin ทำ block decoration) · **checkbox คลิกได้** (เขียนกลับ `[x]`/`[ ]`) · `hr` · image · inline `:badge[…]` (attribute ชุดเดียวกับ renderer → CSS เดิมครอบ) · placeholder ต่อ block = E
 - [x] code block: chrome (พื้น/ระยะ) + token mapping กับ Shiki github-light/dark ผ่าน `--k-code-*` — per-language ยังไม่ทำ (ไม่มี dependency ภาษาในบันเดิล)
 - [x] marker policy: atomic **เฉพาะ delimiter** · ซ่อนเมื่อカーไม่สัมผัส · **composition guard** ([08 ข้อ 69](08-decisions.md)) · เพิ่มแล้ว: `<link /static/katex.css>` เมื่อเอกสารมีสมการ (เดิม route มีแต่ไม่เคย link → math ไม่มีสไตล์)
 - **DoD:** screenshot read ↔ edit ต่างกันเฉพาะที่จำเป็น · พิมพ์ไทยต่อเนื่อง (สระ/วรรณยุกต์/คำผสม) ไม่มีカーเพี้ยน ·

@@ -177,6 +177,9 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - ล็อกหลัง M3.2: **browser client ผ่าน bundler เหมือน editor** (ข้อ 78) — `web/client.ts` (string) → `web/client/main.ts`
   + `bun run build:client` → `public/client.js` (served ด้วย ETag เหมือน `editor.js`) · `core` ได้ `installInteractions()`
   + subpath `@doku/core/client` · เทสต์เลิกงัดโค้ดจากสตริง · ส่วนที่ยังไม่ย้าย = `@ts-nocheck` ratchet ใน `client/main.ts` (ทยอยแยกเป็น seam)
+- ล็อกเพิ่มตอนแก้บั๊ก UI editor หลัง M3.2: **`:::` fence เปิด reveal เมื่อカーแตะ** (เดิมซ่อนถาวร — `touching()` ต้องสมมาตรกับ fence ปิด)
+  + **หัว block ใช้ข้อความของผู้ใช้** `title` → `label` → `caption` แล้วค่อยตกไปที่ `BLOCK_LABELS` (ข้อ 79)
+  · **gutter เยื้องออกนอกคอลัมน์อ่านแบบ clamp viewport** + **เมนูลอย clamp/flip และเลื่อนในกล่องเอง** (ข้อ 80)
 - **รอเคาะ**: ไม่มี (Q7 เคาะแล้วเป็นข้อ 72)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
