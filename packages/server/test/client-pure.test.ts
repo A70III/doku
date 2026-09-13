@@ -5,9 +5,11 @@ import {
   encodePath,
   fenceMarker,
   frontmatterLength,
+  gutterOffset,
   inRect,
   joinPath,
   normalizeHeading,
+  placeFloating,
 } from "../src/web/client/pure.ts"
 
 /**
@@ -97,6 +99,64 @@ describe("normalizeHeading — ต้องสมมาตรกับ text ข�
     // (call site ใช้ `link.textContent || ""`) — เทสต์นี้ล็อกพฤติกรรมที่ยังเหมือนเดิม
     expect(normalizeHeading(undefined)).toBe("undefined")
     expect(() => normalizeHeading(null)).not.toThrow()
+  })
+})
+
+describe("gutterOffset — ปุ่ม `+`/`⋮⋮` ต้องไม่ทับตัวอักษร (docs/09 §3.3)", () => {
+  const WIDTH = 48 // ความกว้าง gutter (ปุ่ม 18×2 + gap 4 + padding-inline 4×2)
+  const GAP = 4 // ระยะห่างระหว่าง gutter กับต้นบรรทัดของคอลัมน์อ่าน
+
+  test("มีที่ด้านซ้าย → เยื้องออกนอกคอลัมน์อ่านเต็มจำนวน (ค่าลบ)", () => {
+    expect(gutterOffset(460, WIDTH, GAP)).toBe(-(WIDTH + GAP))
+  })
+
+  test("จอแคบ/200% zoom — clamp ที่ขอบซ้ายของ viewport (ห้าม horizontal overflow)", () => {
+    expect(gutterOffset(24, WIDTH, GAP)).toBe(GAP - 24)
+    expect(gutterOffset(4, WIDTH, GAP)).toBe(0)
+  })
+
+  test("ห้ามเป็นค่าบวก — ค่าบวก = ยิ่งทับข้อความ (บั๊กเดิม `Math.max(0, -44)` = 0)", () => {
+    for (const articleLeft of [0, 4, 24, 100, 460, 1200]) {
+      const offset = gutterOffset(articleLeft, WIDTH, GAP)
+      expect(offset).toBeLessThanOrEqual(0)
+      expect(offset).toBeGreaterThanOrEqual(-(WIDTH + GAP))
+    }
+  })
+})
+
+describe("placeFloating — กล่องลอยต้องอยู่ใน viewport (เลื่อนในกล่องเอง)", () => {
+  const viewport = { width: 1440, height: 800 }
+  const noScroll = { x: 0, y: 0 }
+  const anchor = { left: 464, top: 374, right: 496, bottom: 396 }
+
+  test("ที่ด้านล่างพอ → วางใต้ anchor", () => {
+    expect(placeFloating(anchor, { width: 192, height: 300 }, viewport, noScroll)).toEqual({
+      left: 464,
+      top: 400,
+    })
+  })
+
+  test("กล่องสูงกว่า viewport → ยังอยู่บนจอ (ขอบล่างไม่เกิน viewport)", () => {
+    const box = placeFloating(anchor, { width: 192, height: 640 }, viewport, noScroll)
+    expect(box.top).toBeGreaterThanOrEqual(8)
+    expect(box.top + 640).toBeLessThanOrEqual(viewport.height)
+  })
+
+  test("anchor ใกล้ขอบล่าง และด้านบนมีมากกว่า → พลิกขึ้นเหนือ anchor", () => {
+    const low = { left: 100, top: 700, right: 140, bottom: 730 }
+    expect(placeFloating(low, { width: 192, height: 300 }, viewport, noScroll).top).toBe(396)
+  })
+
+  test("scroll ถูกบวกกลับเป็นพิกัดเอกสาร (`.doku-menu` เป็น position: absolute)", () => {
+    const box = placeFloating(anchor, { width: 192, height: 300 }, viewport, { x: 0, y: 1200 })
+    expect(box.top).toBe(1600)
+  })
+
+  test("ไม่ล้นขอบซ้าย/ขวา", () => {
+    const right = { left: 1400, top: 100, right: 1440, bottom: 130 }
+    expect(placeFloating(right, { width: 192, height: 200 }, viewport, noScroll).left).toBe(1240)
+    const left = { left: 2, top: 100, right: 42, bottom: 130 }
+    expect(placeFloating(left, { width: 192, height: 200 }, viewport, noScroll).left).toBe(8)
   })
 })
 

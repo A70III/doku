@@ -12,6 +12,9 @@ import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 
 const EDITOR_SOURCE = EDITOR_LAYER_SOURCE
 const APP_CSS = readFileSync(new URL("../src/web/styles/app.css", import.meta.url), "utf8")
+/** main.ts ตรง ๆ (ไม่รวม pure.ts) — สำหรับยืนยันว่า *โค้ด* เลิกใช้ค่าคงที่เดิม
+ *  (CLIENT_SOURCE รวมคอมเมนต์ที่ยกตัวอย่างบั๊กเดิมมาอธิบายด้วย) */
+const CLIENT_MAIN = readFileSync(new URL("../src/web/client/main.ts", import.meta.url), "utf8")
 
 describe("Track C — keymap (docs/08 ข้อ 70)", () => {
   test("คีย์ของ Doku มาก่อน defaultKeymap + Tab ใช้ `shift:` แบบ CM6", () => {
@@ -100,5 +103,34 @@ describe("Track C — gutter overlay + drag & drop (docs/08 ข้อ 66/67/71)"
     }
     expect(CLIENT_SOURCE).toContain("Mod+Shift+↑")
     expect(CLIENT_SOURCE).toContain("Shift+Delete")
+  })
+})
+
+/**
+ * Regression test — gutter ทับตัวอักษร + เมนูยาวล้นจอ (รายงานจากผู้ใช้)
+ *
+ * อาการ:
+ *  1. ปุ่ม `+`/`⋮⋮` วางที่ `left: 0` ของ `.doku-article` = ทับอักขระตัวแรกของบรรทัด
+ *     (Notion วางเยื่องออกนอกคอลัมน์อ่าน) — root cause: `Math.max(0, -44)` = 0 ทุกกรณี
+ *     (ค่าคงที่ที่ clamp ตัวเองทิ้ง) บวกกับ `--d-space-1` padding ทำให้ปุ่มถูกบีบเหลือ 14px
+ *  2. `openMenu` ไม่มี max-height/overflow และ `top = anchor.bottom` เสมอ → เมนู
+ *     "แทรก block" (~24 รายการ) ล้นขอบล่างของ viewport → ต้องเลื่อนหน้าต่างทั้งหน้า
+ *
+ * อ้างอิง: docs/08 ข้อ 80
+ */
+describe("Track C — gutter/menu placement (regression · docs/08 ข้อ 80)", () => {
+  test("gutter คำนวณ offset ซ้ายด้วย pure helper (ห้ามค่าคงที่ที่ clamp ตัวเอง)", () => {
+    expect(CLIENT_MAIN).not.toContain("Math.max(0, -44)")
+    expect(CLIENT_MAIN).toContain("gutterOffset(")
+    // ปุ่มต้องไม่ถูกบีบให้แคบกว่าเนื้อหา (`⋮⋮` สองหลักต้องเห็นสองคอลัมน์)
+    expect(APP_CSS).toMatch(/\.doku-gutter-btn\s*\{[^}]*flex:\s*none/)
+    expect(APP_CSS).not.toMatch(/\.doku-gutter-handle\s*\{[^}]*letter-spacing:\s*-2px/)
+  })
+
+  test("เมนูยาวต้องเลื่อนในกล่องเอง + อยู่ใน viewport", () => {
+    expect(CLIENT_MAIN).toContain("placeFloating(")
+    expect(APP_CSS).toMatch(/\.doku-menu\s*\{[^}]*max-height:/)
+    expect(APP_CSS).toMatch(/\.doku-menu\s*\{[^}]*overflow-y:\s*auto/)
+    expect(APP_CSS).toMatch(/\.doku-menu\s*\{[^}]*overscroll-behavior:\s*contain/)
   })
 })

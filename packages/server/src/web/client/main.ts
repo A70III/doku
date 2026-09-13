@@ -18,10 +18,12 @@ import {
   encodePath,
   fenceMarker,
   frontmatterLength,
+  gutterOffset,
   headingsInMarkdown,
   inRect,
   joinPath,
   normalizeHeading,
+  placeFloating,
   shouldReloadOnChange,
 } from "./pure.ts"
 
@@ -224,10 +226,16 @@ import {
     }
     menuEl.hidden = false
     const rect = anchor.getBoundingClientRect()
-    const width = menuEl.offsetWidth
-    const left = Math.max(8, Math.min(rect.left + window.scrollX, window.innerWidth - width - 8))
-    menuEl.style.left = left + "px"
-    menuEl.style.top = rect.bottom + window.scrollY + 4 + "px"
+    // กล่องยาว (แทรก block ~24 รายการ) ต้องเลื่อนในกล่องเอง — ไม่ให้ล้นจอแล้วต้องเลื่อนหน้า
+    // (docs/08 ข้อ 80)
+    const spot = placeFloating(
+      rect,
+      { width: menuEl.offsetWidth, height: menuEl.offsetHeight },
+      { width: window.innerWidth, height: window.innerHeight },
+      { x: window.scrollX, y: window.scrollY },
+    )
+    menuEl.style.left = spot.left + "px"
+    menuEl.style.top = spot.top + "px"
   }
 
   document.addEventListener("click", (event) => {
@@ -1394,6 +1402,9 @@ import {
   let gutterPointer = null
   let lastPointer = null
 
+  /** ระยะห่างระหว่าง gutter กับต้นบรรทัด (px) — คู่กับ `.z-doku-gutter` ใน app.css (docs/08 ข้อ 80) */
+  const GUTTER_GAP = 4
+
   function gutterEl() {
     let el = document.getElementById("doku-gutter")
     if (!el && articleEl) {
@@ -1467,8 +1478,11 @@ import {
     if (coords) {
       el.style.top = Math.max(0, coords.top - rect.top) + "px"
     }
-    el.style.left = Math.max(0, -44) + "px"
+    // ต้อง unhide ก่อนวัดความกว้าง (hidden = display:none → offsetWidth = 0)
     el.hidden = false
+    // เยื้องออกนอกคอลัมน์อ่าน (ไม่ทับอักขระตัวแรก) แต่ไม่ล้นขอบซ้ายของ viewport
+    // — docs/09 §3.3 · docs/08 ข้อ 80
+    el.style.left = gutterOffset(rect.left, el.offsetWidth, GUTTER_GAP) + "px"
     writing.handle.highlight(block.from, block.to)
   }
 

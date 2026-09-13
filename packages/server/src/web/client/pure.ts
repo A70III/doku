@@ -147,6 +147,57 @@ export function headingsInMarkdown(md: string): MarkdownHeading[] {
 
 /* ── geometry ─────────────────────────────────────────────────────────── */
 
+/** กรอบสี่เหลี่ยมของ element (พิกัด viewport — แบบ `DOMRect`/`getBoundingClientRect`) */
+export interface Box {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+/** ขนาดของกล่อง/viewport */
+export interface Size {
+  width: number
+  height: number
+}
+
+/** ระยะเยื้องซ้ายของ gutter (`+`/`⋮⋮`) — หน่วย px · ค่าลบ = เยื้องออกนอกคอลัมน์อ่าน
+ *
+ * ต้องอยู่นอกคอลัมน์เสมอ (ไม่ทับอักขระตัวแรก) แต่ห้ามล้นขอบซ้ายของ viewport
+ * (จอแคบ/200% zoom → horizontal overflow) จึง clamp ด้วยพื้นที่จริงทางซ้ายของคอลัมน์
+ *
+ * แทนค่าคงที่เดิม `Math.max(0, -44)` ที่ = 0 ทุกกรณี → ปุ่มทับข้อความ (docs/08 ข้อ 80) */
+export function gutterOffset(articleLeft: number, gutterWidth: number, gap: number): number {
+  return Math.min(0, Math.max(-(gutterWidth + gap), gap - articleLeft))
+}
+
+/** วางกล่องลอย (เมนู/tooltip) ให้อยู่ใน viewport เสมอ แล้วคืนพิกัดระดับเอกสาร
+ * (absolute + `window.scrollX/Y`)
+ *
+ * พอที่ด้านล่าง → ใต้ anchor · ไม่พอและด้านบนมีมากกว่า → พลิกขึ้นเหนือ anchor
+ * · ที่เหลือ clamp ขอบทั้งสี่ (margin) — กล่องที่สูงเกินพื้นที่ก็ยังไม่ล้นจอ
+ * (ให้ CSS จำกัด `max-height` + `overflow-y: auto` ทำหน้าที่เลื่อนในกล่องเอง — docs/08 ข้อ 80) */
+export function placeFloating(
+  anchor: Box,
+  size: Size,
+  viewport: Size,
+  scroll: { x: number; y: number },
+  gap?: number,
+  margin?: number,
+): { left: number; top: number } {
+  const gapSize = gap ?? 4
+  const edge = margin ?? 8
+  const spaceBelow = viewport.height - anchor.bottom - gapSize - edge
+  const spaceAbove = anchor.top - gapSize - edge
+  const below = anchor.bottom + gapSize
+  const above = anchor.top - size.height - gapSize
+  const top = size.height > spaceBelow && spaceAbove > spaceBelow ? above : below
+  return {
+    left: Math.max(edge, Math.min(anchor.left + scroll.x, viewport.width - size.width - edge)),
+    top: Math.max(edge, Math.min(top, viewport.height - size.height - edge)) + scroll.y,
+  }
+}
+
 /** พิกัดของ event อยู่ในกรอบ element ไหม — วัดด้วย rect ไม่ใช่ contains อย่างเดียว
  *  (กันเคส element ถูกแทนที่ระหว่างคลิก → target หลุดจาก DOM) */
 export function inRect(

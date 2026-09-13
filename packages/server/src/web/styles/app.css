@@ -416,11 +416,16 @@
   cursor: not-allowed;
 }
 
-/* ── menu (row actions) ── */
+/* ── menu (row actions + insert block) ── */
 .doku-menu {
   position: absolute;
   z-index: 60;
   min-width: 12rem;
+  /* เมนูยาว (แทรก block ~24 รายการ) ต้องเลื่อนในกล่องเอง — ห้ามยืดหน้า/ดัน viewport
+     `overscroll-behavior: contain` กัน scroll chaining ตอนไถถึงขอบกล่อง (docs/08 ข้อ 80) */
+  max-height: min(60vh, 26rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.25rem;
   border: 1px solid var(--d-border);
   border-radius: var(--d-radius-md);
@@ -1143,12 +1148,14 @@ html[data-zen] .doku-main {
   display: flex;
   align-items: center;
   gap: var(--d-space-1);
-  width: 40px;
+  /* ไม่กำหนด width — ให้หดตามเนื้อหา (ปุ่ม 18×2 + gap + padding) เพื่อไม่ให้ flex บีบ
+     ปุ่มจนเหลือ ~14px แล้ว `⋮⋮` ยุบเป็นคอลัมน์เดียว (client วัด offsetWidth ตอนวาง · docs/08 ข้อ 80) */
   padding-inline: var(--d-space-1);
 }
 .doku-gutter-btn {
   display: grid;
   place-items: center;
+  flex: none;
   width: 18px;
   height: 22px;
   padding: 0;
@@ -1168,7 +1175,6 @@ html[data-zen] .doku-main {
 }
 .doku-gutter-handle {
   cursor: grab;
-  letter-spacing: -2px;
 }
 .doku-gutter-handle:active {
   cursor: grabbing;
