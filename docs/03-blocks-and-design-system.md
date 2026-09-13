@@ -678,7 +678,10 @@ migrate แล้วใน UI pass ([08 ข้อ 36](08-decisions.md))
 
   · ปุ่มที่ active ใช้ `aria-pressed` → `--d-accent-weak` พื้น + `--d-accent` ตัวอักษร (ไม่ใช้สีอิ่มบน tint)
   · ทุกคอนโทรลมี `aria-label` ไทย + focus ring จาก global `:focus-visible` · ทั้งชุดซ่อนเมื่อカーย้ายออก/เลือก block
-- autosave ตาม debounce · ออกด้วย `Esc` (カーออกจากเอกสาร → คีย์ลัดงานอ่านกลับมาทำงาน)
+- **カーอยู่ block ไหน = ขีด accent บาง 35% ด้านซ้ายของ block นั้น** (`cm-doku-block-active` · โชว์เฉพาะตอน editor มี focus
+  · ซ่อนเองเมื่อ block ถูกเลือกเพราะมีพื้นของตัวเอง) · บรรทัดว่างตรงカーมี hint "พิมพ์ / เพื่อสั่ง" (จาง · `aria-hidden`)
+- autosave ตาม debounce · `Esc` = บันได 2 จังหวะ: เลือก block → ยกเลิก + ออกเอกสาร (カーหลุด → คีย์ลัดงานอ่านกลับมาทำงาน)
+  ดู [08 ข้อ 76](08-decisions.md)
 - ยังไม่มีカー = หน้าตาเหมือนหน้าอ่านทุกอย่าง ต่างกันแค่พิมพ์ได้
 
 ### Hub page

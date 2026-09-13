@@ -241,14 +241,31 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 - **DoD:** path bubble ไม่มี syntax โผล่ · paste จากหน้าเว็บได้ markdown ที่ `doku check` = 0 error ✅
       (เทสต์: `packages/server/test/inline.test.ts` + `inline-layer.test.ts` · smoke ใน Chromium จริง: bubble/B/I/E/Shift+S/K · วาง HTML · `:smile:` · autosave)
 
-### Track E — feel / perf / a11y lock (S/M)
+### Track E — feel / perf / a11y lock (S/M) ✅
 
-- [ ] focus line + active block · empty-block placeholder ("พิมพ์ / เพื่อสั่ง") · motion + `prefers-reduced-motion`
-- [ ] **perf budget เป็นเทสต์:** decoration rebuild ≤ **8ms/keystroke** บนเอกสาร 3,000 บรรทัด (visible-only + incremental)
-- [ ] แยกไฟล์ `web/editor.ts` (637 → คาด > 1,500 บรรทัด): `editor/decorations.ts` · `editor/blocks.ts` · `editor/gutter.ts` · `editor/inline.ts` · `editor/keymap.ts`
-- [ ] `bun run shot` เพิ่ม scenario: เขียน/เลือก/ลาก · a11y (ชื่อคอนโทรล · focus ring · reduced motion · 360px · 200% zoom)
-- **DoD:** `bun test` + `bun run check` + `bun run typecheck` ผ่าน · `doku check examples/vault` = 0 error ·
-  `docs/03 §5` (visual spec ของ gutter/inline bar) + `AGENTS.md` sync ในคอมมิตเดียวกัน
+- [x] focus line + active block + empty-block placeholder + motion/reduced-motion
+  - `cm-doku-block-active` = ขีด accent บาง 35% ด้านซ้ายของ block ที่カーอยู่ (คำนวณจาก block model · visible range เท่านั้น
+    · ซ่อนอัตโนมัติเมื่อไม่ focus หรือเป็น block selection ผ่าน `:not(.cm-doku-block-selected)` ใน CSS)
+  - hint "พิมพ์ / เพื่อสั่ง" บนบรรทัดว่างตรงカー (decoration widget `aria-hidden` · ข้ามในโค้ด · ข้ามเมื่อเอกสารว่างทั้งใบ
+    — กรณีนั้นเป็นหน้าที่ placeholder ของ CM)
+  - `prefers-reduced-motion` ล็อกด้วยเทสต์ใน `tokens.test.ts` (ปิด animation/transition ทั้งหมด) + shot a11y ตรวจ DOM จริงในโหมด reduce
+- [x] **perf budget เป็นเทสต์:** `packages/server/test/perf.test.ts` — Chromium จริง · เอกสาร 3,200 บรรทัด ·
+  พิมพ์ 40 keystroke · budget `max ≤ 8ms` และ `mean ≤ 4ms` (วัดได้ max ≈ 0.7ms, median ≈ 0.2ms)
+  · ใช้ `window.DokuEditor.perf` (ต้นทุน plugin + state field ต่อ update) · block math StateField เปลี่ยนเป็น **incremental**
+  (cache ช่วง `$$…$$` + map ตำแหน่งตาม change · สแกนใหม่เฉพาะเมื่อวางข้อความที่มี `$$` หรือแตะ block/fence line — เดิมสแกนทั้งเอกสารทุก keystroke)
+- [x] แยกไฟล์ `web/editor.ts`: `editor/{decorations,block-layer,inline-layer,blocks,inline,keymap}.ts`
+  (775 บรรทัดจาก 1,931) · **`editor/gutter.ts` ไม่มี** — gutter เป็น overlay ของ client (ข้อ 66) ซึ่งอยู่ใน `client.ts`
+  ที่เป็น string ก้อนเดียวโดยออกแบบ (ข้อ 17/37) → การแยกไฟล์ client ต้องเพิ่ม bundler ให้ client.js = decision ใหม่ (ยังไม่ทำ)
+- [x] `bun run shot` scenario โต้ตอบจริง (ทั้ง 2 ธีม): bubble · link popover · พิมพ์ไทย (insertText) ·
+  **IME guard** (ระหว่าง composing ต้องไม่ rebuild + จบแล้ว rebuild) · Esc เลือก block · ลาก block (drop indicator + markdown ถูกจัดลำดับใหม่)
+  · a11y ต่อหน้า: ชื่อคอนโทรล · focus ring · 200% zoom · 360px · reduced motion
+  · สคริปต์ทำงานบน **สำเนา vault** (`var/tmp/shot-vault`) เพราะ scenario เขียนกลับได้ (autosave)
+- **DoD:** `bun test` (346) + `bun run check` + `bun run typecheck` ผ่าน · `doku check examples/vault` = 0 error ·
+  `docs/03` (visual spec ของ overlay/gutter/inline bar) + `docs/02`/`docs/06` (asset charset) + `AGENTS.md` sync ในคอมมิตเดียวกัน ✅
+
+**บั๊กที่ scenario จับได้ (แก้ในรอบนี้):** `Escape` จังหวะแรกเคย blur editor → ยกเลิก block selection ไม่ได้และคีย์ chrome ไม่กลับมา
+([08 ข้อ 76](08-decisions.md)) · decoration set ของ plugin ค้างตำแหน่งระหว่าง IME composition → CM throw
+"Decorations that replace line breaks may not be specified via plugins" ([08 ข้อ 77](08-decisions.md))
 
 **ประเมิน:** ~7–9 วันทำงาน (C4 = ก้อนใหญ่สุด · ถ้าจำเป็นให้ส่ง C1–C3 ก่อนแล้วปิด C4 ในรอบถัดไป — แต่ **อยู่ใน M3.2** ตาม [08 ข้อ 67](08-decisions.md))
 

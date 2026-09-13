@@ -21,7 +21,8 @@ bun run check        # biome check (lint + format)
 bun run gen:schema   # z.toJSONSchema() → schema/  (ไม่ commit)
 bun run build:editor # bundle CodeMirror 6 → packages/server/public/editor.js (ไม่ commit)
 bun run gen:icons    # generate Lucide subset → packages/core/src/icons/lucide.ts (commit)
-bun run shot         # playwright: screenshot 2 ธีม + a11y check → var/shots/current/ (ไม่ commit)
+bun run shot         # playwright: screenshot 2 ธีม + a11y check + scenario โต้ตอบจริง (พิมพ์ไทย/IME/ลาก block)
+                     #   → var/shots/current/ (ไม่ commit · รันบนสำเนา vault var/tmp/)
 ```
 
 CLI `doku` (รายละเอียดครบใน `docs/05`): `new` `mkdir` `render` `check` `tree --json`
@@ -33,6 +34,7 @@ CLI `doku` (รายละเอียดครบใน `docs/05`): `new` `mkd
 packages/core/     @doku/core     resolve · render · blocks · validate · vault
 packages/fs-node/  @doku/fs-node  VaultFs adapter (node:fs)              (dep: core)
 packages/server/   @doku/server   Hono + JSX + Tailwind + watch + index (dep: core, fs-node)
+                                  web/editor/* = ชั้น editor (decorations · block-layer · inline-layer · blocks · inline · keymap)
 packages/cli/      @doku/cli      doku binary                          (dep: core, fs-node)
 packages/mcp/      @doku/mcp      MCP stdio                             (dep: core, fs-node)
 vault/             เนื้อหา = source of truth (gitignore)
@@ -125,15 +127,18 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - container downgrade ของ block (section/stats/kv/details/tabs/… เลิกเป็นกล่อง) · แก้ `==…==` ที่เคยเป็นพื้นเหลืองทึบ
   - correctness lock ข้อ 56–61 (path `#` · sanitize protocol/attribute · asset `?h=` · `width` · `render.math=false` · wikilink)
   - verify: `bun run shot` ถ่าย 2 ธีม + **a11y smoke check** (ชื่อคอนโทรล · focus ring · 200% zoom · reduced motion · 360px)
-- **M3.2 (one surface + block layer) กำลังทำ** — Track A–D เสร็จแล้ว · spec: `docs/09-editor-ux.md` · decision docs/08 ข้อ 63–75
+- **M3.2 (one surface + block layer) เสร็จทั้ง 5 track** — spec: `docs/09-editor-ux.md` · decision docs/08 ข้อ 63–77
   - Track A ✅ one surface (mount CM6 ตั้งแต่โหลด · `posAtDOM` แทน text search · SSE guard → `data-dirty`)
   - Track B ✅ read-parity (`markdownKeymap` · widget `:::`/math/checkbox · composition guard)
   - Track C ✅ block layer + **drag & drop** (`editor/blocks.ts` · gutter overlay · drop indicator)
   - Track D ✅ inline layer — `editor/inline.ts` (pure md → md) + bubble `.z-doku-inline-bar` + link popover
     · `Mod+B/I/Shift+S/E/K` · smart paste HTML→markdown · `:emoji:` · **คีย์ของผิวเอกสารชนะ chrome** (ข้อ 73–75)
-  - **Track E (เหลือ)** quality lock + **Q7 → ข้อ 72** (`isSafeAssetName`) + แยกไฟล์ `editor/{decorations,gutter,keymap}.ts` + shot scenario
+  - Track E ✅ quality lock — focus line/active block + empty-line hint · perf budget เป็นเทสต์ (`test/perf.test.ts` ≤ 8ms/keystroke
+    บน 3,200 บรรทัด · block math incremental) · **ข้อ 72 asset charset** (`isSafeAssetName` บังคับ 4 จุด) · `Escape` บันได 2 จังหวะ (ข้อ 76)
+    · composition map (ข้อ 77) · shot scenario พิมพ์ไทย/IME guard/เลือก-ลาก block บนสำเนา vault · แยกไฟล์ `editor.ts` → 775 บรรทัด
+  - โมดูลของ editor: `editor/{decorations,block-layer,inline-layer,blocks,inline,keymap}.ts` (gutter เป็น overlay ของ client → อยู่ใน `client.ts`)
 - **หลังจากนั้น: M4** — REST ที่เหลือ (assets/context) + audit log + `doku mcp`
-- ยังไม่มี: Track E ของ M3.2 (focus line/perf budget/asset charset), MCP (M4), index/search (M5)
+- ยังไม่มี: MCP (M4), index/search (M5)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)
 - ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#2b5fc4`
@@ -165,6 +170,8 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · highlight = เปลี่ยนสี (ไม่ถอด marker) ต่างจากปุ่ม mark ที่ toggle · bubble ชนะ block strip (ข้อ 73)
   · **คีย์ของผิวเอกสารชนะ chrome** — `Mod+K`/`Mod+E` ในเอกสารเป็นของ CM6, palette/`カーในเอกสารนี้` ใช้ตอน focus นอกผิว (รวม bubble/link popover) (ข้อ 74)
   · smart paste = HTML → markdown ผ่าน allowlist เดียวกัน + ทิ้ง `script`/`style`/`iframe`/`svg` ทั้งก้อน + paste ใน code fence = ดิบ (ข้อ 75)
+- ล็อกเพิ่มตอนทำ M3.2 Track E: `Escape` = บันได 2 จังหวะ (เลือก block → ยกเลิก + ออกเอกสาร) + `stopPropagation` เฉพาะเมื่อจัดการแล้ว (ข้อ 76)
+  · ระหว่าง IME composition ห้ามสร้าง replace ใหม่ **แต่ต้อง map decoration set ตาม change** (ข้อ 77)
 - **รอเคาะ**: ไม่มี (Q7 เคาะแล้วเป็นข้อ 72)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)

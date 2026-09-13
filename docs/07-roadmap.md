@@ -189,14 +189,19 @@
 - [x] paste URL ทับข้อความที่เลือก → link · smart paste HTML → markdown (allowlist เดียวกับ sanitize)
       · `:emoji:` — คีย์ในเอกสารชนะ chrome (docs/08 ข้อ 74/75)
 
-### Track E — quality lock + asset charset (ข้อ 72)
+### Track E — quality lock + asset charset (ข้อ 72) ✅
 
-- [ ] focus line + active block · empty-block placeholder · motion + `prefers-reduced-motion`
-- [ ] **perf budget เป็นเทสต์:** decoration rebuild ≤ 8ms/keystroke บนเอกสาร 3,000 บรรทัด (visible-only + incremental)
-- [ ] แยกไฟล์ `web/editor.ts` → `editor/{decorations,blocks,gutter,inline,keymap}.ts`
-- [ ] **Q7 ⇒ ข้อ 72** — `isSafeAssetName()` ตัวเดียวใน `core` + `doku check` code `asset_name_invalid` (error) + route `/assets/*path` ไม่ผ่าน = 404 + render warning/placeholder
-- [ ] `bun run shot` เพิ่ม scenario: พิมพ์ไทย/IME · เลือก/ลาก block · a11y 360px + 200% zoom
-- [ ] docs sync — `docs/03 §5` (visual spec ของ gutter/inline bar) · `docs/07` · `docs/08` · `AGENTS.md`
+- [x] focus line + active block · empty-block placeholder · motion + `prefers-reduced-motion`
+      (`cm-doku-block-active` เพราะカーอยู่ใน block ไหน · hint "พิมพ์ / เพื่อสั่ง" บนบรรทัดว่าง · reduced-motion ล็อกด้วยเทสต์)
+- [x] **perf budget เป็นเทสต์:** decoration rebuild ≤ 8ms/keystroke บนเอกสาร 3,200 บรรทัด
+      (`packages/server/test/perf.test.ts` — Chromium จริง · วัดได้ max ≈ 0.7ms · block math เป็น incremental แล้ว)
+- [x] แยกไฟล์ `web/editor.ts` → `editor/{decorations,block-layer,inline-layer,blocks,inline,keymap}.ts` (775 บรรทัดจาก 1,931)
+      · `gutter` อยู่ใน `client.ts` (overlay ของ client ตามข้อ 66) — แยกได้ต้องมี decision เรื่อง bundler ของ client
+- [x] **Q7 ⇒ ข้อ 72** — `isSafeAssetName()` ใน `core` + `doku check` code `asset_name_invalid` (error)
+      + route `/assets/*path` ไม่ผ่าน = 404 + render warning/placeholder (`data-asset-invalid` ไม่ยิง URL ที่จะ 404)
+- [x] `bun run shot` เพิ่ม scenario: พิมพ์ไทย (insertText) · IME guard (perf ระหว่าง composing) · เลือก/ลาก block ·
+      bubble/link popover · a11y 360px + 200% zoom + reduced motion · รันบนสำเนา vault (`var/tmp/shot-vault`)
+- [x] docs sync — `docs/03` (overlay/gutter/inline bar) · `docs/02`/`docs/06` (asset charset) · `docs/07` · `docs/08` (ข้อ 76/77) · `AGENTS.md`
 
 **เสร็จ:** เปิดเอกสารแล้วพิมพ์ได้ทันทีโดยไม่มี swap · มี `+`/`⋮⋮` ตอบสนองเมาส์และคีย์ลัดครบทุก action
 · พิมพ์ไทยด้วย IME แล้วカー/decoration ไม่เพี้ยน · table ยังเป็นแบบเดิมตามข้อ 68
