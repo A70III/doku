@@ -21,6 +21,7 @@ bun run check        # biome check (lint + format)
 bun run gen:schema   # z.toJSONSchema() → schema/  (ไม่ commit)
 bun run build:editor # bundle CodeMirror 6 → packages/server/public/editor.js (ไม่ commit)
 bun run gen:icons    # generate Lucide subset → packages/core/src/icons/lucide.ts (commit)
+bun run shot         # playwright → var/shots/current/*.png (เทียบก่อน/หลัง · ไม่ commit)
 ```
 
 CLI `doku` (รายละเอียดครบใน `docs/05`): `new` `mkdir` `render` `check` `tree --json`
@@ -56,6 +57,11 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - **CSS:** Tailwind v4 สำหรับ app chrome (sidebar/toolbar/editor) · เนื้อหาเอกสารใช้ CSS layer
   `.doku-prose` / `.doku-block` + design token (`--accent` ฯลฯ) — **ห้ามใช้ Tailwind กับ content block**
 - **Validate: Zod 4** เป็น single source (TS type + runtime + `z.toJSONSchema()`)
+- **สี** — ทุกคู่สีต้องผ่าน `packages/core/src/styles/contrast.test.ts` (อ่านค่าจาก `tokens.ts`)
+  · ข้อความบน tint ของสีใช้ `--k-<hue>-ink` ไม่ใช่ `--k-<hue>` · ห้าม `#fff`/`#000` ดิบ
+  · เส้นขอบคอนโทรล (input/select/textarea) ใช้ `--d-border-control` ส่วน hairline ประดับใช้ `--d-border` (docs/03 §1.1)
+- **ระยะ** — ใช้ token จากสเกลใน docs/03 §1.4 เท่านั้น ห้าม hardcode · และ **ห้ามอ้าง `var(--d-space-N)` ที่ไม่มี definition**
+  (CSS จะทิ้ง declaration ทั้งก้อนเงียบ ๆ — `tokens.test.ts` จับให้)
 
 ## หลักการที่ห้ามละเมิด
 
@@ -107,7 +113,14 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - sidebar drag-drop + row menu · command palette (Ctrl+K) · zen mode · theme cycle
   - Lucide subset vendored (`packages/core/src/icons/`) → `<Icon>` chrome + block icon ผ่าน CSS mask
   - asset ที่ generate (gitignore): `public/app.css`, `public/editor.js` · `scripts/dev.sh` build ให้ทั้งคู่
-- **ถัดไป: M4** — REST ครบ (assets/context/schema) + audit log + `doku mcp`
+- **ถัดไป: M3.1** — Reading room & writing surface (UI/UX pass 2) · decision [docs/08 ข้อ 47–55](docs/08-decisions.md)
+  - **A** rhythm/type: OKLCH palette + contrast test · สเกลระยะที่ขยาย + `tokens.test.ts` · reading scale · rhythm token (ตัดเส้นใต้ h2)
+  - **B** โครงหน้า: 3 คอลัมน์ (rail 248 · อ่านกลาง · TOC 208 sticky) · colophon ท้ายเอกสาร · toolbar demote
+  - **C** พื้นผิวการเขียน: CM6 **Live Preview ในคอลัมน์เดิม** (เลิก overlay/split) · slash menu · block control strip · คุณสมบัติ inline · autosave
+  - **D** container downgrade: ~37 block มีกรอบ → เหลือเท่าที่สื่อความหมาย (callout/code/figure/table/card)
+  - **E** verify: `bun run shot` (playwright) เทียบ before/after + a11y
+  - หลักฐานที่ทำให้ต้องมี: rail/panel `padding: 0` (`--d-space-5` ไม่ถูก define) · reading column 544px ใน main 880px · TOC inline 352px · สีตก AA 4 คลาส
+- ยังไม่มี: MCP (M4), index/search (M5)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)
 - ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#2b5fc4`
@@ -119,6 +132,15 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · static asset ETag/304 (ข้อ 42) · tree เดินจาก filesystem + folder color (ข้อ 43)
 - ล็อกเพิ่มตอนแก้บั๊ก M3: cache key ต้องมี path id/metaSource/warnings (ข้อ 44)
   · realpath ของบรรพบุรุษใน safeJoin + trash guard/restore ไม่ทับ (ข้อ 45) · asset route/mime/If-None-Match (ข้อ 46)
+- ล็อกเพิ่มตอน M3.1 (UI/UX pass 2): OKLCH palette + hairline≠control border + `-ink` + accent dark (ข้อ 47)
+  · สองสเกลตัวอักษร + weight 400/600 (ข้อ 48) · TOC sticky + colophon ท้ายเอกสาร (ข้อ 49)
+  · ห้ามอ้าง `--d-space-N` ที่ไม่ define (ข้อ 50) · toolbar demote (ข้อ 51) · Live Preview ในคอลัมน์เดิม (ข้อ 52)
+  · container downgrade ของ block (ข้อ 53) · autosave + คีย์ลัดสองโหมด (ข้อ 54) · slash menu + block control strip (ข้อ 55)
+- ล็อกเพิ่มตอนเคาะค้าง M3 (implement ที่ M3.1 Track E): `#` ห้ามในชื่อไฟล์ + แยก `normalizeVaultPath`/`normalizeLinkTarget` (ข้อ 56)
+  · `href` รับ `mailto:`/`tel:` + lowercase scheme + `target`/`rel` allowlist + ถอด `color` จาก global allowlist (ข้อ 57)
+  · asset `?h=` ต้อง verify ก่อน `immutable` (ข้อ 58) · `width` รับ `70`/`70%` (ข้อ 59)
+  · `render.math=false` คง `$…$` ต้นฉบับ (ข้อ 60) · wikilink หาไม่เจอ = คงข้อความต้นฉบับเป๊ะ (ข้อ 61)
+  · **ยังรอเคาะ**: Q7 asset filename charset (รอ upload API M4)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
 

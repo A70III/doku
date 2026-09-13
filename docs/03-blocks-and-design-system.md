@@ -407,61 +407,117 @@ Doku คือ **ห้องสมุดดิจิทัลร่วมสม
 
 ห้าม: ไล่เฉดม่วง/ฟ้าแบบ AI · neon · glow · gradient ประดับ · การ์ดสีรุ้ง · สีเป็นระบบหมวด
 
-ค่าด้านล่างคือ **ค่าที่ใช้จริงหลัง UI pass (migrate จาก cool neutral แล้ว)** — [08 ข้อ 36](08-decisions.md):
+#### กติกาที่ทำให้สี "ไม่เพี้ยน" (M3.1 — [08 ข้อ 47](08-decisions.md))
+
+ค่าสีทั้งชุดถูกคำนวณใหม่ใน **OKLCH** แล้ว **verify contrast เป็นคู่จริง** (รวม `color-mix()` ที่ composite บนพื้นจริง)
+ไม่ใช่ตรวจด้วยสายตา — เพราะ 4 คลาสนี้ "ผ่านตา" แต่ **ตก WCAG จริง**:
+
+| คลาสที่เคยตก | ก่อน | หลัง |
+|---|---|---|
+| เส้นขอบคอนโทรล (input/ช่องกรอก) | 1.35:1 · ผิด WCAG 1.4.11 | **`--d-border-control` ≥ 3.0:1** |
+| ข้อความ palette บน tint ของตัวเอง (badge) | 4.14–4.47:1 | **≥ 5.77:1** (ผ่าน `--k-<name>-ink`) |
+| semantic บน `--d-bg-subtle` / `--d-bg-muted` (stat · card · callout) | 3.87–4.48:1 | **≥ 5.9:1** |
+| `--d-text-subtle` บน `--d-bg-muted` | 4.33:1 | **4.58:1** |
+
+**กฎ 3 ข้อที่บังคับ:**
+
+1. **hairline ≠ control border** — `--d-border` / `--d-border-strong` เป็น *เครื่องประดับโครงสร้าง* contrast ต่ำได้
+   ส่วนเส้นขอบที่ **บอกว่าสิ่งนี้เป็นคอนโทรล** (input · select · textarea · toggle) ต้องใช้ **`--d-border-control`**
+2. **ข้อความบน tint ของสีต้องใช้ `--k-<name>-ink` ไม่ใช่ `--k-<name>`** — สีอิ่มตัวสงวนไว้ให้ *rule · icon · underline · stat-line*
+   (`-ink` = `color-mix(in oklab, var(--k-<name>) 78%, var(--k-text))` → dark ได้เฉดอ่อน light ได้เฉดเข้ม อัตโนมัติทั้งสองธีม ไม่ต้องดูแลสองชุด)
+3. **ห้าม hardcode `#fff` / `#000` / สีใหม่ใน component** — overlay ใช้ `--k-scrim` + `--k-on-scrim`, ข้อความบน accent ใช้ `--k-on-accent`
+
+**หลักการ hue:** ทุก hue ตั้ง **L (OKLCH lightness) เท่ากันในธีมเดียวกัน** (light ≈ 0.50–0.53 · dark ≈ 0.65)
+→ แดง/ส้ม/เหลือง/เขียว/น้ำเงิน หนักเบาเท่ากันหมด ไม่มีตัวไหน "สกปรก" หรือ "นีออน" กว่าใคร
+(เดิม yellow `#8a6d00` **เข้มกว่า** amber `#9a6700` — กลับด้านกับที่ตาคาด)
 
 | token | light | dark | ใช้กับ |
 |---|---|---|---|
-| `--k-app-bg` | `#f7f5f1` | `#14120f` | rail / พื้นหลังหน้า |
+| `--k-app-bg` | `#f6f4ef` | `#14120f` | rail / chrome (เข้มกว่า `--k-bg` พอจะแยกโซนได้ด้วยพื้น) |
 | `--k-bg` | `#fffefb` | `#1a1815` | พื้นเนื้อหา / เอกสาร |
-| `--d-bg-subtle` | `#f1eee8` | `#221f1a` | code, blockquote, inset panel |
-| `--d-bg-muted` | `#e9e5dd` | `#2b2721` | hover, zebra |
-| `--d-border` | `#e2dcd2` | `#332f28` | hairline ทุกตัว |
-| `--d-border-strong` | `#cfc8bc` | `#4a443a` | เส้นเน้น / active |
-| `--k-text` | `#1c1a17` | `#ece7de` | ตัวอักษรหลัก |
-| `--d-text-muted` | `#5d574e` | `#a8a196` | รอง |
-| `--d-text-subtle` | `#6f695f` | `#948d80` | meta |
-| `--d-accent` | `#2b5fc4` | `#58a6ff` | สถานะปัจจุบัน (link/active/focus) |
+| `--d-bg-subtle` | `#f1eee8` | `#221f1a` | inset panel · code · blockquote |
+| `--d-bg-muted` | `#e9e5dd` | `#2b2721` | hover · zebra |
+| `--d-border` | `#e2dcd2` | `#332f28` | hairline (ประดับ) |
+| `--d-border-strong` | `#cfc8bc` | `#4a443a` | hairline ที่ต้องอ่านออก (โครงสร้าง) |
+| **`--d-border-control`** | **`#8d8984`** | **`#6c6964`** | **เส้นขอบคอนโทรล — ≥ 3:1 (WCAG 1.4.11)** |
+| `--k-text` | `#1c1a17` | `#ece7de` | ตัวอักษรหลัก (worst 13.8:1) |
+| `--d-text-muted` | `#5a544b` | `#a8a196` | รอง (worst 5.96:1) |
+| `--d-text-subtle` | `#6b655f` | `#948e87` | meta (worst 4.58:1 — ผ่านบน `--d-bg-muted` ด้วย) |
+| `--d-accent` | `#2b5fc4` | `#5b93e0` | สถานะปัจจุบัน link/active/focus (worst 4.73:1) |
+| `--k-on-accent` | `#fffefb` | `#14120f` | ข้อความบน accent ทึบ |
+| `--d-selection` | accent 24% | accent 30% | `::selection` — ต้องเห็นจริง (เดิม 10% แทบมองไม่เห็น) |
+| `--k-scrim` | `rgb(28 26 23 / .88)` | เดียวกัน | พื้น overlay / lightbox figure |
+| `--k-on-scrim` | `#fffefb` | เดียวกัน | ข้อความบน scrim |
 
-- `--d-accent-weak` = `color-mix(in srgb, var(--d-accent) 10%, transparent)` — derive จาก accent เสมอ ไม่ hardcode
-- **accent**: `#3b7df0` เดิมบนพื้นอุ่นได้ contrast **3.87:1** (ไม่ผ่าน AA สำหรับ link) จึงลดความสว่างเป็น **`#2b5fc4`** (5.9:1) — ยังเป็นน้ำเงินตัวเดียวกัน แค่เข้มขึ้น
-- **`--d-text-subtle`**: `#8a8378` เดิมได้ 3.7:1 → เปลี่ยนเป็น `#6f695f` (light) / `#948d80` (dark) ให้ผ่าน AA
+- **`--d-accent` light คงเดิม `#2b5fc4`** ([08 ข้อ 5](08-decisions.md) — 5.9:1 บนพื้นเนื้อหา) · **dark เปลี่ยนจาก `#58a6ff` → `#5b93e0`**
+  เพราะค่าเดิม OKLCH chroma .152 / lightness .72 อ่านเป็น **นีออนเย็นบนพื้นน้ำตาลอุ่น** — ค่าใหม่ .120/.66 ยังผ่านทุกคู่ (link 4.73:1 · focus ring 5.23:1)
+- `--d-accent-weak` = `color-mix(in srgb, var(--d-accent) 14%, transparent)` · **`--d-accent-tint`** = `color-mix(in srgb, var(--d-accent) 8%, var(--k-bg))` (พื้นทึบสำหรับ chip/badge)
 - **`data-theme="auto"` (default)**: ค่า dark ถูก emit ทั้ง `[data-theme="dark"]` และ `@media (prefers-color-scheme: dark) [data-theme="auto"]` — ถ้าลืม block หลัง โหมด auto จะไม่มีวันเป็น dark
+
+**Palette + semantic** — semantic เป็น **alias ของ palette ไม่ใช่ชุดที่สอง** (ลดจำนวนสีที่ต้องดูแล/ตรวจ):
+
+| hue | light `--k-<name>` | dark `--k-<name>` | light `-ink` | dark `-ink` | semantic |
+|---|---|---|---|---|---|
+| red | `#b83933` | `#d77166` | `#93352e` | `#de8c80` | `--k-danger` |
+| orange | `#a05100` | `#c57e4c` | `#814512` | `#cf956d` | — |
+| amber | `#875f00` | `#b08842` | `#6e4f12` | `#bd9d67` | `--k-warning` |
+| yellow | `#796400` | `#a18e41` | `#635312` | `#b1a166` | — |
+| green | `#057635` | `#559e67` | `#1a602f` | `#78ae80` | `--k-success` |
+| teal | `#007273` | `#3a9d9c` | `#195d5d` | `#69adaa` | — |
+| blue | `#1766bd` | `#5a91d6` | `#1f5595` | `#7ba5d9` | `--k-info` |
+| purple | `#824db4` | `#a77bd7` | `#69428e` | `#b693da` | `--k-tip` |
+
+- `--k-<name>` ผ่าน **≥ 4.55:1** บน `--k-bg` / `--d-bg-subtle` / `--d-bg-muted` / `--k-app-bg` และบน tint ตัวเอง 12%
+- `--k-<name>-ink` ผ่าน **≥ 5.77:1** บนพื้นเดียวกันทั้งหมด + tint 9–12% (badge · callout title · stat value)
+- พื้น soft: callout = `color-mix(in srgb, var(--k-<name>) 9%, var(--k-bg))` · badge = 12% · `--k-quote` = `--d-text-muted`
+- **คู่สีทั้งหมดถูก lock ด้วย test**: `bun test packages/core/src/styles/contrast.test.ts` — เพิ่มสี/แก้ค่าโดยไม่ผ่าน test = แดง
+  (แหล่งความจริงของตัวเลขคือ token ใน `tokens.ts` · test อ่านค่าจากไฟล์เดียวกัน ไม่ copy)
 
 ```css
 :root {
-  /* surface — อุ่นทั้งตระกูล */
-  --k-app-bg:      #f7f5f1;   /* rail / พื้นหลังหน้า */
+  /* surface — อุ่นทั้งตระกูล · rail เข้มกว่า paper พอให้แยกโซนด้วยพื้น */
+  --k-app-bg:      #f6f4ef;   /* rail / chrome */
   --k-bg:          #fffefb;   /* พื้นเนื้อหา / เอกสาร */
-  --d-bg-subtle:   #f1eee8;   /* code, blockquote, inset panel */
-  --d-bg-muted:    #e9e5dd;   /* hover, zebra */
+  --d-bg-subtle:   #f1eee8;   /* inset panel · code · blockquote */
+  --d-bg-muted:    #e9e5dd;   /* hover · zebra */
 
-  /* line */
-  --d-border:        #e2dcd2;
-  --d-border-strong: #cfc8bc;
+  /* line — 3 ระดับ: ประดับ / โครงสร้าง / คอนโทรล */
+  --d-border:         #e2dcd2;
+  --d-border-strong:  #cfc8bc;
+  --d-border-control: #8d8984;  /* WCAG 1.4.11 — เฉพาะเส้นขอบคอนโทรล */
 
   /* text */
   --k-text:        #1c1a17;
-  --d-text-muted:  #5d574e;
-  --d-text-subtle: #6f695f;
+  --d-text-muted:  #5a544b;
+  --d-text-subtle: #6b655f;
 
   /* accent — เดียว ใช้กับสถานะปัจจุบัน */
-  --d-accent:      #2b5fc4;
-  --d-accent-weak: color-mix(in srgb, var(--d-accent) 10%, transparent);
+  --d-accent:       #2b5fc4;
+  --d-accent-weak:  color-mix(in srgb, var(--d-accent) 14%, transparent);
+  --d-accent-tint:  color-mix(in srgb, var(--d-accent) 8%, var(--k-bg));
+  --k-on-accent:    #fffefb;
+  --d-selection:    color-mix(in srgb, var(--d-accent) 24%, transparent);
+
+  /* overlay (ใช้ร่วมทั้งสองธีม — scrim มืดเสมอ) */
+  --k-scrim:      rgb(28 26 23 / .88);
+  --k-on-scrim:   #fffefb;
+
+  /* palette — L (OKLCH lightness) เท่ากันทุก hue */
+  --k-red:    #b83933;  --k-orange: #a05100;  --k-amber:   #875f00;  --k-yellow: #796400;
+  --k-green:  #057635;  --k-teal:   #007273;  --k-blue:    #1766bd;  --k-purple: #824db4;
+
+  /* hue-ink — สำหรับข้อความบน tint ของ hue นั้น */
+  --k-red-ink:    #93352e;  --k-orange-ink: #814512;  --k-amber-ink:   #6e4f12;  --k-yellow-ink: #635312;
+  --k-green-ink:  #1a602f;  --k-teal-ink:   #195d5d;  --k-blue-ink:    #1f5595;  --k-purple-ink: #69428e;
+
+  /* semantic = alias ของ palette */
+  --k-success: var(--k-green);  --k-warning: var(--k-amber);  --k-danger:  var(--k-red);
+  --k-info:    var(--k-blue);   --k-tip:     var(--k-purple); --k-quote:   var(--d-text-muted);
 }
 ```
 
-**Semantic palette** (callout / badge / highlight ใช้ร่วมกัน):
-
-| token | light | dark | ใช้กับ |
-|---|---|---|---|
-| `--k-success` | `#1a7f37` | `#3fb950` | success |
-| `--k-warning` | `#9a6700` | `#d2991d` | warning |
-| `--k-danger` | `#cf222e` | `#f85149` | danger |
-| `--k-info` | `#0969da` | `#58a6ff` | info, note |
-| `--k-tip` | `#8250df` | `#bc8cff` | tip |
-| `--k-quote` | `--d-text-muted` | เดียวกัน | quote |
-
-แต่ละสีมีคู่ soft bg: `--k-<name>-bg` (light tint) — ใช้เป็นพื้น callout
+> ค่าจริงอยู่ใน `packages/core/src/styles/tokens.ts` เท่านั้น — code block นี้คือสำเนาไว้ให้อ่าน spec
+> ถ้าสองที่ไม่ตรง ให้ยึด token + test (`contrast.test.ts`) เป็นตัวตัดสิน
 
 ### 1.2 Per-doc accent
 
@@ -472,41 +528,80 @@ Doku คือ **ห้องสมุดดิจิทัลร่วมสม
 
 ### 1.3 Typography
 
+มี **2 สเกลที่แยกกัน** ([08 ข้อ 48](08-decisions.md)) — chrome (rail/toolbar/panel) กับ **reading surface** (เนื้อหา)
+เดิมใช้สเกลเดียวกันทั้งสองโลก → เอกสารอ่านเป็น "แอป" ไม่ใช่ "หน้า"
+
 ```css
+/* ฟอนต์ — ชุดเดียวกันทั้งสองโลก */
 --d-font-sans: 'Inter', 'Noto Sans Thai', system-ui, sans-serif;
 --d-font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
 
---d-text-xs:   .75rem;    /* 12 */
---d-text-sm:   .875rem;   /* 14 */
---d-text-base: 1rem;      /* 16 */
---d-text-lg:   1.125rem;  /* 18 */
---d-text-xl:   1.375rem;  /* 22 */
---d-text-2xl:  clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
---d-text-3xl:  clamp(1.75rem, 1.5rem + 1.4vw, 2.25rem);
+/* chrome scale — ปุ่ม · label · panel · rail */
+--d-text-xs:  .75rem;  --d-text-sm:  .875rem;  --d-text-base: 1rem;
+--d-text-lg:  1.125rem; --d-text-xl: 1.375rem;
+--d-text-2xl: clamp(1.5rem, 1.3rem + 1vw, 1.875rem);    /* block/chrome: stat-value ฯลฯ */
+--d-text-3xl: clamp(1.75rem, 1.5rem + 1.4vw, 2.25rem);
 
---k-leading-body: 1.75;   /* latin */
---k-measure: 68ch;        /* ความกว้างอ่านสบาย */
+/* reading scale — `.doku-prose` + คอลัมน์อ่านเท่านั้น */
+--d-read:      1.0625rem;                               /* body 17px */
+--d-read-lede: 1.125rem;
+--d-read-h4:   1.0625rem;                               /* = body แต่ weight 600 */
+--d-read-h3:   1.25rem;
+--d-read-h2:   clamp(1.5rem, 1.35rem + .6vw, 1.75rem);
+--d-read-h1:   clamp(2rem, 1.6rem + 1.4vw, 2.75rem);
+
+/* leading + measure */
+--k-leading-body: 1.7;    /* latin (เดิม define 1.75 แต่ไม่มีใครใช้) */
+--k-leading-th:   1.9;    /* :lang(th) */
+--k-measure:      70ch;   /* ≈ 700px ที่ 17px */
 ```
 
-- `:lang(th)` → `line-height: 1.9`
-- heading ใช้ `text-wrap: balance`, paragraph ใช้ `text-wrap: pretty`
-- heading step: h1 3xl, h2 2xl, h3 xl, h4 lg
+- `:lang(th)` → `line-height: var(--k-leading-th)` · ย่อหน้าผสมไทย/อังกฤษใช้ leading เดียวกันทั้งย่อหน้า
+- heading ใช้ `text-wrap: balance` · paragraph `text-wrap: pretty`
+- **ขั้นของ heading ต้องกว้างพอให้เห็นลำดับ**: h1 → h2 → h3 → h4 = 2.75 → 1.75 → 1.25 → 1.0625 rem (≈ 1.57 / 1.4 / 1.18)
+  — เดิม h1 36px → h2 30px (1.2) แคบเกินไปจนสองชั้นดูเท่ากัน
+- **weight ใช้แค่ 2 ระดับ: 400 (body) + 600 (heading/strong)** — ตัด 500/700 ออกเพื่อให้ hierarchy มาจาก *ขนาด + ระยะ* ไม่ใช่ความหนา
+- `--d-text-2xl/3xl` **ไม่ใช้ใน prose** — สงวนไว้ให้ block datum (stat-value) และ chrome
+- `--k-leading-body` เดิมถูก define แต่ **ไม่มี selector ไหนใช้** → M3.1 ผูกเข้ากับ `.doku-prose` จริง
 
 ### 1.4 Space / Radius / Shadow
 
+**ทิศทาง:** radius **เล็กและคงที่** (2/4/6px) · shadow เฉพาะ overlay จริง (menu/modal/popover)
+หน้าปกติสร้าง depth จาก hairline + พื้นหลังจาง + whitespace ไม่ใช่เงา · `--d-radius-pill` ใช้เฉพาะ chip/tag ขนาดเล็ก
+
 ```css
---d-space-1:.25rem; --d-space-2:.5rem;  --d-space-3:.75rem; --d-space-4:1rem;
---d-space-6:1.5rem; --d-space-8:2rem;   --d-space-12:3rem;
+/* สเกลระยะ — M3.1 ขยายจากเดิมที่จนที่ 3rem */
+--d-space-1: .25rem; --d-space-2: .5rem;  --d-space-3: .75rem; --d-space-4: 1rem;
+--d-space-5: 1.25rem; --d-space-6: 1.5rem; --d-space-8: 2rem;  --d-space-10: 2.5rem;
+--d-space-12: 3rem;  --d-space-16: 4rem;  --d-space-20: 5rem;  --d-space-24: 6rem;
 
---d-radius-sm:2px; --d-radius-md:4px; --d-radius-lg:6px; --d-radius-pill:999px;
+/* chrome rhythm */
+--d-gutter:        var(--d-space-6);   /* ระยะขอบ shell/rail/panel */
 
---k-shadow-sm: 0 1px 2px rgba(28,26,23,.05);
---k-shadow-md: 0 2px 8px rgba(28,26,23,.08);
---k-shadow-lg: 0 4px 16px rgba(28,26,23,.10);
+/* prose rhythm — prose ใช้ค่าเหล่านี้ที่่านั้น ห้ามตั้ง margin เดี่ยว */
+--d-flow:         var(--d-space-6);    /* 24px ระหว่าง block ธรรมดา (เดิม 16) */
+--d-flow-loose:   var(--d-space-8);    /* block หนัก: figure · gallery · code · table · callout */
+--d-rhythm-h2:    var(--d-space-16);   /* 64px ก่อน h2 */
+--d-rhythm-h3:    var(--d-space-12);
+--d-rhythm-h4:    var(--d-space-8);
+--d-rhythm-after: var(--d-space-3);    /* 12px หลัง heading */
+
+/* radius — คงที่ ไม่เปลี่ยนตามความสำคัญของ element */
+--d-radius-sm: 2px; --d-radius-md: 4px; --d-radius-lg: 6px; --d-radius-pill: 999px;
+
+/* shadow — เฉพาะ overlay จริงเท่านั้น */
+--k-shadow-sm: 0 1px 2px rgb(28 26 23 / .05);
+--k-shadow-md: 0 2px 8px rgb(28 26 23 / .08);
+--k-shadow-lg: 0 4px 16px rgb(28 26 23 / .10);
 ```
 
-**ทิศทาง:** radius **เล็กและคงที่** (2/4/6px) · shadow ใช้เฉพาะ overlay จริง (menu/modal/popover)
-หน้าปกติสร้าง depth จาก hairline + พื้นหลังจาง + whitespace ไม่ใช่เงา · `--d-radius-pill` ใช้เฉพาะ chip/tag ขนาดเล็ก ไม่ใช่ default ของปุ่ม
+**กฎจังหวะ: "มาก่อน heading · น้อยหลัง heading"** — ตาต้องรู้ว่าหัวข้อเป็นเจ้าของย่อหน้าถัดไป
+`h2 { margin-block: var(--d-rhythm-h2) var(--d-rhythm-after) }` · **ห้ามให้ margin บน = ล่าง**
+
+- **สเกลต้องนิ่ง** — class ใหม่ทุกตัวต้องใช้ token จากลิสต์นี้ · ห้าม `padding: 13px` / `gap: .7rem` ตรง ๆ ใน component
+- **ห้ามอ้าง `--d-space-*` ที่ไม่มีในลิสต์** — CSS จะทิ้ง declaration ทั้งก้อนเงียบ ๆ
+  (นี่คือสาเหตุที่ rail/panel ไม่มี padding: `.doku-rail { padding: var(--d-space-6) var(--d-space-5) }` แต่ `--d-space-5` ไม่ถูก define → [08 ข้อ 50](08-decisions.md))
+- ลิสต์นี้ถูกลอกด้วย test: `packages/core/src/styles/tokens.test.ts` ตรวจว่าทุก `var(--d-space-N)` ที่ใช้ในโค้ดถูก define
 
 migrate แล้วใน UI pass ([08 ข้อ 36](08-decisions.md))
 
@@ -522,24 +617,45 @@ migrate แล้วใน UI pass ([08 ข้อ 36](08-decisions.md))
 
 ## 2. Layout
 
-### Reading page
+### Reading page (≥ 1200px)
 
 ```
-┌───────────────┬────────────────────────────────────┐
-│ sidebar 260px │  ┌──────────────────────────────┐  │
-│ - back        │  │ reading column (max 760px)  │  │
-│ - title/meta  │  │  h1 → meta → content         │  │
-│ - TOC (sticky)│  │  ... blocks ...              │  │
-│ - theme/zen   │  │  backlinks · footer          │  │
-│               │  └──────────────────────────────┘  │
-└───────────────┴────────────────────────────────────┘
-  progress bar (fixed top)
+┌────────────┬────────────────────────────────┬──────────────┐
+│ rail 248px │   reading column (max 70ch)    │ TOC 208px    │
+│ tree       │   h1 · lede · meta             │ sticky       │
+│ (quiet)    │   ── section ──                │ ▸ active     │
+│            │   content (air)                │              │
+│ footer     │   colophon: path · แก้ล่าสุด     │              │
+└────────────┴────────────────────────────────┴──────────────┘
+  progress hairline 2px (fixed top)
 ```
 
-- เนื้อหาวางบนพื้นหน้าโดยตรง — แยกจาก chrome ด้วย **hairline + whitespace**
-  (ยกเลิก "การ์ดลอยบน `--k-app-bg`" ของ M2 ในรอบ UI ของ M3 — [08 ข้อ 32](08-decisions.md))
-- `max-width` เนื้อหา = `--k-measure`
-- sidebar sticky `height:100vh` + TOC active (IntersectionObserver `rootMargin: -10% 0px -80%`)
+- **3 คอลัมน์: rail · reading column · TOC** — คอลัมน์อ่าน **จัดกลาง** ในพื้นที่ที่เหลือ (`margin-inline: auto`)
+  → แก้ปัญหาเดิม: `main` 880px แต่ `article` 544px **ชิดซ้าย** = gutter ขวาว่าง 336px (38%) โดยไม่มีอะไรใช้
+- **TOC เป็น sticky column ไม่ใช่ block ในบทความ** ([08 ข้อ 49](08-decisions.md)) — เดิม render เป็น `<nav class="doku-toc">`
+  ในเนื้อหา สูงถึง **352px (39% ของ viewport)** อยู่ก่อนเนื้อหาจะเริ่ม
+  - `< 1200px` (ไม่มีที่พอ): TOC เป็น `<details>` **ท้ายเอกสาร** ไม่ใช่ block ที่สองของหน้า
+  - จอแคบ/mobile: TOC เป็น bottom sheet เปิดจาก toolbar
+  - active ตาม `IntersectionObserver` (`rootMargin: -10% 0px -80%`)
+- **colophon ท้ายเอกสาร**: path id · แก้ไขล่าสุด · revision ล่าสุด — เดิมเป็น mono label **เหนือ h1** (`.doku-shelfmark`) ซึ่งแย่งความสนใจชื่อเรื่อง
+- เนื้อหาอยู่บนพื้นหน้าโดยตรง — แยกจาก chrome ด้วย **พื้น (`--k-app-bg` เข้มกว่า `--k-bg`) + whitespace**
+  (ยกเลิก "การ์ดลอยบน `--k-app-bg`" ของ M2 — [08 ข้อ 32](08-decisions.md))
+- toolbar **ไม่ใช่แถวปุ่ม 5 อันเหนือชื่อเรื่อง** — primary = `แก้ไข` เดียว · ที่เหลือเข้าเมนู `⋯` ([08 ข้อ 51](08-decisions.md))
+
+### Writing state (แก้ไขในที่ — [08 ข้อ 52](08-decisions.md))
+
+```
+┌────────────┬────────────────────────────────┬──────────────┐
+│ rail       │ ┌ ▸ note   ชนิด/สี/ชื่อ  ⋯ ┐│ TOC          │
+│ (เดิม)     │ │ :::note{title="เกร็ด"}         ││              │
+│            │ │ เนื้อหา…                    ││              │
+│            │ └──────────────────────────┘│              │
+│            │  "/" → เมนู block              │              │
+│            │  autosave เงียบ · ไม่มี Save   │              │
+└────────────┴────────────────────────────────┴──────────────┘
+```
+
+- คอลัมน์เดียวกับตอนอ่าน (กว้าง/ฟอนต์/leading เดียวกัน) — **ไม่ใช่ overlay ไม่ใช่ split pane**
 
 ### Hub page
 
@@ -559,9 +675,13 @@ migrate แล้วใน UI pass ([08 ข้อ 36](08-decisions.md))
 
 | name | width | เปลี่ยน |
 |---|---|---|
-| `sm` | 640 | ปรับ padding |
-| `md` | 900 | sidebar ยังอยู่, tree เป็น drawer ได้ |
-| `lg` | 1200 | เต็ม layout |
+| `sm` | 640 | ปรับ padding · toolbar ยุบเหลือไอคอน · TOC เป็น bottom sheet |
+| `md` | 960 | rail ปรากฏ (248px) · TOC ยังไม่ (เป็น `<details>` ท้ายเอกสาร) |
+| `lg` | 1200 | **3 คอลัมน์เต็ม** · TOC sticky |
+| `xl` | 1536 | shell กว้างขึ้น · `--k-measure` **คงเดิม** (ห้ามยืดบรรทัดตามจอ) |
+
+- shell `max-width: 90rem` (เดิม 72rem ทำให้จอกว้างเหลือที่ว่างโดยใช้ไม่ได้)
+- ลำดับการยุบเมื่อจอแคบ: **TOC → rail → toolbar** (เนื้อหายุบเป็นอย่างสุดท้าย)
 
 ## 3. Component Taxonomy
 
@@ -587,6 +707,29 @@ block renderer ใส่ data attribute ไม่ใช่ class ใหม่:
 ```
 
 CSS ยิงด้วย `[data-block="callout"][data-variant="warning"]` → เพิ่ม variant = เพิ่ม CSS ไม่กี่บรรทัด ไม่ต้องตั้งชื่อ class
+
+### บันได container กับ block (M3.1 — [08 ข้อ 53](08-decisions.md))
+
+**ตรวจแล้ว: เอกสารตัวอย่าง 1 ไฟล์มี 37 block ที่มีกรอบหรือพื้นหลัง** — หน้าเว็บอ่านเป็น "กริดของกล่อง" ไม่ใช่เอกสาร
+ขัด [08 ข้อ 32](08-decisions.md) (card ไม่ใช่ default) และเป็นเหตุผลหลักของความรู้สึก "รวบ ๆ เรียบ ๆ"
+
+กฎต่อ block (ไต่บันได หยุดที่ขั้นแรกที่พอ):
+
+| block | ก่อน (M2/M3) | หลัง (M3.1) — เหตุผล |
+|---|---|---|
+| `section` | border + `bg-subtle` + pad | **ไม่มี container** — แยกด้วยระยะ + heading size (rung 1/3) · `divider` = hairline เส้นเดียว |
+| `stats` / `stat` | border + `bg-subtle` | ไม่มีกรอบ · ตัวเลขกับ label อยู่บนพื้นหน้า · คั่นด้วย whitespace |
+| `kv` | ตารางมีกรอบ | เป็น **definition list** — label จาง/น้ำหนักเบา, hairline เฉพาะระหว่างแถว (rung 2) |
+| `card` | border + `bg` + **shadow** | คงไว้เป็น card **เพราะเป็น object จริงที่มีการกระทำ** — แต่**ตัด shadow** (remaining depth จาก hairline) |
+| `grid` / `col` | border | ไม่มีกรอบเลย — เป็น layout อย่างเดียว |
+| `steps` / `timeline` | box ต่อ item | เส้นแนวตั้งเส้นเดียว + marker (rung 2) |
+| `details` / `tabs` | border รอบ block | hairline เฉพาะเส้นคั่น header (rung 2) |
+| `callout` | ✅ คงไว้ — พื้น tint + rule ซ้าย (เป็็นความหมาย ไม่ใช่การประดับ) |
+| `figure` / `gallery` / `code` / `table` / `video` | ✅ คงไว้ — เป็น object จริง |
+| `badge` / `mark` | ✅ inline ไม่นับเป็น container |
+| `margin-note` / `motion` | ไม่มีกรอบอยู่แล้ว — เพิ่มได้แค่ hairline แนวตั้ง |
+
+> เกณฑ์ตัดสิน: **ถ้าลบกรอบออกแล้วข้อมูลยังอ่านรู้เรื่อง → ลบ** · กรอบที่เหลือต้อง *บอกความหมาย* (callout = เตือน, code = คนละชนิดข้อมูล) ไม่ใช่ *บอกว่ากลุ่มนี้เป็นกลุ่ม*
 
 ### Icons
 
@@ -616,13 +759,14 @@ CSS ยิงด้วย `[data-block="callout"][data-variant="warning"]` → �
 
 ## 4. Reading UX
 
-- **Progress bar** — fixed top, ความกว้าง = scroll %
-- **TOC** — active + auto-scroll, mobile เป็น bottom sheet
-- **Heading anchor** — ปุ่ม copy-link ตอน hover
-- **Zen mode** (`z`) — ซ่อน sidebar, ขยาย measure, ปุ่ม ESC ออก _(ทำใน M3)_
-- **Backlinks / related** — ท้ายเอกสาร จาก link index
-- **Doc footer** — แก้ไขล่าสุด, source path, word count + อ่านกี่นาที
-- **Keyboard** — `/` search · `t` TOC · `z` zen · `d` dark · `?` shortcuts
+- **Progress bar** — fixed top, 2px, ความกว้าง = scroll % (accent, ไม่ใช่ shadow)
+- **TOC** — sticky column (≥1200px) · active ตาม `IntersectionObserver` · จอแคบเป็น `<details>` ท้ายเอกสาร / bottom sheet
+- **Heading anchor** — ปุ่ม copy-link ตอน hover/focus (ต้องเป็น `:focus-visible` ด้วย ไม่ใช่แค่ `:hover`)
+- **Zen mode** (`z`) — ซ่อน rail/TOC, ขยาย measure, ESC ออก
+- **Backlinks / related** — ท้ายเอกสาร จาก link index (M5)
+- **Colophon ท้ายเอกสาร** — path id · แก้ไขล่าสุด · revision ล่าสุด (แทน `.doku-shelfmark` เหนือ h1)
+- **Keyboard** — `/` search (อ่าน) · `Ctrl+E` แก้ไข · `Ctrl+K` palette · `t` TOC · `z` zen · `d` dark · `?` shortcuts
+  — ตอน **อยู่ในโหมดเขียน** คีย์ลัดงานอ่านถูกปิดทั้งหมด (`/` กลายเป็น slash menu) ตาม [08 ข้อ 54](08-decisions.md)
 
 ## 5. Landing / Vault Browser
 

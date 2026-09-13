@@ -74,6 +74,72 @@
 
 ---
 
+## M3.1 — Reading room & writing surface (UI/UX pass 2)
+
+> **ที่มา:** M3 ทำ UI pass ตามข้อ 31–33 *โดยไม่เพิ่มฟีเจอร์* — M3.1 คือ pass ที่ **แก้ UX จริง**
+> (จังหวะ · โครงหน้า · พื้นผิวการเขียน) จึงเป็น milestone แยก ไม่ยัดใต้ M3 · decision: [08 ข้อ 47–55](08-decisions.md)
+>
+> **หลักฐานที่ทำให้ต้องมี milestone นี้** (วัดจากหน้าเว็บจริง + computed style ไม่ใช่ความรู้สึก):
+> `--d-space-5` ไม่ถูก define → **rail + panel `padding: 0`** · อ่าน column **544px ใน main 880px** (gutter ขวาว่าง 38%)
+> · TOC inline สูง **352px = 39% viewport** ก่อนเนื้อหาเริ่ม · **37 block ที่มีกรอบ/พื้นหลัง** · h1 36px → h2 30px
+> · 4 คลาสสีตก WCAG AA จริง
+
+### A · Rhythm & Type (ทำก่อน — systemize before styling)
+
+- [ ] **tokens** — OKLCH palette ตาม [08 ข้อ 47](08-decisions.md) + `--d-border-control` + `--k-<hue>-ink` + `--k-on-accent`/`--k-scrim`/`--d-selection`
+- [ ] **contrast lock** — `packages/core/src/styles/contrast.test.ts` ตรวจทุกคู่สี (อ่านค่าจาก `tokens.ts` · ไม่ copy ค่า) — เพิ่ม/แก้สีไม่ผ่าน = แดง
+- [ ] **space scale** — เพิ่ม `--d-space-5/10/16/20/24` + `tokens.test.ts` ตรวจ `var(--d-space-N)` ที่อ้างทุกตัว (แก้ F12 — [08 ข้อ 50](08-decisions.md))
+- [ ] **reading scale** — `--d-read*` + weight แค่ 400/600 + `--k-leading-body` ผูกกับ `.doku-prose` จริง ([08 ข้อ 48](08-decisions.md))
+- [ ] **rhythm tokens** — `--d-flow` · `--d-flow-loose` · `--d-rhythm-h2/h3/h4` + กฎ "มาก่อน heading น้อยหลัง heading" · **ตัดเส้นใต้ `h2`** ([08 ข้อ 47–48](08-decisions.md))
+- [ ] **สีที่ hardcode หลุดใน render** — `render.ts:137` `rehypeKatex({ errorColor: "#cf222e" })` ยังเป็น danger สี**เก่า** → ใช้ค่าจาก token (KaTeX ต้องการ literal → ส่งค่าที่ interpolate จาก token ที่เดียว)
+
+### B · Structure & Navigation
+
+- [ ] **3 คอลัมน์** — rail 248px · reading column จัดกลาง · TOC 208px sticky · shell `90rem` ([08 ข้อ 49](08-decisions.md)·[03 §2](03-blocks-and-design-system.md))
+- [ ] **TOC** — ออกจากบทความ → sticky column + active (`IntersectionObserver`) · `<1200px` เป็น `<details>` ท้ายเอกสาร · mobile เป็น bottom sheet
+- [ ] **colophon** — path id · แก้ไขล่าสุด · revision ท้ายเอกสาร (ลบ `.doku-shelfmark` เหนือ h1)
+- [ ] **toolbar demote** — primary `แก้ไข` เดียว + เมนู `⋯` ([08 ข้อ 51](08-decisions.md))
+- [ ] **แยกระยะ"rail vs paper"** — `--k-app-bg` เข้มพอกับ `--k-bg` · rail row ≥ 32px (touch target) · hub page rhythm
+
+### C · Writing surface (Notion-like — [08 ข้อ 52/54/55](08-decisions.md))
+
+- [ ] **C1 เขียนในที่** — เลิก overlay/split · CM6 อยู่ในคอลัมน์อ่านของหน้าเดิม (กว้าง/ฟอนต์/leading เท่ากับตอนอ่าน) · ไม่มี mode switch
+- [ ] **C2 Live Preview** — ซ่อน syntax marker เมื่อカーออกจาก node · widget สำหรับ table · figure · code · math · callout (`:::`)
+- [ ] **C3 slash menu** — `/` → เมนู block ภาษาไทย (กรองได้) → แทรก directive จริง (รวม `::::tabs`+`:::tab` ตามข้อ 24) · ใช้ `@codemirror/autocomplete`
+- [ ] **C4 block control strip** — แถบลอยเมื่อカーเข้า block: variant · `color=` · `title=` · `icon=` · align/width · ลบ block → **เขียนกลับเป็น directive text** · รายการ attribute มาจาก `/api/schema`
+- [ ] **C5 คุณสมบัติ inline** — property panel บนหัวเอกสาร (ชื่อ · แท็ก · สรุป · สถานะ · theme) ไม่ใช่ modal · ยกมาไว้ที่เดียวกับที่อ่าน
+- [ ] **C6 autosave** — debounce 800ms · `If-Match` · 409 = ให้เลือก (ไม่ทับเงียบ) · ไม่สร้าง revision ถ้าเนื้อหาเท่าเดิม · `Esc` flush + ออก
+
+### D · Container / Block downgrade ([08 ข้อ 53](08-decisions.md))
+
+- [ ] ตัด container: `section` · `stats`/`stat` · `grid`/`col` · shadow ของ `card` · `kv` → definition list · `steps`/`timeline` → เส้นเดียว · `details`/`tabs` → hairline คั่น header
+- [ ] คงไว้ + ตรวจ contrast ใหม่: `callout` · `code` · `table` · `figure` · `gallery` · `video` · `badge`
+- [ ] `/styleguide` อัปเดตให้โชว์ทั้งสองธีม + คู่สีที่ lock ไว้
+
+### E · Correctness lock ([08 ข้อ 56–61](08-decisions.md) — เคาะแล้ว ยังไม่ implement)
+
+- [ ] **ข้อ 56** — `#` เป็น forbidden char + แยก `normalizeVaultPath` / `normalizeLinkTarget`
+- [ ] **ข้อ 57** — `href` รับ `mailto:`/`tel:` + lowercase scheme + `target`/`rel` allowlist + เติม `rel` เอง + ถอด `color` ออกจาก global allowlist
+- [ ] **ข้อ 58** — asset `?h=` verify ก่อนให้ `immutable` (ไม่ตรง = `ETag` + `no-cache`)
+- [ ] **ข้อ 59** — `width` รับ `70`/`70%` (มีแล้ว — เพิ่ม test กันถอย)
+- [ ] **ข้อ 60** — `render.math=false` คง `$…$` ต้นฉบับ (ข้าม remark-math ตั้งแต่ต้น) + warning `math_disabled`
+- [ ] **ข้อ 61** — wikilink หาไม่เจอ = คงข้อความต้นฉบับเป๊ะ ๆ (รวมเคส alias)
+
+### F · Verify
+
+- [ ] `bun run shot` (playwright · devDependency) เทียบ `var/shots/before` ↔ after ทั้ง 2 ธีม
+- [ ] axe/a11y check ใน script เดียวกัน: focus ring · 200% zoom · reduced motion · ไม่มี contrast ต่ำกว่า AA
+- [ ] `bun test` + `bun run check` + `bun run typecheck` ผ่าน · `doku check examples/vault` = 0 errors
+- [ ] docs sync — `docs/03` (§1.1/§1.3/§1.4/§2/§3/§4) · `docs/07` · `docs/08` · `AGENTS.md` ในคอมมิตเดียวกัน
+
+**เสร็จ:** อ่านเอกสารยาวแล้วมีจังหวะ (หัวข้อหายใจได้ ไม่มีเส้นซ้อน) · หา h1 เจอใน 1 glance
+· กด "แก้ไข" แล้ว **พิมพ์ในหน้าเดิมได้ทันที** ไม่ต้องสลับโหมด ไม่ต้องกด Save
+· พิมพ์ `/` ได้เมนู block · カーเข้า block แล้วแก้ variant/สี/ชื่อได้ **โดยที่ไฟล์ยังเป็น markdown ธรรมดา**
+
+**ประเมิน:** A 0.5 วัน · B 1 วัน · C 2.5–3 วัน · D 0.5 วัน · E 0.5 วัน · F 0.5 วัน → **~6–6.5 วันทำงาน**
+
+---
+
 ## M4 — AI access
 
 - [ ] REST ครบ (docs/folders/assets/render/tree/trash)
