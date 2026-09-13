@@ -66,7 +66,8 @@ function safeJoin(vault: string, rel: string) {
 ```
 
 - normalize: ตัด `..`, `/` นำหน้า, control chars, `<>:"|?*`
-- asset filename จำกัด `[a-zA-Z0-9._\-\u0E00-\u0E7F ]+`
+- asset filename จำกัด `[a-zA-Z0-9._\-\u0E00-\u0E7F ]+` — **บังคับจริงที่ M3.2** ([08 ข้อ 72](08-decisions.md)): `core.isSafeAssetName()` ตัวเดียว
+  · `doku check` code `asset_name_invalid` (error) · route `/assets/*` ไม่ผ่าน = 404 · render อ้างชื่อไม่ผ่าน = warning + placeholder
 - symlink: ไม่ตามออกนอก vault (`realpath` เช็คซ้ำ)
 
 ## Auth

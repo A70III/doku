@@ -86,7 +86,8 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 | `docs/05-api-and-agent-access.md` | REST, CLI, MCP, agent policy |
 | `docs/06-security.md` | sanitize, path, CSP, revision, audit |
 | `docs/07-roadmap.md` | M0–M5 + DoD + ประมาณการ |
-| `docs/08-decisions.md` | decision ที่ล็อกแล้ว 20 ข้อ |
+| `docs/08-decisions.md` | decision ที่ล็อกแล้ว (ข้อ 1–72) |
+| `docs/09-editor-ux.md` | editor UX (M3.2): one surface · block model · gutter/drag · IME guard · keymap |
 
 > ถ้าโค้ดกับ docs ไม่ตรง ให้ถือ **docs เป็นข้อเสนอ** และเมื่อเคาะ decision ใหม่ให้อัปเดต `docs/08`
 
@@ -124,8 +125,13 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - container downgrade ของ block (section/stats/kv/details/tabs/… เลิกเป็นกล่อง) · แก้ `==…==` ที่เคยเป็นพื้นเหลืองทึบ
   - correctness lock ข้อ 56–61 (path `#` · sanitize protocol/attribute · asset `?h=` · `width` · `render.math=false` · wikilink)
   - verify: `bun run shot` ถ่าย 2 ธีม + **a11y smoke check** (ชื่อคอนโทรล · focus ring · 200% zoom · reduced motion · 360px)
-- **ถัดไป: M4** — REST ที่เหลือ (assets/context) + audit log + `doku mcp`
-- ยังไม่มี: MCP (M4), index/search (M5)
+- **ถัดไป: M3.2 (one surface + block layer)** — ปิดช่องที่ M3.1 ยังเหลือ: เอกสารยังมี 2 rendering path (มี swap ตอนเข้า/ออก)
+  และยังไม่มี block affordance (`+` · `⋮⋮` · เลือก/ย้าย/turn into block) · spec: `docs/09-editor-ux.md` · decision docs/08 ข้อ 63–72
+  - Track A one surface (mount CM6 ตั้งแต่โหลด · `posAtDOM` แทน text search · SSE guard → `data-dirty`)
+  - Track B read-parity (`markdownKeymap` · widget `:::`/math/checkbox · composition guard) · Track C block layer + **drag & drop**
+  - Track D inline layer (bubble · `Cmd+B/I/E/K` · smart paste) · Track E quality lock + **Q7 → ข้อ 72** (`isSafeAssetName`)
+- **หลังจากนั้น: M4** — REST ที่เหลือ (assets/context) + audit log + `doku mcp`
+- ยังไม่มี: block layer (M3.2), MCP (M4), index/search (M5)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)
 - ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#2b5fc4`
@@ -148,7 +154,12 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - ล็อกเพิ่มตอนแก้บั๊ก UX editor หลัง M3.1: highlight `==mark==` เป็นพื้นเต็มบล็อกจางสี mapped ตาม `{.color}` — เดิม brush underline (ข้อ 6 แก้ทบทวน)
   · แผงควบคุม block ไม่ผูกกับ focus ของ CM — pin ระหว่างโต้ตอบ + ไม่ rebuild DOM + live patch (ข้อ 62)
   · ออกโหมดเขียนแบบ 3 วง: tolerance ~3rem รอบคอลัมน์ + neutral gutter + คลิก chrome/`Esc` (ปรับข้อ 54)
-  · **ยังรอเคาะ**: Q7 asset filename charset (รอ upload API M4)
+- ล็อกเพิ่มตอนวางแผน M3.2 (one surface + block layer): CM6 + markdown = ความจริง ไม่ย้าย ProseMirror (ข้อ 63)
+  · block = line range ไม่มี id ในไฟล์ (ข้อ 64) · one surface ไม่มี swap + `posAtDOM` + SSE guard `data-dirty` (ข้อ 65)
+  · gutter เป็น overlay ของ client (ข้อ 66) · drag & drop เข้า M3.2 (ข้อ 67) · table คงแบบเดิม (ข้อ 68)
+  · IME/composition guard + atomic เฉพาะ delimiter (ข้อ 69) · คีย์ล็อก Doku มาก่อน `defaultKeymap` (ข้อ 70)
+  · touch = long-press ไม่มี hover (ข้อ 71) · **Q7 → ข้อ 72** asset filename charset บังคับที่ M3.2 (`isSafeAssetName` + `doku check` + route `/assets/*`)
+- **รอเคาะ**: ไม่มี (Q7 เคาะแล้วเป็นข้อ 72)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
 

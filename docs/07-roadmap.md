@@ -142,9 +142,67 @@
 
 ---
 
+## M3.2 — One surface + block layer (เขียน/อ่านให้เหมือน Notion)
+
+> **ที่มา:** M3.1 ตัด overlay/split/ปุ่มแก้ไขออกแล้ว แต่**ยังมี 2 rendering path** — เอกสารที่ยังไม่ถูกแตะเป็น HTML
+> จาก server พอคลิกครั้งแรก client ทิ้ง HTML ทั้งบทความแล้ว mount CodeMirror ([client.ts:721](../packages/server/src/web/client.ts))
+> แล้วตอนออกก็ยิง `/api/render` กลับมาแทนที่ ([client.ts:840](../packages/server/src/web/client.ts))
+> ⇒ **นี่คือโหมดแก้ไขที่ซ่อนอยู่** = ข้อ 52 ยังไม่สำเร็จจริง · และยังไม่มี block affordance เลย
+> (ไม่มี `+` · `⋮⋮` · เลือก block · ย้าย · turn into · fold) ⇒ ความรู้สึกจึงยังเป็น text editor (Obsidian) ไม่ใช่ Notion
+>
+> **spec เต็ม + หลักฐาน + กับดักเทคนิค: [09 — Editor UX](09-editor-ux.md)** · decision: [08 ข้อ 63–72](08-decisions.md)
+> (รวม Q7 asset filename charset ที่ย้ายมาจาก M4)
+>
+> **เป้าที่วัดได้:** เปิดเอกสาร → คลิก/พิมพ์ได้ทันที **โดยไม่มีการแทนที่เนื้อหาทั้งบทความ** (0 request `/api/render` หลังแตะ)
+> และทุก block มี affordance ให้ย้าย/แปลง/ลบ/ซ้อน — โดยไฟล์ยังเป็น markdown ที่ `doku check` ผ่าน
+
+### Track A — one surface (ปิดข้อ 52 ให้จริง)
+
+- [ ] mount CM6 ตั้งแต่โหลดหน้าเอกสาร (idle) — ลบ swap path (`mountWritingSurface` / `paintRendered`)
+- [ ] `posAtDOM` แทน `offsetForElement` (text search) + คง scroll/anchor (≤ 2px)
+- [ ] `data-title-in-body` เซ็ตที่ server ครั้งเดียว (เลิก toggle ตอนเข้า/ออกโหมด)
+- [ ] **SSE guard เปลี่ยน `data-editing` → `data-dirty`** + เทสต์ autosave ตัวเองต้องไม่ trigger reload
+- [ ] `@media print` + a11y pass (คีย์บอร์ดอ่าน · screen reader · 200% zoom · 360px)
+
+### Track B — read-parity (ไม่เห็น markdown ดิบ)
+
+- [ ] `markdownKeymap` + `indentWithTab` ที่ nest ตาม block model (Enter สืบ list · Backspace ลบ marker · Tab nest)
+- [ ] widget: `:::` (callout/details/tabs) · math (`$…$` → KaTeX) · **checkbox คลิกได้** · `hr` · placeholder ต่อ block
+- [ ] code block: สี/theme เดียวกับ Shiki ตอนอ่าน
+- [ ] marker policy: atomic **เฉพาะ delimiter** · ซ่อนเมื่อカーไม่สัมผัส · **composition guard (ห้าม replace ขณะ IME ทำงาน)**
+
+### Track C — block layer (+ drag & drop)
+
+- [ ] **C1** `BlockInfo` (line range) + hover gutter `+` / `⋮⋮` + block highlight · follow mouse ต่อ frame · pin · delay + hit-area
+- [ ] **C2** block selection (`Esc` · คลิก handle · ลากข้าม block) + multi-block + block-aware `Cmd+A` / `Backspace`
+- [ ] **C3** คีย์ลัด: `Mod+Shift+↑/↓` move · `Mod+D` duplicate · `Mod+/` turn into · `Tab`/`Shift+Tab` nest · ลบ block
+- [ ] **C4** drag & drop: drop indicator · depth จากตำแหน่งแนวนอน · multi-block · long-press 150ms (touch) · pointer ≤ 1 งาน/frame
+
+### Track D — inline layer
+
+- [ ] bubble toolbar เมื่อเลือกข้อความ (B · I · S · code · link · highlight) → เขียน markdown
+- [ ] `Cmd+B/I/E` + **override `Mod-i`/`Mod-/` ก่อน `defaultKeymap`** · link popover (`Cmd+K`)
+- [ ] paste URL ทับข้อความที่เลือก → link · smart paste HTML → markdown · `:emoji:`
+
+### Track E — quality lock + asset charset (ข้อ 72)
+
+- [ ] focus line + active block · empty-block placeholder · motion + `prefers-reduced-motion`
+- [ ] **perf budget เป็นเทสต์:** decoration rebuild ≤ 8ms/keystroke บนเอกสาร 3,000 บรรทัด (visible-only + incremental)
+- [ ] แยกไฟล์ `web/editor.ts` → `editor/{decorations,blocks,gutter,inline,keymap}.ts`
+- [ ] **Q7 ⇒ ข้อ 72** — `isSafeAssetName()` ตัวเดียวใน `core` + `doku check` code `asset_name_invalid` (error) + route `/assets/*path` ไม่ผ่าน = 404 + render warning/placeholder
+- [ ] `bun run shot` เพิ่ม scenario: พิมพ์ไทย/IME · เลือก/ลาก block · a11y 360px + 200% zoom
+- [ ] docs sync — `docs/03 §5` (visual spec ของ gutter/inline bar) · `docs/07` · `docs/08` · `AGENTS.md`
+
+**เสร็จ:** เปิดเอกสารแล้วพิมพ์ได้ทันทีโดยไม่มี swap · มี `+`/`⋮⋮` ตอบสนองเมาส์และคีย์ลัดครบทุก action
+· พิมพ์ไทยด้วย IME แล้วカー/decoration ไม่เพี้ยน · table ยังเป็นแบบเดิมตามข้อ 68
+
+**ประเมิน:** ~7–9 วันทำงาน (C4 = ก้อนใหญ่สุด — ถ้าจำเป็นให้ส่ง C1–C3 ก่อนแล้วปิด C4 ในรอบเดียวกัน · เพิ่ม milestone ใหม่ต้องเคาะก่อน)
+
+---
+
 ## M4 — AI access
 
-- [ ] REST ครบ (docs/folders/assets/render/tree/trash)
+- [ ] REST ครบ (docs/folders/assets/render/tree/trash) — **asset upload ต้องใช้ `isSafeAssetName()` ตัวเดียวกับข้อ 72**
 - [ ] `/context/*path`, `/schema` (จาก Zod)
 - [ ] audit log
 - [ ] `doku mcp` (stdio) tools ตาม [05](05-api-and-agent-access.md) — ยกเว้น `doc_search` (รอ index ที่ M5)
@@ -192,6 +250,8 @@
 | M1 | ~1.5–2 วัน (server + tree + Tailwind chrome) |
 | M2 | ~2–3 วัน (blocks + CSS) |
 | M3 | ~3–4 วัน (folder mgmt + trash + editor) |
+| M3.1 | ~5–6 วัน (UI/UX pass 2 — reading room + writing surface) |
+| M3.2 | ~7–9 วัน (one surface + block layer + inline; drag = ก้อนใหญ่สุด) |
 | M4 | ~1.5–2 วัน |
 | M5 | ~2 วัน |
 
