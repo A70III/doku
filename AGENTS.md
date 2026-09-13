@@ -113,13 +113,13 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - sidebar drag-drop + row menu · command palette (Ctrl+K) · zen mode · theme cycle
   - Lucide subset vendored (`packages/core/src/icons/`) → `<Icon>` chrome + block icon ผ่าน CSS mask
   - asset ที่ generate (gitignore): `public/app.css`, `public/editor.js` · `scripts/dev.sh` build ให้ทั้งคู่
-- **ถัดไป: M3.1** — Reading room & writing surface (UI/UX pass 2) · decision [docs/08 ข้อ 47–55](docs/08-decisions.md)
-  - **A** rhythm/type: OKLCH palette + contrast test · สเกลระยะที่ขยาย + `tokens.test.ts` · reading scale · rhythm token (ตัดเส้นใต้ h2)
-  - **B** โครงหน้า: 3 คอลัมน์ (rail 248 · อ่านกลาง · TOC 208 sticky) · colophon ท้ายเอกสาร · toolbar demote
-  - **C** พื้นผิวการเขียน: CM6 **Live Preview ในคอลัมน์เดิม** (เลิก overlay/split) · slash menu · block control strip · คุณสมบัติ inline · autosave
-  - **D** container downgrade: ~37 block มีกรอบ → เหลือเท่าที่สื่อความหมาย (callout/code/figure/table/card)
-  - **E** verify: `bun run shot` (playwright) เทียบ before/after + a11y
+- **ถัดไป: M3.1** — Reading room & writing surface (UI/UX pass 2) · decision [docs/08 ข้อ 47–61](docs/08-decisions.md)
+  - **เอกสารพิมพ์ได้ทันทีแบบ Notion** — **ไม่มีปุ่ม/โหมดแก้ไข** · CM6 Live Preview ผิวเดียวกับหน้าอ่าน · slash menu · block control strip · คุณสมบัติ inline · autosave
+  - จังหวะ/สี: OKLCH palette + `contrast.test.ts` · สเกลระยะที่ขยาย + `tokens.test.ts` · reading scale · rhythm (ตัดเส้นใต้ h2)
+  - โครงหน้า: 3 คอลัมน์ (rail 248 · อ่านกลาง · TOC 208 sticky) · colophon ท้ายเอกสาร · ไม่มี toolbar เหนือชื่อเรื่อง
+  - container downgrade ของ block (~37 มีกรอบ → เหลือเท่าที่สื่อความหมาย) · correctness lock ข้อ 56–61
   - หลักฐานที่ทำให้ต้องมี: rail/panel `padding: 0` (`--d-space-5` ไม่ถูก define) · reading column 544px ใน main 880px · TOC inline 352px · สีตก AA 4 คลาส
+  - verify: `bun run shot` (playwright) เทียบ before/after + a11y
 - ยังไม่มี: MCP (M4), index/search (M5)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)
