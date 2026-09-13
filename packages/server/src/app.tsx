@@ -10,6 +10,7 @@ import {
   DocNotFoundError,
   docEtag,
   etagHeader,
+  isSafeAssetName,
   loadMeta,
   matchesIfMatch,
   normalizeVaultPath,
@@ -313,6 +314,8 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
 
     // extension ต้องมาจาก basename และต้องมี `.` จริง (ไฟล์ชื่อ `png` ไม่ควรกลายเป็น image/png)
     const base = assetPath.slice(assetPath.lastIndexOf("/") + 1)
+    // charset ของชื่อไฟล์ (docs/08 ข้อ 72) — ไม่ผ่าน = 404 (ไฟล์ยังอยู่แต่ไม่เสิร์ฟ)
+    if (!isSafeAssetName(base)) return context.notFound()
     const dot = base.lastIndexOf(".")
     if (dot <= 0) return context.notFound()
     const mime = ASSET_MIME[base.slice(dot + 1).toLowerCase()]

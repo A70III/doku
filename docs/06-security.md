@@ -66,8 +66,10 @@ function safeJoin(vault: string, rel: string) {
 ```
 
 - normalize: ตัด `..`, `/` นำหน้า, control chars, `<>:"|?*`
-- asset filename จำกัด `[a-zA-Z0-9._\-\u0E00-\u0E7F ]+` — **บังคับจริงที่ M3.2** ([08 ข้อ 72](08-decisions.md)): `core.isSafeAssetName()` ตัวเดียว
-  · `doku check` code `asset_name_invalid` (error) · route `/assets/*` ไม่ผ่าน = 404 · render อ้างชื่อไม่ผ่าน = warning + placeholder
+- asset filename จำกัด `[a-zA-Z0-9._\-\u0E00-\u0E7F ]+` — **บังคับแล้วที่ M3.2** ([08 ข้อ 72](08-decisions.md)): `core.isSafeAssetName()` ตัวเดียว
+  · ตรวจที่ **basename** (โฟลเดอร์ใช้กฎ vault path) + ต้องมีนามสกุล + ห้ามลงท้ายด้วย `.`/ช่องว่าง
+  · `doku check` code `asset_name_invalid` (error · ทั้งไฟล์ที่ถูกอ้างและไฟล์ที่ไม่มีใครอ้าง) · route `/assets/*` ไม่ผ่าน = 404
+  · render อ้างชื่อไม่ผ่าน = warning + placeholder (`data-asset-invalid` ไม่สร้าง URL ที่ route จะปฏิเสธ) · M4 upload จะใช้ validator ตัวเดียวกัน
 - symlink: ไม่ตามออกนอก vault (`realpath` เช็คซ้ำ)
 
 ## Auth

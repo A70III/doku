@@ -7,8 +7,8 @@
 
 import type { Element, Root } from "hast"
 import { visit } from "unist-util-visit"
-import type { AssetResolver } from "./assets.ts"
-import { dirnameOf, docIdFromMdPath, docUrl, resolveRelativePath } from "./paths.ts"
+import { ASSET_NAME_RULE, type AssetResolver, isSafeAssetName } from "./assets.ts"
+import { basenameOf, dirnameOf, docIdFromMdPath, docUrl, resolveRelativePath } from "./paths.ts"
 import { type Warning, warning } from "./types.ts"
 
 export interface RewriteOptions {
@@ -109,6 +109,25 @@ async function rewriteOne(
         { path: options.docId },
       ),
     )
+    return
+  }
+
+  // ชื่อไฟล์ไม่ผ่าน charset → route จะ 404 (docs/08 ข้อ 72) → ไม่ rewrite เป็น URL ที่พัง
+  // แต่ทำ placeholder ให้ CSS วาดกรอบ (ไม่ throw/ไม่ 500 · เทสต์:codes asset_name_invalid)
+  if (!isSafeAssetName(basenameOf(resolved))) {
+    options.onWarning(
+      warning(
+        "asset_name_invalid",
+        `ชื่อไฟล์ asset ต้องเป็น ${ASSET_NAME_RULE}: ${resolved}`,
+        "warning",
+        { path: options.docId, field: raw },
+      ),
+    )
+    if (isAsset) {
+      // ตัว media: ตัด URL ออก + บอก CSS ว่าตัวนี้คือ placeholder (แสดง alt แทนรูป)
+      delete node.properties[key]
+      node.properties.dataAssetInvalid = basenameOf(resolved)
+    }
     return
   }
 

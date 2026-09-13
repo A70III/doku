@@ -6,8 +6,11 @@
  */
 
 export {
+  ASSET_NAME_RULE,
   type AssetResolver,
   createAssetResolver,
+  isSafeAssetName,
+  isSafeAssetPath,
   type ResolvedAsset,
 } from "./assets.ts"
 export {

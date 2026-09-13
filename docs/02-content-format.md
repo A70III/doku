@@ -141,6 +141,10 @@ vault/.trash/
 - วางที่ไหนก็ได้ — แนะนำ `assets/` ข้างไฟล์ md
 - อ้างด้วย path สัมพัทธ์จากตัว md: `assets/diagram.png` หรือ `../shared/logo.png`
 - รองรับ `.png .jpg .webp .gif .svg .mp4 .webm .mp3 .json(lottie) .pdf`
+- **ชื่อไฟล์ (basename) ต้องอยู่ใน charset เท่านี้** — `a-z` `A-Z` `0-9` `.` `_` `-` ช่องว่าง และอักษรไทย
+  · ต้องมีนามสกุล · ห้ามขึ้นต้น/ลงท้ายด้วย `.` หรือช่องว่าง (`isSafeAssetName` ใน `core` — [08 ข้อ 72](08-decisions.md))
+  · ชื่อที่ไม่ผ่าน = `doku check` error `asset_name_invalid` · route `/assets/*path` ตอบ **404** · render แสดง placeholder
+    (ไม่สร้าง URL ที่ route จะปฏิเสธ) · ชื่อที่มีช่องว่างต้องเขียน `![alt](<assets/รูป ภาพ.png>)` หรือ `%20`
 - ห้าม absolute path / `../` หลุด vault → validator เตือน
 - renderer rewrite เป็น `/assets/<asset-path-in-vault>?h=<hash>` (path เต็มจาก vault — ไม่กำกวม)
 - asset ไม่ถูก render เป็นเอกสาร
@@ -170,7 +174,7 @@ vault/.trash/
 ## Validation (`doku check`)
 
 - meta ผ่าน JSON Schema, `title`/`tags` รูปถูก
-- asset path ที่อ้างมีจริง + ไม่หลุด vault
+- asset path ที่อ้างมีจริง + ไม่หลุด vault + **ชื่อไฟล์ผ่าน charset** (`asset_name_invalid` = error)
 - link ภายใน resolve ได้ (ไม่มี broken/ambiguous)
 - custom block รู้จัก + ปิดครบ + ไม่ซ้อนด้วย `:::` ยาวเท่ากัน (ดู [03](03-blocks-and-design-system.md))
 - orphan assets + เอกสารที่ไม่มี title

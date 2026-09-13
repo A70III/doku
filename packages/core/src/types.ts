@@ -25,6 +25,7 @@ export type WarningCode =
   // assets / links
   | "asset_missing"
   | "asset_path_unsafe"
+  | "asset_name_invalid"
   | "asset_unresolved"
   | "link_broken"
   | "link_unsafe"

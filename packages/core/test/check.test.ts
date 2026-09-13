@@ -164,3 +164,50 @@ describe("check: wikilink path form (M3 fix)", () => {
     expect(report.errors.map((item) => item.code)).not.toContain("wikilink_missing")
   })
 })
+
+describe("checkVault — asset filename charset (docs/08 ข้อ 72)", () => {
+  test("อ้าง asset ที่ชื่อไม่ผ่าน charset → asset_name_invalid (error)", async () => {
+    const fs = memoryVaultFs({
+      "design.md": "# D\n\n![รูป](assets/รูป(1).png)\n",
+      "assets/รูป(1).png": "x",
+    })
+    const report = await checkVault(fs)
+    const invalid = report.errors.filter((item) => item.code === "asset_name_invalid")
+    expect(invalid.length).toBe(1)
+    expect(invalid[0]?.field).toBe("assets/รูป(1).png")
+    expect(report.ok).toBe(false)
+  })
+
+  test("ไฟล์ชื่อเสียที่ไม่มีใครอ้าง → error ที่ชั้น vault (ครั้งเดียว)", async () => {
+    const fs = memoryVaultFs({
+      "design.md": "# D\n",
+      "assets/a&b.png": "x",
+    })
+    const report = await checkVault(fs)
+    const invalid = report.errors.filter((item) => item.code === "asset_name_invalid")
+    expect(invalid.length).toBe(1)
+    expect(invalid[0]?.path).toBe("assets/a&b.png")
+    // ไม่ซ้ำเป็น orphan_asset ด้วย (ชื่อเสีย = error ตัวเดียวที่ต้องแก้)
+    expect(report.warnings.some((item) => item.code === "orphan_asset")).toBe(true)
+  })
+
+  test("ตรวจเอกสารเดียวก็เจอได้ (ไม่ต้องเดินทั้ง vault)", async () => {
+    const fs = memoryVaultFs({
+      "design.md": "# D\n\n![x](assets/a&b.png)\n",
+      "assets/a&b.png": "x",
+    })
+    const report = await checkVault(fs, { path: "design" })
+    expect(report.errors.some((item) => item.code === "asset_name_invalid")).toBe(true)
+    expect(report.warnings.some((item) => item.code === "orphan_asset")).toBe(false)
+  })
+
+  test("ชื่อที่ผ่าน charset = ไม่เตือน", async () => {
+    const fs = memoryVaultFs({
+      "design.md": "# D\n\n![x](assets/รูป ภาพ-2.png)\n",
+      "assets/รูป ภาพ-2.png": "x",
+    })
+    const report = await checkVault(fs)
+    expect(report.errors).toEqual([])
+    expect(report.ok).toBe(true)
+  })
+})

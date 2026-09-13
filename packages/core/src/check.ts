@@ -10,8 +10,10 @@
  * exit code ≠ 0 เมื่อมี error (ใช้เป็น pre-commit/CI gate)
  */
 
+import { ASSET_NAME_RULE, isSafeAssetName } from "./assets.ts"
 import { describeFenceProblem, type FenceProblem } from "./blocks/fences.ts"
 import type { VaultFs } from "./fs.ts"
+import { basenameOf } from "./paths.ts"
 import { DocNotFoundError, MAX_MD_BYTES, resolveDoc } from "./resolve.ts"
 import { scanMarkdown } from "./scan.ts"
 import { FolderMetaSchema } from "./schema.ts"
@@ -31,6 +33,7 @@ const CHECK_LEVELS: Partial<Record<WarningCode, WarningLevel>> = {
   link_unsafe: "error",
   asset_missing: "error",
   asset_path_unsafe: "error",
+  asset_name_invalid: "error",
   wikilink_missing: "error",
   md_too_large: "warning",
   meta_unknown_field: "warning",
@@ -92,6 +95,8 @@ export async function checkVault(fs: VaultFs, options: CheckOptions = {}): Promi
   const knownDocs = new Set(listing.docs)
   const knownAssets = new Set(listing.assets)
   const usedAssets = new Set<string>()
+  /** ชื่อ asset ที่ไม่ผ่าน charset และถูกอ้างจากเอกสารแล้ว — กัน warning ซ้ำที่ชั้น vault */
+  const invalidRefAssets = new Set<string>()
 
   const results: DocCheck[] = []
 
@@ -195,6 +200,19 @@ export async function checkVault(fs: VaultFs, options: CheckOptions = {}): Promi
         continue
       }
       usedAssets.add(link.resolved)
+      if (!isSafeAssetName(basenameOf(link.resolved))) {
+        // ชื่อไฟล์ไม่ผ่าน charset (docs/08 ข้อ 72) — route จะ 404 จึงต้องเป็น error ที่นี่
+        invalidRefAssets.add(link.resolved)
+        emit(
+          warning(
+            "asset_name_invalid",
+            `ชื่อไฟล์ asset ต้องเป็น ${ASSET_NAME_RULE}: ${link.resolved}`,
+            "error",
+            { path: id, field: link.raw },
+          ),
+        )
+        continue
+      }
       if (!knownAssets.has(link.resolved)) {
         emit(
           warning("asset_missing", `asset ไม่มีอยู่จริง: ${link.resolved}`, "error", {
@@ -273,6 +291,17 @@ export async function checkVault(fs: VaultFs, options: CheckOptions = {}): Promi
     }
 
     for (const asset of listing.assets) {
+      // ชื่อไฟล์ที่อ้างจากเอกสารแล้วถูกจับไปแล้วชั้นบน (ไม่ต้องซ้ำ) — ที่นี่จับไฟล์ที่ไม่มีใครอ้าง
+      if (!isSafeAssetName(basenameOf(asset)) && !invalidRefAssets.has(asset)) {
+        vaultWarnings.push(
+          warning(
+            "asset_name_invalid",
+            `ชื่อไฟล์ asset ต้องเป็น ${ASSET_NAME_RULE}: ${asset}`,
+            "error",
+            { path: asset },
+          ),
+        )
+      }
       if (!usedAssets.has(asset)) {
         vaultWarnings.push(
           warning("orphan_asset", `asset ที่ไม่มีเอกสารอ้างถึง: ${asset}`, "warning", { path: asset }),

@@ -377,3 +377,28 @@ describe("M3 fixes: asset attrs / tabs / fences / figure", () => {
     expect(warnings.some((item) => item.message.includes("width"))).toBe(false)
   })
 })
+
+describe("render: asset name invalid (docs/08 ข้อ 72)", () => {
+  test("ชื่อไฟล์ไม่ผ่าน charset → warning + placeholder (ไม่ throw/ไม่ 500)", async () => {
+    const { html, warnings } = await render("![ภาพประกอบ](assets/bad(1).png)\n", {
+      docId: "design",
+      vault: { fs: memoryVaultFs({ "design.md": "# d", "assets/bad(1).png": "x" }) },
+    })
+    expect(warnings.some((entry) => entry.code === "asset_name_invalid")).toBe(true)
+    // ไม่สร้าง URL ที่ route จะ 404 — ให้ CSS วาด placeholder จาก data-asset-invalid
+    expect(html).not.toContain("/assets/")
+    expect(html).toContain("data-asset-invalid")
+    expect(html).toContain("ภาพประกอบ")
+  })
+
+  test("ชื่อที่ผ่าน charset (มีช่องว่าง — ต้องเขียนแบบ <…>) ยัง rewrite ปกติ", async () => {
+    const { html, warnings } = await render("![ภาพ](<assets/รูป ภาพ.png>)\n", {
+      docId: "design",
+      vault: { fs: memoryVaultFs({ "design.md": "# d", "assets/รูป ภาพ.png": "x" }) },
+    })
+    expect(html).toMatch(
+      /src="\/assets\/assets\/%E0%B8%A3%E0%B8%B9%E0%B8%9B%20%E0%B8%A0%E0%B8%B2%E0%B8%9E\.png\?h=[0-9a-f]{12}"/,
+    )
+    expect(warnings.some((entry) => entry.code === "asset_name_invalid")).toBe(false)
+  })
+})

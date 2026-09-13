@@ -155,6 +155,24 @@ export const PROSE_CSS = `
 }
 .doku-prose hr { border: 0; border-top: 1px solid var(--d-border); margin-block: var(--d-rhythm-h2); }
 .doku-prose img { max-width: 100%; height: auto; border-radius: var(--d-radius-sm); }
+/* asset ที่ชื่อไฟล์ไม่ผ่าน charset (docs/08 ข้อ 72) — ตัว render ไม่ใส่ URL (route จะ 404)
+   → วาดเป็นกรอบ placeholder + โชว์ชื่อไฟล์/alt แทนรูปแตก (ต้องมี MIME/นามสกุลจริงถึงจะเสิร์ฟได้) */
+.doku-prose img[data-asset-invalid] {
+  display: inline-flex;
+  align-items: center;
+  min-width: 6rem;
+  min-height: 2.75rem;
+  padding: var(--d-space-2) var(--d-space-3);
+  border: 1px dashed var(--d-border-strong);
+  border-radius: var(--d-radius-md);
+  background: var(--d-bg-subtle);
+  color: var(--d-text-subtle);
+  font-size: var(--d-text-sm);
+  font-style: italic;
+}
+.doku-prose img[data-asset-invalid]::after {
+  content: "⚠ " attr(alt);
+}
 .doku-prose kbd {
   font-family: var(--d-font-mono);
   font-size: 0.8em;

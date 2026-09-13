@@ -580,6 +580,21 @@ describe("asset route + static caching (M3 fixes)", () => {
     expect((await app.request("/assets/dir.png/x.txt")).status).toBe(404)
   })
 
+  test("ชื่อไฟล์ที่ไม่ผ่าน charset → 404 (docs/08 ข้อ 72)", async () => {
+    const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
+    const { app } = setup({
+      "assets/a(1).png": png,
+      "assets/a&#38;b.png": png,
+      "assets/รูป ภาพ.png": png,
+    })
+    expect((await app.request(`/assets/assets/${encodeURIComponent("a(1).png")}`)).status).toBe(404)
+    expect((await app.request(`/assets/assets/${encodeURIComponent("a&b.png")}`)).status).toBe(404)
+    // ชื่อที่ผ่าน charset (ไทย + ช่องว่าง) ยังเสิร์ฟได้
+    const ok = await app.request(`/assets/assets/${encodeURIComponent("รูป ภาพ.png")}`)
+    expect(ok.status).toBe(200)
+    expect(ok.headers.get("content-type")).toBe("image/png")
+  })
+
   test("If-None-Match แบบ weak/list ตอบ 304", async () => {
     const { app } = setup({})
     const app2 = createDokuApp({
