@@ -286,7 +286,9 @@ function applyTemplate(view: EditorView, item: SlashItem, from: number, to: numb
 }
 
 function slashCompletion(items: SlashItem[]): Extension {
-  /** กรองเอง (ไทย/อังกฤษ) แล้วส่ง `filter: false` — CM6 กรองด้วย label ASCII ไม่โดนคำไทย */
+  /** กรองเอง (ไทย/อังกฤษ) แล้วส่ง `filter: false` — CM6 กรองด้วย fuzzy matcher บน label ASCII
+   *  พิมพ์ไทยจะโดนกรองเป็นศูนย์ · และไม่ใช้ validFor เพื่อให้ CM เรียก source ใหม่ทุกคีย์
+   *  (มี validFor = CM ใช้ผลเดิมซ้ำไม่กรอง) */
   const matchItem = (item: SlashItem, query: string): boolean => {
     if (!query) return true
     const needle = query.toLowerCase()
@@ -295,11 +297,19 @@ function slashCompletion(items: SlashItem[]): Extension {
     )
   }
 
+  /** ชั้นการจัดอันดับ: 0 = keyword ขึ้นต้น, 1 = label ขึ้นต้น, 2 = มีคำอยู่ใน label
+   *  (query ว่าง = ทุกรายการชั้น 0 → เรียงตามลำดับเดิม) */
+  const tier = (item: SlashItem, needle: string): number => {
+    if (item.keyword.toLowerCase().startsWith(needle)) return 0
+    if (item.label.toLowerCase().startsWith(needle)) return 1
+    return 2
+  }
+
   const source = (context: CompletionContext) => {
     const line = context.state.doc.lineAt(context.pos)
     const before = line.text.slice(0, context.pos - line.from)
-    // `/` ที่ต้นบรรทัด (หรือหลังช่องว่าง) แล้วพิมพ์ต่อด้วยตัวอักษร (รวมไทย) หรือขีด
-    const match = /(^|\s)\/([\p{L}\p{N}_-]*)$/u.exec(before)
+    // `/` ที่ต้นบรรทัด (หรือหลังช่องว่าง) แล้วพิมพ์ต่อด้วยตัวอักษร (รวมไทย + สระ/วรรณยุกต์ = \p{M}) หรือขีด
+    const match = /(^|\s)\/([\p{L}\p{M}\p{N}_-]*)$/u.exec(before)
     if (!match) return null
     const query = match[2] as string
     const start = context.pos - query.length - 1
@@ -308,8 +318,11 @@ function slashCompletion(items: SlashItem[]): Extension {
       const prev = line.text[start - line.from - 1]
       if (prev && /[\w:/.-]/.test(prev)) return null
     }
+    const needle = query.toLowerCase()
     const options: Completion[] = items
       .filter((item) => matchItem(item, query))
+      // เรียงตาม tier (stable sort — ชั้นเดียวกันคงลำดับเดิมของรายการ)
+      .sort((a, b) => tier(a, needle) - tier(b, needle))
       .map((item) => ({
         label: item.keyword,
         displayLabel: item.label,
@@ -318,11 +331,11 @@ function slashCompletion(items: SlashItem[]): Extension {
         apply: (view, _completion, from, to) => applyTemplate(view, item, from, to),
       }))
     if (options.length === 0) return null
+    // ไม่ใส่ validFor (CM จะได้เรียก source ใหม่ทุก keystroke → matchItem กรองจริงทุกครั้ง)
     return {
       from: start,
       options,
       filter: false,
-      validFor: /^\/[\p{L}\p{N}_-]*$/u,
     }
   }
 

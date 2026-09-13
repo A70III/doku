@@ -436,6 +436,42 @@ describe("client.js", () => {
       expect(CLIENT_JS).toContain(marker)
     }
   })
+
+  test("slash menu กรองตามที่พิมพ์ได้ทุกคีย์ + รวมสระ/วรรณยุกต์ไทย + จัดอันดับ (regression: พิมพ์ /vi ไม่กรอง / พิมพ์ /วิ เมนูหาย — docs/08 ข้อ 55)", () => {
+    const editorSource = readFileSync(new URL("../src/web/editor.ts", import.meta.url), "utf8")
+    // สแกนเฉพาะช่วง function slashCompletion ถึงจุดสิ้นสุด section — กัน false positive จากโค้ดส่วนอื่น
+    const start = editorSource.indexOf("function slashCompletion")
+    const end = editorSource.indexOf("/* ── block control strip")
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const slash = editorSource.slice(start, end)
+
+    // 1) trigger/จับ query ต้องรวม \p{M} (สระ/วรรณยุกต์ไทย combining) — ไม่งั้นพิมพ์ /วิ แล้วเมนูปิด
+    expect(slash).toContain("[\\p{L}\\p{M}\\p{N}_-]")
+    // 2) ห้ามมี validFor ในผลลัพธ์ของ source — มี validFor = CM ใช้ผลเดิมซ้ำไม่เรียก source → ไม่กรองทุกคีย์
+    expect(slash).not.toMatch(/validFor\s*:/)
+    // 3) ยังส่ง filter: false — CM กรองด้วย fuzzy matcher บน label อังกฤษ พิมพ์ไทยจะโดนกรองเป็นศูนย์
+    expect(slash).toContain("filter: false")
+    // 4) จัดอันดับเอง: keyword ขึ้นต้น > label ขึ้นต้น > มีคำใน label (query ว่าง = ลำดับเดิม)
+    expect(slash).toContain("tier")
+
+    // 5) regex จริงจากซอร์ส ต้อง match และจับ query ถูกกลุ่ม — เคสไทยที่มี combining mark
+    const literal = editorSource.match(/const match = \/(.+?)\/u\.exec/)
+    expect(literal).not.toBeNull()
+    const trigger = new RegExp(literal?.[1] as string, "u")
+    for (const [text, query] of [
+      ["/วิ", "วิ"],
+      ["/หัว", "หัว"],
+      ["/vi", "vi"],
+      ["ทดสอบ /เรื่อง", "เรื่อง"],
+    ] as const) {
+      const m = trigger.exec(text)
+      expect(m).not.toBeNull()
+      expect(m?.[2]).toBe(query)
+    }
+    // พิมพ์ตัวอักษรที่ไม่อยู่คลาส (เช่น ปิดท้ายด้วยช่องว่าง) → ไม่ trigger
+    expect(trigger.exec("/วิ ")).toBeNull()
+  })
 })
 
 describe("cache key ต้องผูกกับ path id (regression: cache collision)", () => {
