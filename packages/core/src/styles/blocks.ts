@@ -46,69 +46,68 @@ const MOTION_DURATION_CSS = Array.from(
 ).join("\n")
 
 const CALLOUT_VARIANTS = `
-.doku-prose [data-block='callout'][data-variant='note']    { --dk-variant-color: var(--k-info);    --dk-variant-bg: color-mix(in srgb, var(--k-info) 9%, var(--k-bg)); }
-.doku-prose [data-block='callout'][data-variant='info']    { --dk-variant-color: var(--k-info);    --dk-variant-bg: color-mix(in srgb, var(--k-info) 9%, var(--k-bg)); }
-.doku-prose [data-block='callout'][data-variant='tip']     { --dk-variant-color: var(--k-tip);     --dk-variant-bg: color-mix(in srgb, var(--k-tip) 9%, var(--k-bg)); }
-.doku-prose [data-block='callout'][data-variant='success'] { --dk-variant-color: var(--k-success); --dk-variant-bg: color-mix(in srgb, var(--k-success) 9%, var(--k-bg)); }
-.doku-prose [data-block='callout'][data-variant='warning'] { --dk-variant-color: var(--k-warning); --dk-variant-bg: color-mix(in srgb, var(--k-warning) 10%, var(--k-bg)); }
-.doku-prose [data-block='callout'][data-variant='danger']  { --dk-variant-color: var(--k-danger);  --dk-variant-bg: color-mix(in srgb, var(--k-danger) 9%, var(--k-bg)); }
-.doku-prose [data-block='callout'][data-variant='quote']   { --dk-variant-color: var(--k-quote);   --dk-variant-bg: var(--d-bg-subtle); }
+.doku-prose [data-block='callout'][data-variant='note']    { --dk-variant-color: var(--k-info);    --dk-variant-ink: var(--k-info-ink);    --dk-variant-bg: color-mix(in srgb, var(--k-info) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='info']    { --dk-variant-color: var(--k-info);    --dk-variant-ink: var(--k-info-ink);    --dk-variant-bg: color-mix(in srgb, var(--k-info) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='tip']     { --dk-variant-color: var(--k-tip);     --dk-variant-ink: var(--k-tip-ink);     --dk-variant-bg: color-mix(in srgb, var(--k-tip) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='success'] { --dk-variant-color: var(--k-success); --dk-variant-ink: var(--k-success-ink); --dk-variant-bg: color-mix(in srgb, var(--k-success) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='warning'] { --dk-variant-color: var(--k-warning); --dk-variant-ink: var(--k-warning-ink); --dk-variant-bg: color-mix(in srgb, var(--k-warning) 10%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='danger']  { --dk-variant-color: var(--k-danger);  --dk-variant-ink: var(--k-danger-ink);  --dk-variant-bg: color-mix(in srgb, var(--k-danger) 9%, var(--k-bg)); }
+.doku-prose [data-block='callout'][data-variant='quote']   { --dk-variant-color: var(--k-quote);   --dk-variant-ink: var(--k-quote);       --dk-variant-bg: var(--d-bg-subtle); }
 `
 
 export const BLOCKS_CSS = `
-/* ── callout ─────────────────────────────────────────────────────────────── */
+/* ── callout ───────────────────────────────────────────────────────────────
+   คง container ไว้ — พื้น tint + rule ซ้าย *บอกความหมาย* (เตือน/เกร็ด) ไม่ใช่ประดับ
+   ข้อความใช้ --dk-ink (ไม่ใช่ --dk-color) — สีอิ่มสงวนไว้กับ rule/icon (docs/08 ข้อ 47) */
 .doku-prose [data-block='callout'] {
   --dk-color: var(--dk-mapped-color, var(--dk-variant-color, var(--k-info)));
+  --dk-ink: var(--dk-mapped-ink, var(--dk-variant-ink, var(--k-info-ink)));
   --dk-color-bg: var(--dk-mapped-bg, var(--dk-variant-bg, var(--d-bg-subtle)));
   position: relative;
   margin: 0;
-  padding: var(--d-space-4) var(--d-space-4) var(--d-space-4) calc(var(--d-space-4) + 1.5em);
-  border: 1px solid color-mix(in srgb, var(--dk-color) 26%, var(--d-border));
-  border-inline-start: 4px solid var(--dk-color);
-  border-radius: var(--d-radius-md);
+  padding: var(--d-space-4) var(--d-space-5) var(--d-space-4) calc(var(--d-space-5) + 1.4em);
+  border: 0;
+  border-inline-start: 3px solid var(--dk-color);
+  border-radius: var(--d-radius-sm);
   background: var(--dk-color-bg);
 }
 .doku-prose [data-block='callout'][data-icon]::before {
   position: absolute;
   inset-block-start: calc(var(--d-space-4) + 0.15em);
-  inset-inline-start: var(--d-space-3);
+  inset-inline-start: var(--d-space-4);
   --dk-color: var(--dk-mapped-color, var(--dk-variant-color, var(--k-info)));
 }
 .doku-prose [data-block='callout'] > * + * { margin-top: var(--d-space-2); }
 .doku-prose [data-part='callout-title'] {
   margin: 0;
   font-weight: 600;
-  color: var(--dk-color);
+  color: var(--dk-ink);
 }
 ${CALLOUT_VARIANTS}
 
 /* ── badge / stat ────────────────────────────────────────────────────────── */
 .doku-prose [data-block='badge'] {
   display: inline-block;
-  padding: 0.05rem 0.5rem;
-  border-radius: var(--d-radius-pill);
-  background: var(--dk-mapped-bg, var(--d-accent-weak));
-  color: var(--dk-mapped-color, var(--d-accent));
-  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  padding: 0.05rem 0.45rem;
+  border-radius: var(--d-radius-sm);
+  background: var(--dk-mapped-bg, var(--d-accent-tint));
+  color: var(--dk-mapped-ink, var(--d-accent));
   font-size: var(--d-text-xs);
   font-weight: 600;
   line-height: 1.7;
 }
 .doku-prose [data-block='badge'][data-strike] { text-decoration: line-through; opacity: 0.75; }
 
+/* stats — ไม่มี container: ตัวเลขกับ label ยืนบนพื้นหน้า คั่นด้วยช่องว่าง */
 .doku-prose [data-block='stats'] {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
-  gap: var(--d-space-4);
+  gap: var(--d-space-6);
 }
 .doku-prose [data-block='stat'][data-variant='tile'] {
   display: flex;
   flex-direction: column;
   gap: var(--d-space-1);
-  padding: var(--d-space-4);
-  border: 1px solid var(--d-border);
-  border-radius: var(--d-radius-md);
-  background: var(--d-bg-subtle);
 }
 .doku-prose [data-block='stat'][data-variant='inline'] {
   display: inline-flex;
@@ -117,9 +116,11 @@ ${CALLOUT_VARIANTS}
 }
 .doku-prose [data-part='stat-value'] {
   font-size: var(--d-text-2xl);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.1;
-  color: var(--dk-mapped-color, var(--d-accent));
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--dk-mapped-ink, var(--d-accent));
 }
 .doku-prose [data-variant='inline'] [data-part='stat-value'] {
   font-size: var(--d-text-lg);
@@ -170,8 +171,7 @@ ${FIGURE_WIDTH_CSS}
   padding: var(--d-space-6);
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, #000 82%, transparent);
-  backdrop-filter: blur(2px);
+  background: var(--k-scrim);
 }
 .doku-prose [data-block='figure'][data-zoomed] img {
   width: auto;
@@ -180,7 +180,7 @@ ${FIGURE_WIDTH_CSS}
   border: 0;
   cursor: zoom-out;
 }
-.doku-prose [data-block='figure'][data-zoomed] [data-part='figure-caption'] { color: #fff; }
+.doku-prose [data-block='figure'][data-zoomed] [data-part='figure-caption'] { color: var(--k-on-scrim); }
 
 .doku-prose [data-block='gallery'] { display: grid; gap: var(--d-space-4); }
 .doku-prose [data-block='gallery'][data-cols='2'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -196,23 +196,20 @@ ${FIGURE_WIDTH_CSS}
   background: var(--d-bg-subtle);
 }
 
-/* ── card / section / grid / col ─────────────────────────────────────────── */
+/* ── card / section / grid / col ──────────────────────────────────────────
+   card = object จริงที่มีการกระทำ → คงกรอบไว้ แต่ **ตัด shadow/hover-lift**
+   (depth มาจาก hairline + พื้น ไม่ใช่เงา — docs/08 ข้อ 33) */
 .doku-prose a[data-block='card'] {
   display: block;
-  padding: var(--d-space-4);
+  padding: var(--d-space-4) var(--d-space-5);
   border: 1px solid var(--d-border);
   border-radius: var(--d-radius-md);
   background: var(--k-bg);
   color: inherit;
   text-decoration: none;
-  box-shadow: var(--k-shadow-sm);
-  transition: box-shadow var(--d-dur) var(--d-ease), transform var(--d-dur) var(--d-ease);
+  transition: border-color var(--d-dur-fast) var(--d-ease);
 }
-.doku-prose a[data-block='card']:hover {
-  border-color: var(--d-border-strong);
-  box-shadow: var(--k-shadow-md);
-  transform: translateY(-1px);
-}
+.doku-prose a[data-block='card']:hover { border-color: var(--d-border-strong); }
 .doku-prose [data-block='card'] [data-part='card-head'] { display: flex; align-items: center; gap: var(--d-space-2); }
 .doku-prose [data-block='card'][data-icon]::before {
   --dk-color: var(--d-accent);
@@ -229,27 +226,26 @@ ${FIGURE_WIDTH_CSS}
 .doku-prose [data-block='card'] [data-part='card-body'] > * + * { margin-top: var(--d-space-2); }
 .doku-prose [data-block='card'] [data-part='card-body'] > :last-child { margin-bottom: 0; }
 
-.doku-prose [data-block='section'][data-variant='hero'] {
-  padding: var(--d-space-6);
-  border: 1px solid var(--d-border);
-  border-radius: var(--d-radius-md);
-  background: var(--d-bg-subtle);
-}
+/* section — ไม่มี container: แยกด้วยระยะ + heading size (บันไดขั้น 1/3) */
 .doku-prose [data-block='section'][data-variant='hero'] > :first-child { margin-top: 0; }
+.doku-prose [data-block='section'][data-variant='hero'] > :is(h1, h2, h3) {
+  font-size: var(--d-read-h2);
+  letter-spacing: -0.008em;
+}
 .doku-prose hr[data-block='section'][data-variant='divider'] {
   border: 0;
   border-top: 1px solid var(--d-border);
-  margin: var(--d-space-8) 0;
+  margin-block: var(--d-rhythm-h2);
 }
 
-.doku-prose [data-block='grid'] { display: grid; gap: var(--d-space-4); }
+.doku-prose [data-block='grid'] { display: grid; gap: var(--d-space-6); }
 .doku-prose [data-block='grid'][data-cols='2'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .doku-prose [data-block='grid'][data-cols='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .doku-prose [data-block='grid'][data-cols='4'] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.doku-prose [data-block='grid'][data-gap='sm'] { gap: var(--d-space-2); }
-.doku-prose [data-block='grid'][data-gap='lg'] { gap: var(--d-space-6); }
+.doku-prose [data-block='grid'][data-gap='sm'] { gap: var(--d-space-3); }
+.doku-prose [data-block='grid'][data-gap='lg'] { gap: var(--d-space-8); }
 .doku-prose [data-block='col'] { min-width: 0; }
-.doku-prose [data-block='col'] > * + * { margin-top: var(--d-space-4); }
+.doku-prose [data-block='col'] > * + * { margin-top: var(--d-flow); }
 
 /* responsive: ลดคอลัมน์ให้อ่านรู้เรื่องบนจอเล็ก (docs/03 §2) */
 @media (max-width: 900px) {
@@ -264,32 +260,31 @@ ${FIGURE_WIDTH_CSS}
 }
 
 /* ── kv / progress / steps / timeline ────────────────────────────────────── */
-.doku-prose [data-block='kv'] {
-  margin: 0;
-  border: 1px solid var(--d-border);
-  border-radius: var(--d-radius-md);
-  overflow: hidden;
+/* kv = definition list: ไม่มีกรอบนอก · hairline เฉพาะระหว่างแถว (บันไดขั้น 2) */
+.doku-prose [data-block='kv'] { margin: 0; }
+.doku-prose [data-part='kv-row'] {
+  display: grid;
+  grid-template-columns: minmax(6rem, 24%) 1fr;
+  gap: var(--d-space-4);
+  padding-block: var(--d-space-3);
+  border-bottom: 1px solid var(--d-border);
 }
-.doku-prose [data-part='kv-row'] { display: grid; grid-template-columns: minmax(7rem, 30%) 1fr; }
-.doku-prose [data-part='kv-row'] + [data-part='kv-row'] { border-top: 1px solid var(--d-border); }
+.doku-prose [data-part='kv-row']:last-child { border-bottom: 0; padding-bottom: 0; }
+.doku-prose [data-part='kv-row']:first-child { padding-top: 0; }
 .doku-prose [data-part='kv-key'] {
   margin: 0;
-  padding: var(--d-space-2) var(--d-space-3);
-  background: var(--d-bg-subtle);
   color: var(--d-text-muted);
-  font-weight: 600;
   font-size: var(--d-text-sm);
 }
 .doku-prose [data-part='kv-value'] {
   margin: 0;
-  padding: var(--d-space-2) var(--d-space-3);
   font-size: var(--d-text-sm);
 }
 
 .doku-prose [data-block='progress'] { display: flex; align-items: center; gap: var(--d-space-3); }
 .doku-prose [data-block='progress'] progress {
   flex: 1;
-  height: 0.6rem;
+  height: 0.5rem;
   border: 0;
   border-radius: var(--d-radius-pill);
   background: var(--d-bg-muted);
@@ -300,8 +295,9 @@ ${FIGURE_WIDTH_CSS}
 .doku-prose progress::-webkit-progress-bar { background: var(--d-bg-muted); border-radius: var(--d-radius-pill); }
 .doku-prose progress::-webkit-progress-value { background: var(--d-accent); border-radius: var(--d-radius-pill); }
 .doku-prose progress::-moz-progress-bar { background: var(--d-accent); border-radius: var(--d-radius-pill); }
-.doku-prose [data-part='progress-label'] { color: var(--d-text-muted); font-size: var(--d-text-sm); white-space: nowrap; }
+.doku-prose [data-part='progress-label'] { color: var(--d-text-muted); font-size: var(--d-text-sm); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
+/* steps — เลขลำดับเป็น *ตัวอักษร* ไม่ใช่ pill ทึบ (หมายเลขสื่อลำดับอยู่แล้ว) */
 .doku-prose [data-block='steps'] > ol,
 .doku-prose [data-block='steps'] > ul {
   list-style: none;
@@ -312,40 +308,36 @@ ${FIGURE_WIDTH_CSS}
 .doku-prose [data-block='steps'] li {
   counter-increment: doku-step;
   position: relative;
-  padding-left: 2.5rem;
+  padding-left: var(--d-space-8);
 }
 .doku-prose [data-block='steps'] li::before {
   content: counter(doku-step);
   position: absolute;
   inset-inline-start: 0;
-  inset-block-start: 0.1em;
-  width: 1.7rem;
-  height: 1.7rem;
-  display: grid;
-  place-items: center;
-  border-radius: var(--d-radius-pill);
-  background: var(--d-accent-weak);
+  inset-block-start: 0;
   color: var(--d-accent);
-  font-size: var(--d-text-xs);
-  font-weight: 700;
+  font-size: var(--d-text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
-.doku-prose [data-block='steps'] li + li { margin-top: var(--d-space-3); }
+.doku-prose [data-block='steps'] li + li { margin-top: var(--d-space-4); }
 
+/* timeline — เส้นเดียว + จุด (บันไดขั้น 2) */
 .doku-prose [data-block='timeline'] {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 var(--d-space-4);
-  border-inline-start: 2px solid var(--d-border);
+  padding: 0 0 0 var(--d-space-5);
+  border-inline-start: 1px solid var(--d-border-strong);
 }
 .doku-prose [data-part='timeline-item'] { position: relative; }
-.doku-prose [data-part='timeline-item'] + [data-part='timeline-item'] { margin-top: var(--d-space-4); }
+.doku-prose [data-part='timeline-item'] + [data-part='timeline-item'] { margin-top: var(--d-space-5); }
 .doku-prose [data-part='timeline-item']::before {
   content: '';
   position: absolute;
-  inset-inline-start: calc(-1 * var(--d-space-4) - 5px);
+  inset-inline-start: calc(-1 * var(--d-space-5) - 3px);
   inset-block-start: 0.5em;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--d-accent);
 }
@@ -357,13 +349,11 @@ ${FIGURE_WIDTH_CSS}
 }
 .doku-prose [data-part='timeline-text'] { display: block; }
 
-/* ── margin-note ─────────────────────────────────────────────────────────── */
+/* ── margin-note ── rule ซ้ายเส้นเดียว ไม่มีพื้น (บันไดขั้น 2) */
 .doku-prose [data-block='margin-note'] {
   margin: 0;
-  padding: var(--d-space-3) var(--d-space-4);
-  border-inline-start: 3px solid var(--d-border-strong);
-  border-radius: var(--d-radius-sm);
-  background: var(--d-bg-subtle);
+  padding: var(--d-space-1) 0 var(--d-space-1) var(--d-space-4);
+  border-inline-start: 2px solid var(--d-border-strong);
   color: var(--d-text-muted);
   font-size: var(--d-text-sm);
 }
@@ -415,51 +405,53 @@ ${MOTION_DURATION_CSS}
 }
 
 .doku-prose [data-block='details'] {
-  padding: var(--d-space-2) var(--d-space-4);
-  border: 1px solid var(--d-border);
-  border-radius: var(--d-radius-sm);
-  background: var(--d-bg-subtle);
+  padding: 0;
+  border: 0;
+  background: none;
 }
-.doku-prose [data-block='details'] > summary { cursor: pointer; font-weight: 600; }
-.doku-prose [data-block='details'][open] > summary { margin-bottom: var(--d-space-2); }
+.doku-prose [data-block='details'] > summary {
+  cursor: pointer;
+  padding-block: var(--d-space-2);
+  border-bottom: 1px solid var(--d-border);
+  font-weight: 600;
+}
+.doku-prose [data-block='details'][open] > summary { margin-bottom: var(--d-space-3); }
 .doku-prose [data-block='details'] > :not(summary) + :not(summary) { margin-top: var(--d-space-2); }
 
-.doku-prose [data-block='tabs'] {
-  border: 1px solid var(--d-border);
-  border-radius: var(--d-radius-md);
-  overflow: hidden;
-}
+/* tabs — hairline คั่น header + tab ที่ active ขีด accent (ไม่มี pill/เงา/กรอบ) */
+.doku-prose [data-block='tabs'] { border: 0; }
 .doku-prose [data-part='tablist'] {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--d-space-1);
-  padding: var(--d-space-2);
+  gap: var(--d-space-5);
+  padding: 0;
   border-bottom: 1px solid var(--d-border);
-  background: var(--d-bg-subtle);
+  background: none;
 }
 .doku-prose [data-part='tab-button'] {
   appearance: none;
   border: 0;
-  border-radius: var(--d-radius-sm);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: transparent;
   color: var(--d-text-muted);
   font: inherit;
   font-size: var(--d-text-sm);
-  font-weight: 600;
-  padding: 0.35rem 0.8rem;
+  padding: var(--d-space-2) 0;
   cursor: pointer;
+  transition: color var(--d-dur-fast) var(--d-ease), border-color var(--d-dur-fast) var(--d-ease);
 }
-.doku-prose [data-part='tab-button']:hover { background: var(--d-bg-muted); }
+.doku-prose [data-part='tab-button']:hover { color: var(--k-text); }
 .doku-prose [data-part='tab-button'][aria-selected='true'] {
-  background: var(--k-bg);
   color: var(--d-accent);
-  box-shadow: var(--k-shadow-sm);
+  border-bottom-color: var(--d-accent);
+  font-weight: 600;
 }
-.doku-prose [data-part='tab-panel'] { padding: var(--d-space-4); }
-.doku-prose [data-part='tab-panel'] > * + * { margin-top: var(--d-space-4); }
+.doku-prose [data-part='tab-panel'] { padding: var(--d-space-5) 0 0; }
+.doku-prose [data-part='tab-panel'] > * + * { margin-top: var(--d-flow); }
 .doku-prose [data-part='tab-panel'] > :first-child { margin-top: 0; }
 /* ไม่มี JS: แสดงทุก panel ซ้อนกัน (อ่านได้) — JS ใส่ data-enhanced แล้วโชว์เฉพาะ active */
-.doku-prose [data-part='tab-panel'] + [data-part='tab-panel'] { border-top: 1px dashed var(--d-border); }
+.doku-prose [data-part='tab-panel'] + [data-part='tab-panel'] { border-top: 1px solid var(--d-border); }
 .doku-prose [data-block='tabs'][data-enhanced] [data-part='tab-panel'] { display: none; }
 .doku-prose [data-block='tabs'][data-enhanced] [data-part='tab-panel'][data-active='true'] { display: block; }
 ${BLOCK_ICON_CSS}

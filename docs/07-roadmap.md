@@ -81,19 +81,19 @@
 >
 > **หลักฐานที่ทำให้ต้องมี milestone นี้** (วัดจากหน้าเว็บจริง + computed style ไม่ใช่ความรู้สึก):
 > `--d-space-5` ไม่ถูก define → **rail + panel `padding: 0`** · อ่าน column **544px ใน main 880px** (gutter ขวาว่าง 38%)
-> · TOC inline สูง **352px = 39% viewport** ก่อนเนื้อหาเริ่ม · **37 block ที่มีกรอบ/พื้นหลัง** · h1 36px → h2 30px
+> · TOC inline สูง **352px = 39% viewport** ก่อนเนื้อหาเริ่ม · **block เกือบทุกตัวมีกรอบ/พื้นของตัวเอง** · h1 36px → h2 30px
 > · 4 คลาสสีตก WCAG AA จริง
 
 ### ลิสต์งาน (เรียงตามลำดับที่ต้องทำ — systemize before styling)
 
 **พื้นฐาน: token / จังหวะ / สี**
 
-- [ ] **tokens** — OKLCH palette ตาม [08 ข้อ 47](08-decisions.md) + `--d-border-control` + `--k-<hue>-ink` + `--k-on-accent`/`--k-scrim`/`--d-selection`
-- [ ] **contrast lock** — `packages/core/src/styles/contrast.test.ts` ตรวจทุกคู่สี (อ่านค่าจาก `tokens.ts` · ไม่ copy ค่า) — เพิ่ม/แก้สีไม่ผ่าน = แดง
-- [ ] **space scale** — เพิ่ม `--d-space-5/10/16/20/24` + `tokens.test.ts` ตรวจ `var(--d-space-N)` ที่อ้างทุกตัว (แก้ `--d-space-5` ที่ทำ rail/panel `padding: 0` — [08 ข้อ 50](08-decisions.md))
-- [ ] **reading scale** — `--d-read*` + weight แค่ 400/600 + `--k-leading-body` ผูกกับ `.doku-prose` จริง ([08 ข้อ 48](08-decisions.md))
-- [ ] **rhythm** — `--d-flow` · `--d-flow-loose` · `--d-rhythm-h2/h3/h4` + กฎ "มาก่อน heading น้อยหลัง heading" · **ตัดเส้นใต้ `h2`** · `h1` ใช้ `--d-read-h1`
-- [ ] **สีที่ hardcode หลุดใน render** — `render.ts:137` `rehypeKatex({ errorColor: "#cf222e" })` ยังเป็น danger สี**เก่า** → ดึงจาก token ที่เดียว
+- [x] **tokens** — OKLCH palette ตาม [08 ข้อ 47](08-decisions.md) + `--d-border-control` + `--k-<hue>-ink` + `--k-on-accent`/`--k-scrim`/`--d-selection`
+- [x] **contrast lock** — `packages/core/src/styles/contrast.test.ts` ตรวจทุกคู่สี (อ่านค่าจาก `tokens.ts` · ไม่ copy ค่า) — เพิ่ม/แก้สีไม่ผ่าน = แดง
+- [x] **space scale** — เพิ่ม `--d-space-5/10/16/20/24` + `tokens.test.ts` ตรวจ `var(--d-space-N)` ที่อ้างทุกตัว (แก้ `--d-space-5` ที่ทำ rail/panel `padding: 0` — [08 ข้อ 50](08-decisions.md))
+- [x] **reading scale** — `--d-read*` + weight แค่ 400/600 + `--k-leading-body` ผูกกับ `.doku-prose` จริง ([08 ข้อ 48](08-decisions.md))
+- [x] **rhythm** — `--d-flow` · `--d-flow-loose` · `--d-rhythm-h2/h3/h4` + กฎ "มาก่อน heading น้อยหลัง heading" · **ตัดเส้นใต้ `h2`** · `h1` ใช้ `--d-read-h1`
+- [x] **สีที่ hardcode หลุดใน render** — `render.ts:137` `rehypeKatex({ errorColor: "#cf222e" })` ยังเป็น danger สี**เก่า** → ดึงจาก token ที่เดียว
 
 **โครงหน้า**
 
@@ -101,7 +101,8 @@
 - [ ] **TOC ออกจากบทความ** — sticky column + active (`IntersectionObserver`) · `<1200px` เป็น `<details>` ท้ายเอกสาร · mobile เป็น bottom sheet
 - [ ] **colophon ท้ายเอกสาร** — path id · แก้ไขล่าสุด · revision (ลบ `.doku-shelfmark` เหนือ h1)
 - [ ] **chrome** — **ไม่มีปุ่ม "แก้ไข"** เหลือเมนู `⋯` + zen ([08 ข้อ 51](08-decisions.md)) · rail แยกจาก paper ด้วยพื้น · rail row ≥ 32px (touch target) · hub page rhythm
-- [ ] **container downgrade ของ block** — ตัด container: `section` · `stats`/`stat` · `grid`/`col` · shadow ของ `card` · `kv` → definition list · `steps`/`timeline` → เส้นเดียว · `details`/`tabs` → hairline คั่น header · คงไว้ + ตรวจ contrast ใหม่: `callout` · `code` · `table` · `figure` · `gallery` · `video` · `badge` ([08 ข้อ 53](08-decisions.md))
+- [x] **container downgrade ของ block** — ตัด container: `section` · `stats`/`stat` · `grid`/`col` · shadow ของ `card` · `kv` → definition list · `steps`/`timeline` → เส้นเดียว · `details`/`tabs` → hairline คั่น header · คงไว้ + ตรวจ contrast ใหม่: `callout` · `code` · `table` · `figure` · `gallery` · `video` · `badge` ([08 ข้อ 53](08-decisions.md))
+- [x] **ตาราง** — เส้นแนวนอนเท่านั้น (ไม่เป็นกริดเต็ม) · header หนักกว่าเส้นอื่น · ตัวเลข tabular
 
 **พื้นที่เขียน — พิมพ์ได้ทันที ไม่มีปุ่มแก้ไข** ([08 ข้อ 52/54/55](08-decisions.md))
 
@@ -126,7 +127,7 @@
 - [ ] **`/styleguide`** อัปเดตให้โชว์ทั้งสองธีม + คู่สีที่ lock ไว้ + ใช้ตรวจตาเปล่าคู่กับ screenshot
 - [ ] **`bun run shot`** (playwright · devDependency) เทียบ `var/shots/before` ↔ after ทั้ง 2 ธีม
 - [ ] **a11y** ในสคริปต์เดียวกับ screenshot: focus ring · 200% zoom · reduced motion · contrast ≥ AA
-- [ ] **`bun test` + `bun run check` + `bun run typecheck`** ผ่าน · `doku check examples/vault` = 0 errors
+- [x] **`bun test` + `bun run check` + `bun run typecheck`** ผ่าน · `doku check examples/vault` = 0 errors
 - [ ] **docs sync** — `docs/03` (§1.1/§1.3/§1.4/§2/§3/§4) · `docs/07` · `docs/08` · `AGENTS.md` ในคอมมิตเดียวกัน
 
 **เสร็จ:** อ่านเอกสารยาวแล้วมีจังหวะ (หัวข้อหายใจได้ ไม่มีเส้นซ้อน) · หา h1 เจอใน 1 glance

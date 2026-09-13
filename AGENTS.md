@@ -117,7 +117,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - **เอกสารพิมพ์ได้ทันทีแบบ Notion** — **ไม่มีปุ่ม/โหมดแก้ไข** · CM6 Live Preview ผิวเดียวกับหน้าอ่าน · slash menu · block control strip · คุณสมบัติ inline · autosave
   - จังหวะ/สี: OKLCH palette + `contrast.test.ts` · สเกลระยะที่ขยาย + `tokens.test.ts` · reading scale · rhythm (ตัดเส้นใต้ h2)
   - โครงหน้า: 3 คอลัมน์ (rail 248 · อ่านกลาง · TOC 208 sticky) · colophon ท้ายเอกสาร · ไม่มี toolbar เหนือชื่อเรื่อง
-  - container downgrade ของ block (~37 มีกรอบ → เหลือเท่าที่สื่อความหมาย) · correctness lock ข้อ 56–61
+  - container downgrade ของ block (เหลือเท่าที่สื่อความหมาย) · correctness lock ข้อ 56–61
   - หลักฐานที่ทำให้ต้องมี: rail/panel `padding: 0` (`--d-space-5` ไม่ถูก define) · reading column 544px ใน main 880px · TOC inline 352px · สีตก AA 4 คลาส
   - verify: `bun run shot` (playwright) เทียบ before/after + a11y
 - ยังไม่มี: MCP (M4), index/search (M5)
@@ -135,7 +135,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - ล็อกเพิ่มตอน M3.1 (UI/UX pass 2): OKLCH palette + hairline≠control border + `-ink` + accent dark (ข้อ 47)
   · สองสเกลตัวอักษร + weight 400/600 (ข้อ 48) · TOC sticky + colophon ท้ายเอกสาร (ข้อ 49)
   · ห้ามอ้าง `--d-space-N` ที่ไม่ define (ข้อ 50) · toolbar demote (ข้อ 51) · Live Preview ในคอลัมน์เดิม (ข้อ 52)
-  · container downgrade ของ block (ข้อ 53) · autosave + คีย์ลัดสองโหมด (ข้อ 54) · slash menu + block control strip (ข้อ 55)
+  · container downgrade ของ block (ข้อ 53) · autosave + คีย์ลัดตาม focus (ข้อ 54) · slash menu + block control strip (ข้อ 55)
 - ล็อกเพิ่มตอนเคาะค้าง M3 (implement ที่ M3.1 Track E): `#` ห้ามในชื่อไฟล์ + แยก `normalizeVaultPath`/`normalizeLinkTarget` (ข้อ 56)
   · `href` รับ `mailto:`/`tel:` + lowercase scheme + `target`/`rel` allowlist + ถอด `color` จาก global allowlist (ข้อ 57)
   · asset `?h=` ต้อง verify ก่อน `immutable` (ข้อ 58) · `width` รับ `70`/`70%` (ข้อ 59)

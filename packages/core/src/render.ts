@@ -133,8 +133,11 @@ export async function renderMarkdown(
 
   // KaTeX ก่อน Shiki: display math ของ remark-math มาเป็น `<pre><code class="language-math">`
   // ถ้า Shiki วิ่งก่อน มันจะยึด code block นั้นไป และ KaTeX จะไม่เห็นสมการ
+  // KaTeX error color: ไม่ส่ง `errorColor` (จะกลายเป็น inline style ที่ hardcode สีและไม่ตามธีม)
+  // → บังคับด้วย CSS `.katex-error { color: var(--k-danger) !important }` ใน prose.ts (docs/08 ข้อ 47)
+  // rehype-katex ไมรับ `throwOnError` (มัน Omit ออก) — ผิดพลาดแล้วได้ node .katex-error
   if (meta.render.math) {
-    processor.use(rehypeKatex, { throwOnError: false, errorColor: "#cf222e" })
+    processor.use(rehypeKatex)
   }
 
   if (options.highlight !== false) {
