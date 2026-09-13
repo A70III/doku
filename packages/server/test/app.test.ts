@@ -255,11 +255,14 @@ describe("M3 chrome (toolbar / palette / trash page)", () => {
     return { app, fs }
   }
 
-  test("หน้าเอกสารมี toolbar + editor + palette + ไอคอน inline svg", async () => {
+  test("หน้าเอกสารมี chrome ครบ (toolbar/editor/palette/ฟอร์ม) + ไอคอน inline svg", async () => {
     const { app } = setupUi({ "a.md": GOOD_DOC })
     const html = await (await app.request("/d/a")).text()
-    expect(html).toContain('data-action="edit"')
-    expect(html).toContain('data-action="history"')
+    // M3.1: เครื่องมือของเอกสารอยู่ในเมนู ⋯ (docs/08 ข้อ 51) — ไม่ใช่แถวปุ่มเหนือชื่อเรื่อง
+    expect(html).toContain('data-action="doc-menu"')
+    expect(html).toContain('data-action="edit"') // ชั่วคราว: จะถูกถอดเมื่อเขียนได้ทันที
+    expect(html).toContain('data-action="zen"')
+    expect(html).toContain('data-action="palette"')
     expect(html).toContain('id="doku-editor"')
     expect(html).toContain('id="doku-palette"')
     expect(html).toContain('id="doku-meta-form"')
@@ -268,6 +271,18 @@ describe("M3 chrome (toolbar / palette / trash page)", () => {
     // ไอคอน chrome = inline svg (docs/08 ข้อ 35)
     expect(html).toContain("<svg")
     expect(html).not.toContain("data-icon='folder'") // chrome ใช้ svg ไม่ใช้ mask
+  })
+
+  test("M3.1: TOC อยู่นอกบทความ (คอลัมน์ sticky) + colophon ท้ายเอกสาร", async () => {
+    // TOC ต้องมี >= 2 heading ถึงจะแสดง (เหมือนเดิม) — ใช้เอกสารที่มีหัวข้อย่อยจริง
+    const { app } = setupUi({ "a.md": "# หัวเรื่อง\n\n## ส่วนที่ 1\n\nก\n\n## ส่วนที่ 2\n\nข\n" })
+    const html = await (await app.request("/d/a")).text()
+    // TOC ไม่อยู่ใน fragment แล้ว → ต้อง bump RENDERER_VERSION (bump เป็น 5)
+    expect(html).toContain('class="doku-toc-col"')
+    expect(html).toContain("data-toc-link=")
+    // เดิมเป็น mono label เหนือ h1 — ตอนนี้เป็น colophon ท้ายเอกสาร
+    expect(html).not.toContain("doku-shelfmark")
+    expect(html).toContain('class="doku-colophon"')
   })
 
   test("sidebar row มี data attributes สำหรับ drag/menu + folder meta", async () => {

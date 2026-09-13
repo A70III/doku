@@ -97,9 +97,9 @@
 
 **โครงหน้า**
 
-- [ ] **3 คอลัมน์** — rail 248px · reading column จัดกลาง · TOC 208px sticky · shell `90rem` ([08 ข้อ 49](08-decisions.md)·[03 §2](03-blocks-and-design-system.md))
-- [ ] **TOC ออกจากบทความ** — sticky column + active (`IntersectionObserver`) · `<1200px` เป็น `<details>` ท้ายเอกสาร · mobile เป็น bottom sheet
-- [ ] **colophon ท้ายเอกสาร** — path id · แก้ไขล่าสุด · revision (ลบ `.doku-shelfmark` เหนือ h1)
+- [x] **3 คอลัมน์** — rail 248px · reading column จัดกลาง · TOC 208px sticky · shell `90rem` ([08 ข้อ 49](08-decisions.md)·[03 §2](03-blocks-and-design-system.md))
+- [x] **TOC ออกจากบทความ** — sticky column + active (`IntersectionObserver`) · `<1200px` เป็น `<details>` ท้ายเอกสาร · mobile เป็น bottom sheet
+- [x] **colophon ท้ายเอกสาร** — path id · แก้ไขล่าสุด · revision (ลบ `.doku-shelfmark` เหนือ h1)
 - [ ] **chrome** — **ไม่มีปุ่ม "แก้ไข"** เหลือเมนู `⋯` + zen ([08 ข้อ 51](08-decisions.md)) · rail แยกจาก paper ด้วยพื้น · rail row ≥ 32px (touch target) · hub page rhythm
 - [x] **container downgrade ของ block** — ตัด container: `section` · `stats`/`stat` · `grid`/`col` · shadow ของ `card` · `kv` → definition list · `steps`/`timeline` → เส้นเดียว · `details`/`tabs` → hairline คั่น header · คงไว้ + ตรวจ contrast ใหม่: `callout` · `code` · `table` · `figure` · `gallery` · `video` · `badge` ([08 ข้อ 53](08-decisions.md))
 - [x] **ตาราง** — เส้นแนวนอนเท่านั้น (ไม่เป็นกริดเต็ม) · header หนักกว่าเส้นอื่น · ตัวเลข tabular

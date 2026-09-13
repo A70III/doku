@@ -17,7 +17,6 @@ import {
   renderMarkdown,
   resolveDoc,
   sha256Hex,
-  type TocEntry,
   type VaultFs,
   type Warning,
 } from "@doku/core"
@@ -79,7 +78,7 @@ export class DocRenderer {
 
     await this.#cache.store(
       {
-        fragment: this.fragment(result.meta, result.html, result.toc, result.warnings),
+        fragment: this.fragment(result.meta, result.html, result.warnings),
         meta: result.meta,
         toc: result.toc,
         warnings: result.warnings,
@@ -107,11 +106,13 @@ export class DocRenderer {
     )
   }
 
-  /** HTML ภายในการ์ดเนื้อหา — header + warnings + toc + prose (fragment ที่ cache จริง) */
-  private fragment(meta: Meta, html: string, toc: TocEntry[], warnings: Warning[]): string {
+  /** HTML ภายในการ์ดเนื้อหา — header + warnings + prose
+   *  TOC **ไม่อยู่ใน fragment** อีกต่อไป (M3.1): มันกลายเป็นคอลัมน์ sticky ที่ render จาก `doc.toc`
+   *  → fragment เปลี่ยน = bump `RENDERER_VERSION` (bump เป็น 5 แล้ว — docs/08 ข้อ 49) */
+  private fragment(meta: Meta, html: string, warnings: Warning[]): string {
     // ใช้ JSX ผ่าน app.tsx จะสะอาดกว่า — จุดนี้ assemble ด้วย string ที่เราคุมเอง
     // (input ทั้งหมดมาจาก meta/escape แล้ว หรือจาก HTML ที่ผ่าน sanitize)
-    return `${docHeaderHtml(meta)}${warningsBannerHtml(warnings)}${meta.render.toc ? tocHtml(toc) : ""}${html}`
+    return `${docHeaderHtml(meta)}${warningsBannerHtml(warnings)}${html}`
   }
 }
 
@@ -174,17 +175,4 @@ export function warningsBannerHtml(warnings: readonly Warning[]): string {
       : ""
 
   return `<div class="doku-warnings"><strong>render warnings (${warnings.length})</strong>${seriousHtml}${infoHtml}</div>`
-}
-
-export function tocHtml(toc: readonly TocEntry[]): string {
-  if (toc.length < 2) return ""
-  return `<nav class="doku-toc">
-<span class="doku-toc-title">สารบัญ</span>
-<ul>${toc
-    .map(
-      (entry) =>
-        `<li class="doku-toc-h${entry.depth}"><a href="#${encodeURI(entry.id)}">${escapeHtml(entry.text)}</a></li>`,
-    )
-    .join("")}</ul>
-</nav>`
 }

@@ -259,6 +259,9 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
         // ทุก GET คืน ETag ของ {md, meta} (docs/05 concurrency)
         context.header("etag", etagHeader(await docEtag(markdown, doc.meta)))
       }
+      // colophon ต้องรู้ "แก้ไขล่าสุด" + ขนาด — มาจาก listing เดียวกับ tree (ไม่ต้อง stat ซ้ำ)
+      const summary = (await deps.state.get()).docs.find((item) => item.id === docId)
+      const words = markdown ? markdown.trim().split(/\s+/u).filter(Boolean).length : undefined
       return context.html(
         <DocPage
           doc={doc}
@@ -266,6 +269,8 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
           tree={tree}
           vaultName={deps.vaultName}
           trashCount={await trashCount()}
+          mtimeMs={summary?.mtimeMs}
+          words={words}
         />,
       )
     } catch (error) {

@@ -17,6 +17,7 @@ import {
   iconSvg,
   type LucideIconName,
   type Meta,
+  type TocEntry,
   type TrashItem,
 } from "@doku/core"
 import type { Child, FC } from "hono/jsx"
@@ -443,38 +444,113 @@ export const Sidebar: FC<{
 
 /* ── doc page (reading room) ─────────────────────────────────────────── */
 
-const DocToolbar: FC<{ path: string }> = ({ path }) => (
+/** TOC แบบคอลัมน์ — render จาก `doc.toc` (M3.1: ไม่ได้อยู่ใน fragment อีกต่อไป) */
+export const TocList: FC<{ toc: TocEntry[]; variant?: "column" | "sheet" }> = ({
+  toc,
+  variant,
+}) => (
+  <ul {...(variant ? { "data-variant": variant } : {})}>
+    {toc.map((entry) => (
+      <li class={`doku-toc-h${entry.depth}`}>
+        <a href={`#${encodeURI(entry.id)}`} data-toc-link={entry.id}>
+          {entry.text}
+        </a>
+      </li>
+    ))}
+  </ul>
+)
+
+const TocColumn: FC<{ toc: TocEntry[] }> = ({ toc }) =>
+  toc.length < 2 ? (
+    <div class="doku-toc-col" aria-hidden="true" />
+  ) : (
+    <aside class="doku-toc-col">
+      <nav class="doku-toc" aria-label="สารบัญ">
+        <span class="doku-toc-title">สารบัญ</span>
+        <TocList toc={toc} variant="column" />
+      </nav>
+    </aside>
+  )
+
+/** แผ่น TOC สำหรับจอแคบ (เปิดจากปุ่มใน toolbar — docs/03 §2) */
+const TocSheet: FC<{ toc: TocEntry[] }> = ({ toc }) =>
+  toc.length < 2 ? null : (
+    <div id="doku-toc-sheet" class="doku-overlay" hidden>
+      <div class="doku-panel" role="dialog" aria-modal="true" aria-label="สารบัญ">
+        <header class="doku-panel-head">
+          <h2 class="doku-panel-title">สารบัญ</h2>
+          <button type="button" class="doku-icon-btn" data-action="toc-close" aria-label="ปิด">
+            <Icon name="x" size={16} />
+          </button>
+        </header>
+        <nav class="doku-toc" aria-label="สารบัญ">
+          <TocList toc={toc} variant="sheet" />
+        </nav>
+      </div>
+    </div>
+  )
+
+/** colophon ท้ายเอกสาร — path (คือ id) · ขนาด · แก้ไขล่าสุด (docs/08 ข้อ 49) */
+const Colophon: FC<{ path: string; meta: Meta; mtimeMs?: number; words?: number }> = ({
+  path,
+  meta,
+  mtimeMs,
+  words,
+}) => (
+  <footer class="doku-colophon">
+    <code>{path}</code>
+    {words ? <span>{words.toLocaleString("th-TH")} คำ</span> : null}
+    {words ? <span>อ่าน ~{Math.max(1, Math.round(words / 220))} นาที</span> : null}
+    {mtimeMs ? <span>แก้ไข {formatDate(mtimeMs)}</span> : null}
+    {meta.authors.length > 0 ? <span>{meta.authors.map((a) => a.name).join(", ")}</span> : null}
+  </footer>
+)
+
+/** toolbar = เมนู ⋯ + สารบัญ/zen · **ไม่มีปุ่ม "แก้ไข"** (เอกสารพิมพ์ได้ทันที — docs/08 ข้อ 51–52)
+ *  ระหว่าง M3.1 จะยังมีปุ่มแก้ไขชั่วคราวจนกว่าพื้นผิวการเขียนใหม่จะลง (แอปต้องใช้ได้ทุกขั้น) */
+const DocToolbar: FC<{ path: string; hasToc: boolean }> = ({ path, hasToc }) => (
   <div class="doku-doc-toolbar" data-path={path}>
     <button
       type="button"
-      class="doku-tool"
+      class="doku-icon-btn"
       data-action="edit"
       data-path={path}
-      title="แก้ไข (Ctrl+E)"
+      title="แก้ไข (Ctrl+E) — ชั่วคราวระหว่าง M3.1"
+      aria-label="แก้ไข"
     >
-      <Icon name="pencil" size={15} /> <span>แก้ไข</span>
-    </button>
-    <button type="button" class="doku-tool" data-action="meta" data-path={path} title="คุณสมบัติ">
-      <Icon name="settings-2" size={15} /> <span>คุณสมบัติ</span>
-    </button>
-    <button type="button" class="doku-tool" data-action="history" data-path={path} title="ประวัติ">
-      <Icon name="history" size={15} /> <span>ประวัติ</span>
-    </button>
-    <button type="button" class="doku-tool" data-action="move" data-path={path} title="ย้าย">
-      <Icon name="move" size={15} /> <span>ย้าย</span>
+      <Icon name="pencil" size={16} />
     </button>
     <button
       type="button"
-      class="doku-tool doku-tool-danger"
-      data-action="delete"
+      class="doku-icon-btn"
+      data-action="doc-menu"
       data-path={path}
-      title="ย้ายไป trash"
+      data-label={path}
+      data-kind="doc"
+      title="การกระทำของเอกสาร"
+      aria-label="การกระทำของเอกสาร"
     >
-      <Icon name="trash-2" size={15} /> <span>ลบ</span>
+      <Icon name="more-horizontal" size={16} />
     </button>
-    <span class="doku-toolbar-spacer" />
-    <button type="button" class="doku-tool" data-action="zen" title="โหมดอ่านเต็มจอ (zen)">
-      <Icon name="maximize-2" size={15} />
+    {hasToc ? (
+      <button
+        type="button"
+        class="doku-icon-btn doku-toolbar-narrow"
+        data-action="toc-sheet"
+        title="สารบัญ"
+        aria-label="สารบัญ"
+      >
+        <Icon name="list" size={16} />
+      </button>
+    ) : null}
+    <button
+      type="button"
+      class="doku-icon-btn"
+      data-action="zen"
+      title="โหมดอ่านเต็มจอ (zen)"
+      aria-label="โหมดอ่านเต็มจอ"
+    >
+      <Icon name="maximize-2" size={16} />
     </button>
   </div>
 )
@@ -485,8 +561,11 @@ export const DocPage: FC<{
   tree: TreeNode[]
   vaultName: string
   trashCount?: number
-}> = ({ doc, path, tree, vaultName, trashCount }) => {
+  mtimeMs?: number
+  words?: number
+}> = ({ doc, path, tree, vaultName, trashCount, mtimeMs, words }) => {
   const meta = doc.meta
+  const toc = meta.render.toc ? doc.toc : []
   return (
     <Layout title={meta.title ?? "doku"} theme={meta.theme}>
       <div class="doku-shell">
@@ -497,13 +576,14 @@ export const DocPage: FC<{
             data-doc-id={path}
             data-motion={meta.render.motion ? undefined : "off"}
           >
-            <DocToolbar path={path} />
-            {/* shelf mark — path = id (docs/02) */}
-            <p class="doku-shelfmark">{path}</p>
+            <DocToolbar path={path} hasToc={toc.length >= 2} />
             <div class="doku-prose" dangerouslySetInnerHTML={{ __html: doc.fragment }} />
+            <Colophon path={path} meta={meta} mtimeMs={mtimeMs} words={words} />
           </article>
         </main>
+        <TocColumn toc={toc} />
       </div>
+      <TocSheet toc={toc} />
     </Layout>
   )
 }
@@ -572,7 +652,7 @@ export const HomePage: FC<{
       <div class="doku-shell">
         <Sidebar tree={tree} vaultName={vaultName} trashCount={trashCount} />
         <main class="doku-main">
-          <header class="mb-5 border-b border-(--d-border) pb-5">
+          <header class="mb-10 border-b border-(--d-border) pb-6">
             <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
               <h1 class="text-2xl font-semibold tracking-tight text-(--k-text)">{heading}</h1>
               <p class="text-sm text-(--d-text-muted) tabular-nums">{stats}</p>
@@ -580,7 +660,7 @@ export const HomePage: FC<{
           </header>
 
           {allTags.length > 0 ? (
-            <div class="mb-8 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
+            <div class="mb-10 flex flex-wrap items-baseline gap-x-5 gap-y-2 text-sm">
               <span class="text-(--d-text-subtle)">แท็ก</span>
               {allTags.map((item) => {
                 const active = item === tag
@@ -605,7 +685,7 @@ export const HomePage: FC<{
           ) : null}
 
           {pinned.length > 0 ? (
-            <section class="mb-8">
+            <section class="mb-12">
               <SectionTitle count={pinned.length}>ปักหมุด</SectionTitle>
               {pinned.map((doc) => (
                 <DocRow key={doc.id} doc={doc} />
@@ -614,7 +694,7 @@ export const HomePage: FC<{
           ) : null}
 
           {recent.length > 0 ? (
-            <section class="mb-8">
+            <section class="mb-12">
               <SectionTitle count={recent.length}>ล่าสุด</SectionTitle>
               {recent.map((doc) => (
                 <DocRow key={doc.id} doc={doc} />
@@ -623,7 +703,7 @@ export const HomePage: FC<{
           ) : null}
 
           {older.length > 0 ? (
-            <section class="mb-8">
+            <section class="mb-12">
               <SectionTitle count={older.length}>ทั้งหมด</SectionTitle>
               {older.map((doc) => (
                 <DocRow key={doc.id} doc={doc} />

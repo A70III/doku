@@ -72,6 +72,7 @@ ${INTERACTIONS_JS}
   const editorPreview = $("#doku-editor-preview");
   const editorPathLabel = $("#doku-editor-path");
   const editorStatusLabel = $("#doku-editor-status");
+  const tocSheetEl = $("#doku-toc-sheet");
 
   /* ── helpers ─────────────────────────────────────────────────────────── */
 
@@ -832,6 +833,42 @@ ${INTERACTIONS_JS}
     }
   }
 
+  /* ── TOC (คอลัมน์ sticky + แผ่นจอแคบ) — docs/08 ข้อ 49 ────────────────── */
+
+  const tocLinks = $$("[data-toc-link]");
+  const tocTargets = $$("article .doku-prose :is(h2, h3, h4)").filter((el) => el.id);
+  if (tocLinks.length && tocTargets.length && "IntersectionObserver" in window) {
+    const linksById = new Map();
+    for (const link of tocLinks) {
+      const id = link.getAttribute("data-toc-link");
+      if (!linksById.has(id)) linksById.set(id, []);
+      linksById.get(id).push(link);
+    }
+    const visible = new Set();
+    const setActive = (id) => {
+      for (const link of tocLinks) link.removeAttribute("aria-current");
+      for (const link of linksById.get(id) || []) link.setAttribute("aria-current", "true");
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) visible.add(entry.target.id);
+          else visible.delete(entry.target.id);
+        }
+        const current = tocTargets.find((heading) => visible.has(heading.id));
+        if (current) setActive(current.id);
+      },
+      { rootMargin: "-10% 0px -80% 0px" },
+    );
+    for (const heading of tocTargets) observer.observe(heading);
+    if (tocSheetEl) {
+      tocSheetEl.addEventListener("click", (event) => {
+        if (event.target.closest("[data-toc-link]")) tocSheetEl.hidden = true;
+      });
+    }
+    setActive(tocTargets[0].id);
+  }
+
   /* ── action router ───────────────────────────────────────────────────── */
 
   function rowMenu(anchor) {
@@ -884,6 +921,17 @@ ${INTERACTIONS_JS}
       case "row-menu":
         event.preventDefault();
         rowMenu(trigger);
+        break;
+      case "doc-menu":
+        event.preventDefault();
+        rowMenu(trigger);
+        break;
+      case "toc-sheet":
+        event.preventDefault();
+        if (tocSheetEl) tocSheetEl.hidden = false;
+        break;
+      case "toc-close":
+        if (tocSheetEl) tocSheetEl.hidden = true;
         break;
       case "cycle-theme":
         cycleTheme();
@@ -973,6 +1021,7 @@ ${INTERACTIONS_JS}
     }
     if (event.key === "Escape") {
       if (!menuEl.hidden) closeMenu();
+      else if (tocSheetEl && !tocSheetEl.hidden) tocSheetEl.hidden = true;
       else if (!paletteEl.hidden) closePalette();
       else if (!metaOverlay.hidden) metaOverlay.hidden = true;
       else if (!folderOverlay.hidden) folderOverlay.hidden = true;
