@@ -115,7 +115,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - asset ที่ generate (gitignore): `public/app.css`, `public/editor.js` · `scripts/dev.sh` build ให้ทั้งคู่
 - **M3.1 (UI/UX pass 2) เสร็จแล้ว** — reading room + writing surface · decision docs/08 ข้อ 47–61
   - **เอกสารพิมพ์ได้ทันทีแบบ Notion** — ไม่มีปุ่ม/โหมดแก้ไข · CM6 Live Preview อยู่ในคอลัมน์อ่าน
-    (ซ่อน syntax marker · image widget · `==mark==` ขีดทับ · `:::` fence) · autosave + `If-Match` (409 = ให้คนเลือก)
+    (ซ่อน syntax marker · image widget · `==mark==` เน้นพื้นสี · `:::` fence) · autosave + `If-Match` (409 = ให้คนเลือก)
   - slash menu (`/`) + block control strip (variant/attr/ลบ block) จาก `GET /api/schema` — เขียนกลับเป็น markdown เสมอ
   - คุณสมบัติเป็น panel inline ในบทความ (ไม่ใช่ modal) · เปิดจากเมนู `⋯` หรือคลิกบรรทัด meta
   - โครงหน้า 3 คอลัมน์: rail 248 · คอลัมน์อ่านจัดกลาง · TOC 208 sticky (จอแคบ = แผ่นจากปุ่มใน toolbar) · colophon ท้ายเอกสาร
