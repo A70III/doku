@@ -222,39 +222,6 @@ export const Layout: FC<{
             </footer>
           </form>
         </div>
-        <section id="doku-editor" class="doku-editor" hidden aria-label="แก้ไขเอกสาร">
-          <header class="doku-editor-head">
-            <span id="doku-editor-path" class="doku-editor-path" />
-            <span id="doku-editor-status" class="doku-chip" data-state="clean">
-              บันทึกแล้ว
-            </span>
-            <div class="doku-editor-actions">
-              <button
-                type="button"
-                class="doku-icon-btn"
-                data-action="editor-preview"
-                title="สลับ preview"
-              >
-                <Icon name="panel-left" />
-              </button>
-              <button type="button" class="doku-btn doku-btn-accent" data-action="editor-save">
-                <Icon name="save" /> บันทึก
-              </button>
-              <button
-                type="button"
-                class="doku-icon-btn"
-                data-action="editor-close"
-                aria-label="ปิด"
-              >
-                <Icon name="x" />
-              </button>
-            </div>
-          </header>
-          <div class="doku-editor-body">
-            <div id="doku-editor-source" class="doku-editor-pane" data-pane="source" />
-            <div id="doku-editor-preview" class="doku-editor-pane doku-prose" data-pane="preview" />
-          </div>
-        </section>
         <div id="doku-toast" class="doku-toast" role="status" aria-live="polite" hidden />
       </body>
     </html>
@@ -499,7 +466,7 @@ const Colophon: FC<{ path: string; meta: Meta; mtimeMs?: number; words?: number 
 }) => (
   <footer class="doku-colophon">
     <code>{path}</code>
-    {words ? <span>{words.toLocaleString("th-TH")} คำ</span> : null}
+    {words ? <span data-part="colophon-words">{words.toLocaleString("th-TH")} คำ</span> : null}
     {words ? <span>อ่าน ~{Math.max(1, Math.round(words / 220))} นาที</span> : null}
     {mtimeMs ? <span>แก้ไข {formatDate(mtimeMs)}</span> : null}
     {meta.authors.length > 0 ? <span>{meta.authors.map((a) => a.name).join(", ")}</span> : null}
@@ -510,16 +477,9 @@ const Colophon: FC<{ path: string; meta: Meta; mtimeMs?: number; words?: number 
  *  ระหว่าง M3.1 จะยังมีปุ่มแก้ไขชั่วคราวจนกว่าพื้นผิวการเขียนใหม่จะลง (แอปต้องใช้ได้ทุกขั้น) */
 const DocToolbar: FC<{ path: string; hasToc: boolean }> = ({ path, hasToc }) => (
   <div class="doku-doc-toolbar" data-path={path}>
-    <button
-      type="button"
-      class="doku-icon-btn"
-      data-action="edit"
-      data-path={path}
-      title="แก้ไข (Ctrl+E) — ชั่วคราวระหว่าง M3.1"
-      aria-label="แก้ไข"
-    >
-      <Icon name="pencil" size={16} />
-    </button>
+    {/* ตัวบอกสถานะบันทึก — เงียบ ๆ ไม่มีปุ่ม Save (docs/08 ข้อ 54) */}
+    <span id="doku-doc-status" class="doku-doc-status" role="status" aria-live="polite" />
+    <span class="doku-toolbar-spacer" />
     <button
       type="button"
       class="doku-icon-btn"
@@ -563,9 +523,17 @@ export const DocPage: FC<{
   trashCount?: number
   mtimeMs?: number
   words?: number
-}> = ({ doc, path, tree, vaultName, trashCount, mtimeMs, words }) => {
+  /** markdown ต้นฉบับ + ETag — ฝังลงหน้าเพื่อให้แก้ไขได้ทันทีโดยไม่ต้อง fetch (docs/08 ข้อ 52) */
+  markdown?: string
+  etag?: string
+}> = ({ doc, path, tree, vaultName, trashCount, mtimeMs, words, markdown, etag }) => {
   const meta = doc.meta
   const toc = meta.render.toc ? doc.toc : []
+  // `<` ต้อง escape ไม่งั้น `</script>` ใน markdown จะปิด tag ก่อนเวลา
+  const embedded =
+    markdown === undefined
+      ? null
+      : JSON.stringify({ md: markdown, etag: etag ?? "" }).replaceAll("</", "<\\/")
   return (
     <Layout title={meta.title ?? "doku"} theme={meta.theme}>
       <div class="doku-shell">
@@ -577,13 +545,24 @@ export const DocPage: FC<{
             data-motion={meta.render.motion ? undefined : "off"}
           >
             <DocToolbar path={path} hasToc={toc.length >= 2} />
-            <div class="doku-prose" dangerouslySetInnerHTML={{ __html: doc.fragment }} />
+            <div
+              id="doku-doc-body"
+              class="doku-prose"
+              dangerouslySetInnerHTML={{ __html: doc.fragment }}
+            />
             <Colophon path={path} meta={meta} mtimeMs={mtimeMs} words={words} />
           </article>
         </main>
         <TocColumn toc={toc} />
       </div>
       <TocSheet toc={toc} />
+      {embedded === null ? null : (
+        <script
+          type="application/json"
+          id="doku-doc-md"
+          dangerouslySetInnerHTML={{ __html: embedded }}
+        />
+      )}
     </Layout>
   )
 }

@@ -100,18 +100,18 @@
 - [x] **3 คอลัมน์** — rail 248px · reading column จัดกลาง · TOC 208px sticky · shell `90rem` ([08 ข้อ 49](08-decisions.md)·[03 §2](03-blocks-and-design-system.md))
 - [x] **TOC ออกจากบทความ** — sticky column + active (`IntersectionObserver`) · `<1200px` เป็น `<details>` ท้ายเอกสาร · mobile เป็น bottom sheet
 - [x] **colophon ท้ายเอกสาร** — path id · แก้ไขล่าสุด · revision (ลบ `.doku-shelfmark` เหนือ h1)
-- [ ] **chrome** — **ไม่มีปุ่ม "แก้ไข"** เหลือเมนู `⋯` + zen ([08 ข้อ 51](08-decisions.md)) · rail แยกจาก paper ด้วยพื้น · rail row ≥ 32px (touch target) · hub page rhythm
+- [x] **chrome** — **ไม่มีปุ่ม "แก้ไข"** เหลือเมนู `⋯` + zen ([08 ข้อ 51](08-decisions.md)) · rail แยกจาก paper ด้วยพื้น · rail row ≥ 32px (touch target) · hub page rhythm
 - [x] **container downgrade ของ block** — ตัด container: `section` · `stats`/`stat` · `grid`/`col` · shadow ของ `card` · `kv` → definition list · `steps`/`timeline` → เส้นเดียว · `details`/`tabs` → hairline คั่น header · คงไว้ + ตรวจ contrast ใหม่: `callout` · `code` · `table` · `figure` · `gallery` · `video` · `badge` ([08 ข้อ 53](08-decisions.md))
 - [x] **ตาราง** — เส้นแนวนอนเท่านั้น (ไม่เป็นกริดเต็ม) · header หนักกว่าเส้นอื่น · ตัวเลข tabular
 
 **พื้นที่เขียน — พิมพ์ได้ทันที ไม่มีปุ่มแก้ไข** ([08 ข้อ 52/54/55](08-decisions.md))
 
-- [ ] **เอกสารเป็น editor ตั้งแต่แรก** — เลิก overlay/split **และเลิกปุ่ม "แก้ไข"** · เอกสารที่ render แล้วเป็น CM6 Live Preview ในคอลัมน์เดิม · กว้าง/ฟอนต์/leading เท่ากับตอนอ่าน · ไม่มี mode switch
-- [ ] **Live Preview** — ซ่อน syntax marker เมื่อカーออกจาก node · widget สำหรับ table · figure · code · math · callout (`:::`)
+- [x] **เอกสารเป็น editor ตั้งแต่แรก** — เลิก overlay/split **และเลิกปุ่ม "แก้ไข"** · เอกสารที่ render แล้วเป็น CM6 Live Preview ในคอลัมน์เดิม · กว้าง/ฟอนต์/leading เท่ากับตอนอ่าน · ไม่มี mode switch
+- [x] **Live Preview** — ซ่อน syntax marker เมื่อカーออกจาก node · widget สำหรับ table · figure · code · math · callout (`:::`)
 - [ ] **slash menu** — `/` → เมนู block ภาษาไทย (กรองได้) → แทรก directive จริง (รวม `::::tabs`+`:::tab` ตามข้อ 24) · ใช้ `@codemirror/autocomplete`
 - [ ] **block control strip** — แถบลอยเมื่อカーเข้า block: variant · `color=` · `title=` · `icon=` · align/width · ลบ block → **เขียนกลับเป็น directive text** · รายการ attribute มาจาก `/api/schema`
 - [ ] **คุณสมบัติ inline** — property panel บนหัวเอกสาร (ชื่อ · แท็ก · สรุป · สถานะ · theme) ไม่ใช่ modal
-- [ ] **autosave** — debounce 800ms · `If-Match` · 409 = ให้เลือก (ไม่ทับเงียบ) · ไม่สร้าง revision ถ้าเนื้อหาเท่าเดิม · คีย์ลัดตาม **focus** ไม่ใช่โหมด ([08 ข้อ 54](08-decisions.md)) · fallback `<textarea>` ตามข้อ 37 ยังต้องใช้ได้
+- [x] **autosave** — debounce 800ms · `If-Match` · 409 = ให้เลือก (ไม่ทับเงียบ) · ไม่สร้าง revision ถ้าเนื้อหาเท่าเดิม · คีย์ลัดตาม **focus** ไม่ใช่โหมด ([08 ข้อ 54](08-decisions.md)) · fallback `<textarea>` ตามข้อ 37 ยังต้องใช้ได้
 
 **correctness lock** ([08 ข้อ 56–61](08-decisions.md) — เคาะแล้ว ยังไม่ implement)
 

@@ -10,6 +10,7 @@ import {
   DocNotFoundError,
   docEtag,
   etagHeader,
+  loadMeta,
   matchesIfMatch,
   normalizeVaultPath,
   PathError,
@@ -255,10 +256,11 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     try {
       const doc = await deps.renderer.render(docId)
       const markdown = await deps.fs.readText(`${docId}.md`)
-      if (markdown !== null) {
-        // ทุก GET คืน ETag ของ {md, meta} (docs/05 concurrency)
-        context.header("etag", etagHeader(await docEtag(markdown, doc.meta)))
-      }
+      // ETag ต้องคิดจาก meta *ดิบ* (sidecar) เหมือนฝั่ง API (api.ts currentEtag)
+      // ไม่ใช่ doc.meta ที่ผ่านการ resolve แล้ว (title ถูกแทนด้วย h1 นำหน้า → etag ไม่ตรง → If-Match ได้ 409 ทั้งที่ไฟล์ไม่เปลี่ยน)
+      const { meta: rawMeta } = await loadMeta(deps.fs, docId, null)
+      const currentEtag = markdown === null ? undefined : await docEtag(markdown, rawMeta)
+      if (currentEtag) context.header("etag", etagHeader(currentEtag))
       // colophon ต้องรู้ "แก้ไขล่าสุด" + ขนาด — มาจาก listing เดียวกับ tree (ไม่ต้อง stat ซ้ำ)
       const summary = (await deps.state.get()).docs.find((item) => item.id === docId)
       const words = markdown ? markdown.trim().split(/\s+/u).filter(Boolean).length : undefined
@@ -271,6 +273,8 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
           trashCount={await trashCount()}
           mtimeMs={summary?.mtimeMs}
           words={words}
+          markdown={markdown ?? undefined}
+          etag={currentEtag}
         />,
       )
     } catch (error) {

@@ -255,16 +255,19 @@ describe("M3 chrome (toolbar / palette / trash page)", () => {
     return { app, fs }
   }
 
-  test("หน้าเอกสารมี chrome ครบ (toolbar/editor/palette/ฟอร์ม) + ไอคอน inline svg", async () => {
+  test("หน้าเอกสารมี chrome ครบ + ไอคอน inline svg (เขียนได้ทันที ไม่มี overlay)", async () => {
     const { app } = setupUi({ "a.md": GOOD_DOC })
     const html = await (await app.request("/d/a")).text()
     // M3.1: เครื่องมือของเอกสารอยู่ในเมนู ⋯ (docs/08 ข้อ 51) — ไม่ใช่แถวปุ่มเหนือชื่อเรื่อง
     expect(html).toContain('data-action="doc-menu"')
-    expect(html).toContain('data-action="edit"') // ชั่วคราว: จะถูกถอดเมื่อเขียนได้ทันที
     expect(html).toContain('data-action="zen"')
     expect(html).toContain('data-action="palette"')
-    expect(html).toContain('id="doku-editor"')
     expect(html).toContain('id="doku-palette"')
+    // เขียนได้ทันที: ไม่มีปุ่ม/โหมดแก้ไข และไม่มี overlay editor อีก (docs/08 ข้อ 52)
+    expect(html).not.toContain("doku-editor")
+    expect(html).not.toContain('data-action="edit"')
+    expect(html).toContain('id="doku-doc-body"')
+    expect(html).toContain('id="doku-doc-md"')
     expect(html).toContain('id="doku-meta-form"')
     expect(html).toContain('id="doku-folder-form"')
     expect(html).toContain("/static/editor.js")
@@ -334,12 +337,14 @@ describe("client.js", () => {
     expect(() => new Function(CLIENT_JS)).not.toThrow()
     for (const marker of [
       "openPalette",
-      "openEditor",
+      "enterWriting",
+      "exitWriting",
+      "flushSave",
+      "doku-inline-textarea",
       "openMeta",
       "openFolderSettings",
       "restoreTrash",
       "emptyTrash",
-      "data-editor-fallback",
       "dragstart",
       "cycleTheme",
       "data-zen",

@@ -42,7 +42,7 @@
 .doku-doc-toolbar svg,
 .doku-panel svg,
 .doku-trash-row svg,
-.doku-editor svg,
+.doku-inline-editor svg,
 #doku-menu svg {
   display: block;
   flex: none;
@@ -598,87 +598,118 @@
   color: var(--k-danger);
 }
 
-/* ── editor overlay (CodeMirror 6) ── */
-.doku-editor {
-  position: fixed;
-  inset: 0;
-  z-index: 65;
-  display: flex;
-  flex-direction: column;
-  background: var(--k-bg);
+/* ══ writing surface (M3.1) ═══════════════════════════════════════════
+   ไม่มี overlay/split/ปุ่ม Save — editor อยู่ในคอลัมน์อ่าน (docs/08 ข้อ 52)
+   ฟอนต์/leading/ขนาด มาจาก token ชุดเดียวกับตอนอ่าน */
+
+.doku-inline-editor {
+  min-height: 40vh;
 }
-.doku-editor[hidden] {
-  display: none;
+.doku-inline-editor .cm-editor {
+  background: transparent;
 }
-.doku-editor-head {
-  display: flex;
-  align-items: center;
-  gap: var(--d-space-3);
-  padding: var(--d-space-3) var(--d-space-4);
-  border-bottom: 1px solid var(--d-border);
+.doku-inline-editor .cm-editor.cm-focused {
+  outline: none;
 }
-.doku-editor-path {
-  font-family: var(--d-font-mono);
-  font-size: var(--d-text-xs);
-  color: var(--d-text-subtle);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.doku-editor-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--d-space-2);
-  margin-inline-start: auto;
-}
-.doku-editor-body {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-}
-@media (min-width: 64rem) {
-  .doku-editor-body {
-    grid-template-columns: 1fr 1fr;
-  }
-  .doku-editor-pane[data-pane="preview"] {
-    border-inline-start: 1px solid var(--d-border);
-  }
-}
-.doku-editor-pane {
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--d-space-4) var(--d-space-6);
-}
-.doku-editor-pane[data-pane="source"] {
-  padding: 0;
-}
-.doku-editor-pane[data-pane="source"] .cm-editor {
-  height: 100%;
-}
-.doku-editor-pane[data-pane="source"] .cm-scroller {
-  padding: 0 var(--d-space-6);
-}
-/* fallback เมื่อยังไม่ build editor.js — textarea ธรรมดาแต่หน้าตาเดียวกัน */
-.doku-editor-fallback {
+/* fallback เมื่อยังไม่ build editor.js (docs/08 ข้อ 37) */
+.doku-inline-textarea {
   width: 100%;
-  height: 100%;
-  min-height: 60vh;
-  padding: var(--d-space-4) var(--d-space-6);
+  min-height: 40vh;
+  padding: 0;
   border: 0;
   background: none;
   font-family: var(--d-font-mono);
-  font-size: 0.9375rem;
-  line-height: 1.65;
+  font-size: var(--d-text-sm);
+  line-height: 1.7;
   color: var(--k-text);
   resize: none;
   outline: none;
 }
-.doku-editor[data-preview="off"] .doku-editor-pane[data-pane="preview"] {
-  display: none;
+
+/* ตัวบอกสถานะบันทึก — เงียบ · ไม่มีปุ่ม */
+.doku-doc-status {
+  font-size: var(--d-text-xs);
+  color: var(--d-text-subtle);
+  transition: color var(--d-dur) var(--d-ease);
 }
-.doku-editor[data-preview="off"] .doku-editor-body {
-  grid-template-columns: 1fr;
+.doku-doc-status[data-state='dirty'] {
+  color: var(--d-text-muted);
+}
+.doku-doc-status[data-state='error'] {
+  color: var(--k-danger);
+}
+
+/* ── CM6 line decorations: ให้หน้าตาใกล้ตอนอ่าน (อ่าน/เขียน = ผิวเดียว) ── */
+.cm-doku-h1 {
+  padding-block-start: var(--d-space-6);
+  font-size: var(--d-read-h1);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.014em;
+}
+.cm-doku-h2 {
+  padding-block-start: var(--d-rhythm-h3);
+  font-size: var(--d-read-h2);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.008em;
+}
+.cm-doku-h3 {
+  padding-block-start: var(--d-space-6);
+  font-size: var(--d-read-h3);
+  font-weight: 600;
+}
+.cm-doku-h4 {
+  font-size: var(--d-read-h4);
+  font-weight: 600;
+}
+.cm-doku-h5,
+.cm-doku-h6 {
+  font-size: var(--d-text-sm);
+  font-weight: 600;
+}
+.cm-doku-quote {
+  padding-inline-start: var(--d-space-4) !important;
+  border-inline-start: 2px solid var(--d-border-strong);
+  color: var(--d-text-muted);
+}
+.cm-doku-code {
+  font-family: var(--d-font-mono);
+  font-size: var(--d-text-sm);
+}
+.cm-doku-table {
+  font-family: var(--d-font-mono);
+  font-size: var(--d-text-sm);
+}
+.cm-doku-fence {
+  font-family: var(--d-font-mono);
+  font-size: var(--d-text-sm);
+  color: var(--d-text-muted);
+}
+.cm-doku-link {
+  color: var(--d-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cm-doku-mark {
+  background-image: linear-gradient(transparent 58%, var(--d-accent-weak) 58%);
+}
+.cm-doku-image {
+  display: block;
+  padding-block: var(--d-space-2);
+}
+.cm-doku-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-sm);
+}
+.cm-doku-image-caption {
+  display: block;
+  margin-top: var(--d-space-2);
+  font-size: var(--d-text-sm);
+  color: var(--d-text-muted);
 }
 
 /* ── toast ── */
@@ -761,8 +792,7 @@ html[data-zen] .doku-main {
   .doku-toc-col,
   .doku-doc-toolbar,
   .doku-toast,
-  .doku-overlay,
-  .doku-editor {
+  .doku-overlay {
     display: none !important;
   }
 }
