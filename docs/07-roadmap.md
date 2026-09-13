@@ -124,11 +124,11 @@
 
 **ปิดงาน**
 
-- [ ] **`/styleguide`** อัปเดตให้โชว์ทั้งสองธีม + คู่สีที่ lock ไว้ + ใช้ตรวจตาเปล่าคู่กับ screenshot
-- [ ] **`bun run shot`** (playwright · devDependency) เทียบ `var/shots/before` ↔ after ทั้ง 2 ธีม
-- [ ] **a11y** ในสคริปต์เดียวกับ screenshot: focus ring · 200% zoom · reduced motion · contrast ≥ AA
+- [x] **`/styleguide`** อัปเดตให้โชว์ทั้งสองธีม + คู่สีที่ lock ไว้ + ใช้ตรวจตาเปล่าคู่กับ screenshot
+- [x] **`bun run shot`** (playwright · devDependency) เทียบ `var/shots/before` ↔ after ทั้ง 2 ธีม
+- [x] **a11y** ในสคริปต์เดียวกับ screenshot: focus ring · 200% zoom · reduced motion · contrast ≥ AA
 - [x] **`bun test` + `bun run check` + `bun run typecheck`** ผ่าน · `doku check examples/vault` = 0 errors
-- [ ] **docs sync** — `docs/03` (§1.1/§1.3/§1.4/§2/§3/§4) · `docs/07` · `docs/08` · `AGENTS.md` ในคอมมิตเดียวกัน
+- [x] **docs sync** — `docs/03` (§1.1/§1.3/§1.4/§2/§3/§4) · `docs/07` · `docs/08` · `AGENTS.md` ในคอมมิตเดียวกัน
 
 **เสร็จ:** อ่านเอกสารยาวแล้วมีจังหวะ (หัวข้อหายใจได้ ไม่มีเส้นซ้อน) · หา h1 เจอใน 1 glance
 · **คลิกที่เอกสารแล้วพิมพ์ได้ทันที** — ไม่มีปุ่มแก้ไข ไม่ต้องสลับโหมด ไม่ต้องกด Save

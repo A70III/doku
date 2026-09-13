@@ -30,7 +30,7 @@ import type { VaultState } from "./tree.ts"
 import { CLIENT_JS } from "./web/client.ts"
 import { CONTENT_CSS } from "./web/content-css.ts"
 import { DocPage, HomePage, NotFoundPage, StyleGuidePage, TrashPage } from "./web/pages.tsx"
-import { buildStyleguide } from "./web/styleguide.ts"
+import { buildPalette, buildStyleguide } from "./web/styleguide.ts"
 
 /** docs/06 CSP — คลาดเคลื่อนเดียว: `font-src 'self' data:` สำหรับ woff2 ที่ KaTeX ฝัง (docs/08 ข้อ 23) */
 export const CSP =
@@ -220,6 +220,7 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
       <StyleGuidePage
         tree={tree}
         blocks={blocks}
+        palette={buildPalette()}
         vaultName={deps.vaultName}
         trashCount={await trashCount()}
       />,

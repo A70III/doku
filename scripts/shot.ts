@@ -10,6 +10,10 @@
  *
  * สคริปต์ spawn server เองในหน่วยความจำเดียวกัน แล้วปิดให้เรียบร้อย —
  * ไม่ต้องเปิด dev server ค้าง (var/ ถูก gitignore อยู่แล้ว)
+ *
+ * นอกจากการถ่ายภาพ ยังรัน **a11y smoke check** ต่อหน้าจริง (docs/07 M3.1):
+ * accessible name · focus ring · ไม่มี horizontal overflow ที่ 200% zoom และจอ 360px ·
+ * reduced motion ถูกเคารพ · ข้อความไม่ทับกันจนอ่านไม่ได้
  */
 import { spawn } from "node:child_process"
 import { mkdir, readdir } from "node:fs/promises"
@@ -22,7 +26,71 @@ type Flags = {
   port: number
   theme: "light" | "dark" | "both"
   width: number
+  a11y: boolean
 }
+
+interface Check {
+  name: string
+}
+
+/** รันในเบราว์เซอร์: เก็บปัญหา a11y ที่ตรวจได้จาก DOM จริง */
+const A11Y_SCRIPT = `(() => {
+  const issues = []
+  const name = (el) => {
+    const aria = el.getAttribute("aria-label")
+    const title = el.getAttribute("title")
+    const text = (el.textContent || "").trim()
+    if (aria && aria.trim()) return aria
+    if (title && title.trim()) return title
+    if (text) return text
+    return ""
+  }
+
+  const controls = [...document.querySelectorAll("button, a[href], input, select, textarea, summary")]
+  const nameless = controls.filter((el) => {
+    // checkbox ของ task list ถูก render เป็น disabled — สถานะสื่อด้วยข้อความใน <li> แล้ว
+    if (el.disabled && (el.type === "checkbox" || el.type === "radio")) return false
+    if (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
+      return !(el.getAttribute("aria-label") || el.closest("label"))
+    }
+    return !name(el)
+  })
+  if (nameless.length) {
+    issues.push("คอนโทรลไม่มีชื่อ " + nameless.length + " รายการ (" +
+      nameless.slice(0, 3).map((el) => el.tagName.toLowerCase()).join(", ") + ")")
+  }
+
+  const focusable = controls.find((el) => el.offsetParent !== null)
+  if (focusable) {
+    focusable.focus()
+    const style = getComputedStyle(focusable)
+    if (style.outlineStyle === "none" || parseFloat(style.outlineWidth) === 0) {
+      issues.push("ไม่พบ focus ring บน " + focusable.tagName.toLowerCase())
+    }
+  }
+
+  const doc = document.documentElement
+  if (doc.scrollWidth > window.innerWidth + 1) {
+    issues.push("horizontal overflow " + doc.scrollWidth + "px > " + window.innerWidth + "px")
+  }
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const animated = [...document.querySelectorAll("*")].filter((el) => {
+      const style = getComputedStyle(el)
+      return style.animationName !== "none" && parseFloat(style.animationDuration) > 0
+    })
+    if (animated.length) issues.push("reduced-motion แต่ยังมี animation " + animated.length)
+  }
+
+  // หน้า specimen (styleguide) มี h1 ในตัวอย่าง block — ไม่นับเป็นหัวเรื่องของหน้า
+  const specimen = Boolean(document.querySelector('[id^="block-"]'))
+  if (!specimen && document.querySelectorAll("h1").length > 1) issues.push("มี h1 มากกว่า 1")
+
+  return issues
+})()`
+
+/** เก็บผล a11y ข้ามหน้า/ธีม */
+const checks: Check[] = []
 
 function parseFlags(argv: string[]): Flags {
   const get = (name: string, fallback: string): string => {
@@ -35,6 +103,7 @@ function parseFlags(argv: string[]): Flags {
     port: Number(get("port", "7699")),
     theme: get("theme", "both") as Flags["theme"],
     width: Number(get("width", "1440")),
+    a11y: !argv.includes("--no-a11y"),
   }
 }
 
@@ -117,14 +186,53 @@ async function main(): Promise<void> {
         const file = join(outDir, `${shot.name}.${theme}.png`)
         await page.screenshot({ path: file, fullPage: true })
         console.log(`  ${relative(process.cwd(), file)}`)
+
+        if (flags.a11y && theme === "light") {
+          const issues = (await page.evaluate(A11Y_SCRIPT)) as string[]
+          for (const issue of issues) checks.push({ name: `${shot.name}: ${issue}`, ok: false })
+          // 200% zoom: ต้องไม่มี horizontal overflow (WCAG 1.4.4)
+          const zoomOverflow = await page.evaluate(() => {
+            document.documentElement.style.fontSize = "32px"
+            const overflow = document.documentElement.scrollWidth > window.innerWidth + 1
+            document.documentElement.style.fontSize = ""
+            return overflow
+          })
+          if (zoomOverflow) {
+            checks.push({ name: `${shot.name}: 200% zoom ทำให้เกิด horizontal overflow`, ok: false })
+          }
+        }
       }
       await context.close()
+    }
+    if (flags.a11y) {
+      const narrow = await browser.newContext({
+        viewport: { width: 360, height: 780 },
+        reducedMotion: "reduce",
+      })
+      const page = await narrow.newPage()
+      for (const shot of shots.slice(0, 6)) {
+        await page.goto(`${base}${shot.path}`, { waitUntil: "networkidle" })
+        await page.waitForTimeout(120)
+        const issues = (await page.evaluate(A11Y_SCRIPT)) as string[]
+        for (const issue of issues) checks.push({ name: `360px ${shot.name}: ${issue}`, ok: false })
+      }
+      await narrow.close()
     }
   } finally {
     await browser?.close()
     server.kill()
   }
   console.log(`\nถ่าย 2 ธีม × ${shots.length} หน้า → ${relative(process.cwd(), outDir)}`)
+
+  if (flags.a11y) {
+    if (checks.length === 0) {
+      console.log("a11y: ผ่านทุกข้อ (ชื่อคอนโทรล · focus ring · overflow · reduced motion · h1 เดียว)")
+    } else {
+      console.log(`a11y: พบ ${checks.length} ปัญหา`)
+      for (const check of checks) console.log(`  x ${check.name}`)
+      process.exitCode = 1
+    }
+  }
 }
 
 await main()

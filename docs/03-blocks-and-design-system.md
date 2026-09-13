@@ -682,8 +682,8 @@ migrate แล้วใน UI pass ([08 ข้อ 36](08-decisions.md))
 
 | name | width | เปลี่ยน |
 |---|---|---|
-| `sm` | 640 | ปรับ padding · toolbar ยุบเหลือไอคอน · TOC เป็น bottom sheet |
-| `md` | 960 | rail ปรากฏ (248px) · TOC ยังไม่ (เป็น `<details>` ท้ายเอกสาร) |
+| `sm` | 640 | ปรับ padding · toolbar เหลือไอคอน · TOC เปิดเป็นแผ่น (sheet) |
+| `md` | 960 | rail ปรากฏ (248px) · TOC ยังไม่ (เปิดเป็นแผ่นจากปุ่มใน toolbar) |
 | `lg` | 1200 | **3 คอลัมน์เต็ม** · TOC sticky |
 | `xl` | 1536 | shell กว้างขึ้น · `--k-measure` **คงเดิม** (ห้ามยืดบรรทัดตามจอ) |
 

@@ -83,7 +83,7 @@ Base: `http://<host>:7667/api`
 | DELETE | `/api/assets/*path` | ลบ asset |
 | POST | `/render` | stateless: `{md, meta?}` → `{html, warnings}` |
 | GET | `/search?q=` | FTS search |
-| GET | `/schema` | JSON Schema ของ meta + block syntax |
+| GET | `/schema` | block registry: `{colors, variants, blocks:[{name, kind, attributes, values, example}]}` — **มีแล้ว (M3.1)** ใช้ทำ slash menu/block strip · JSON Schema ของ meta มาจาก `bun run gen:schema` (อ่านที่ `schema/`) |
 | GET | `/context/*path` | md + meta สรุปสั้น สำหรับใส่ prompt |
 | GET | `/health` | liveness |
 

@@ -21,7 +21,7 @@ bun run check        # biome check (lint + format)
 bun run gen:schema   # z.toJSONSchema() → schema/  (ไม่ commit)
 bun run build:editor # bundle CodeMirror 6 → packages/server/public/editor.js (ไม่ commit)
 bun run gen:icons    # generate Lucide subset → packages/core/src/icons/lucide.ts (commit)
-bun run shot         # playwright → var/shots/current/*.png (เทียบก่อน/หลัง · ไม่ commit)
+bun run shot         # playwright: screenshot 2 ธีม + a11y check → var/shots/current/ (ไม่ commit)
 ```
 
 CLI `doku` (รายละเอียดครบใน `docs/05`): `new` `mkdir` `render` `check` `tree --json`
@@ -113,13 +113,18 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - sidebar drag-drop + row menu · command palette (Ctrl+K) · zen mode · theme cycle
   - Lucide subset vendored (`packages/core/src/icons/`) → `<Icon>` chrome + block icon ผ่าน CSS mask
   - asset ที่ generate (gitignore): `public/app.css`, `public/editor.js` · `scripts/dev.sh` build ให้ทั้งคู่
-- **ถัดไป: M3.1** — Reading room & writing surface (UI/UX pass 2) · decision [docs/08 ข้อ 47–61](docs/08-decisions.md)
-  - **เอกสารพิมพ์ได้ทันทีแบบ Notion** — **ไม่มีปุ่ม/โหมดแก้ไข** · CM6 Live Preview ผิวเดียวกับหน้าอ่าน · slash menu · block control strip · คุณสมบัติ inline · autosave
-  - จังหวะ/สี: OKLCH palette + `contrast.test.ts` · สเกลระยะที่ขยาย + `tokens.test.ts` · reading scale · rhythm (ตัดเส้นใต้ h2)
-  - โครงหน้า: 3 คอลัมน์ (rail 248 · อ่านกลาง · TOC 208 sticky) · colophon ท้ายเอกสาร · ไม่มี toolbar เหนือชื่อเรื่อง
-  - container downgrade ของ block (เหลือเท่าที่สื่อความหมาย) · correctness lock ข้อ 56–61
-  - หลักฐานที่ทำให้ต้องมี: rail/panel `padding: 0` (`--d-space-5` ไม่ถูก define) · reading column 544px ใน main 880px · TOC inline 352px · สีตก AA 4 คลาส
-  - verify: `bun run shot` (playwright) เทียบ before/after + a11y
+- **M3.1 (UI/UX pass 2) เสร็จแล้ว** — reading room + writing surface · decision docs/08 ข้อ 47–61
+  - **เอกสารพิมพ์ได้ทันทีแบบ Notion** — ไม่มีปุ่ม/โหมดแก้ไข · CM6 Live Preview อยู่ในคอลัมน์อ่าน
+    (ซ่อน syntax marker · image widget · `==mark==` ขีดทับ · `:::` fence) · autosave + `If-Match` (409 = ให้คนเลือก)
+  - slash menu (`/`) + block control strip (variant/attr/ลบ block) จาก `GET /api/schema` — เขียนกลับเป็น markdown เสมอ
+  - คุณสมบัติเป็น panel inline ในบทความ (ไม่ใช่ modal) · เปิดจากเมนู `⋯` หรือคลิกบรรทัด meta
+  - โครงหน้า 3 คอลัมน์: rail 248 · คอลัมน์อ่านจัดกลาง · TOC 208 sticky (จอแคบ = แผ่นจากปุ่มใน toolbar) · colophon ท้ายเอกสาร
+  - design token: OKLCH palette + `--d-border-control` + `--k-<hue>-ink` + สเกลระยะ/reading scale/rhythm
+    · คู่สีล็อกด้วย `contrast.test.ts` · สเกลระยะล็อกด้วย `tokens.test.ts` · `/styleguide` โชว์คู่สีทั้งสองธีม
+  - container downgrade ของ block (section/stats/kv/details/tabs/… เลิกเป็นกล่อง) · แก้ `==…==` ที่เคยเป็นพื้นเหลืองทึบ
+  - correctness lock ข้อ 56–61 (path `#` · sanitize protocol/attribute · asset `?h=` · `width` · `render.math=false` · wikilink)
+  - verify: `bun run shot` ถ่าย 2 ธีม + **a11y smoke check** (ชื่อคอนโทรล · focus ring · 200% zoom · reduced motion · 360px)
+- **ถัดไป: M4** — REST ที่เหลือ (assets/context) + audit log + `doku mcp`
 - ยังไม่มี: MCP (M4), index/search (M5)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)

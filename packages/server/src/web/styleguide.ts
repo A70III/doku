@@ -5,10 +5,17 @@
  * memoize ไว้เพราะผลลัพธ์คงที่ต่อ rendererVersion
  */
 
-import { BLOCKS, renderMarkdown } from "@doku/core"
-import type { StyleGuideSection } from "./pages.tsx"
+import { BLOCKS, paletteReport, renderMarkdown, type ThemeReport } from "@doku/core"
+import type { StyleGuideSection, StyleGuideThemeReport } from "./pages.tsx"
 
 let cached: Promise<StyleGuideSection[]> | null = null
+let cachedPalette: ThemeReport[] | null = null
+
+/** คู่สีที่ lock ไว้ (docs/08 ข้อ 47) — คำนวณจาก token จริง ไม่ใช่ค่าที่ copy มา */
+export function buildPalette(): StyleGuideThemeReport[] {
+  cachedPalette ??= paletteReport()
+  return cachedPalette
+}
 
 export function buildStyleguide(): Promise<StyleGuideSection[]> {
   cached ??= Promise.all(

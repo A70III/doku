@@ -137,6 +137,12 @@ export {
   TAG_PATTERN,
   ThemeSchema,
 } from "./schema.ts"
+export {
+  type PairReport,
+  type PaletteSwatch,
+  paletteReport,
+  type ThemeReport,
+} from "./styles/contrast.ts"
 export { BLOCKS_CSS, CONTENT_CSS, PROSE_CSS, TOKENS_CSS } from "./styles/index.ts"
 export {
   isTrashId,
