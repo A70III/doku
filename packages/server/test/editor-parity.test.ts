@@ -32,7 +32,9 @@ describe("editor read-parity (Track B)", () => {
     expect(EDITOR_SOURCE).toContain("markdown({ base: markdownLanguage })")
     expect(EDITOR_SOURCE).toContain("...markdownKeymap")
     // composition guard: ห้าม rebuild decoration ระหว่าง IME (docs/08 ข้อ 69)
-    expect(EDITOR_SOURCE).toContain("if (update.view.composing) return")
+    // แต่ set ที่ค้างอยู่ต้อง map ตาม change (ไม่งั้น range เก่าคร่อม line break → CM throw)
+    expect(EDITOR_SOURCE).toContain("if (update.view.composing) {")
+    expect(EDITOR_SOURCE).toContain("this.decorations = this.decorations.map(update.changes)")
     // atomic เฉพาะ delimiter ที่ซ่อน
     expect(EDITOR_SOURCE).toContain("EditorView.atomicRanges.of(")
     expect(EDITOR_SOURCE).toContain("atomicRanges.push(")

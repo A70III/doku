@@ -8,14 +8,22 @@
  *   --theme <mode>    light | dark | both (default both)
  *   --width <n>       ความกว้าง viewport (default 1440)
  *
+ *   --no-scenarios    ข้าม scenario โต้ตอบจริง (M3.2 Track E)
+ *
  * สคริปต์ spawn server เองในหน่วยความจำเดียวกัน แล้วปิดให้เรียบร้อย —
  * ไม่ต้องเปิด dev server ค้าง (var/ ถูก gitignore อยู่แล้ว)
+ * **ทำงานบนสำเนาของ vault** (var/tmp/shot-vault) เพราะ scenario มีการพิมพ์/ลาก block
+ * ซึ่ง autosave จะเขียนกลับ — ห้ามแตะ vault ต้นทาง
  *
  * นอกจากการถ่ายภาพ ยังรัน **a11y smoke check** ต่อหน้าจริง (docs/07 M3.1):
  * accessible name · focus ring · ไม่มี horizontal overflow ที่ 200% zoom และจอ 360px ·
  * reduced motion ถูกเคารพ · ข้อความไม่ทับกันจนอ่านไม่ได้
+ *
+ * และ **scenario โต้ตอบจริง** (docs/09 §5 Track E): พิมพ์ไทย + IME guard (นับ decoration
+ * rebuild ผ่าน `window.DokuEditor.perf`) · เลือก/ลาก block · bubble + link popover
  */
 import { spawn } from "node:child_process"
+import { cpSync, mkdirSync, rmSync } from "node:fs"
 import { mkdir, readdir } from "node:fs/promises"
 import { join, relative, resolve } from "node:path"
 import { chromium } from "playwright"
@@ -27,6 +35,7 @@ type Flags = {
   theme: "light" | "dark" | "both"
   width: number
   a11y: boolean
+  scenarios: boolean
 }
 
 interface Check {
@@ -104,6 +113,7 @@ function parseFlags(argv: string[]): Flags {
     theme: get("theme", "both") as Flags["theme"],
     width: Number(get("width", "1440")),
     a11y: !argv.includes("--no-a11y"),
+    scenarios: !argv.includes("--no-scenarios"),
   }
 }
 
@@ -137,12 +147,212 @@ async function waitForHealth(url: string, timeoutMs = 20_000): Promise<void> {
   throw new Error(`server ไม่ตอบ /health ใน ${timeoutMs}ms`)
 }
 
+/* ── scenario โต้ตอบจริง (M3.2 Track E — docs/09 §5) ────────────────────────
+   พิมพ์ไทย + IME guard · bubble/link popover · เลือก/ลาก block
+   ทุกอย่างรันบนสำเนา vault (autosave เขียนกลับได้) และเก็บ screenshot ไว้เทียบ */
+
+type ScenarioResult = { name: string; ok: boolean; note: string }
+
+/** เลือกข้อความด้วย DOM selection (เหมือนผู้ใช้ลากเลือก) — CM อ่านผ่าน selectionchange */
+async function selectText(page: import("playwright").Page, text: string): Promise<boolean> {
+  return page.evaluate((needle) => {
+    const view = document.querySelector(".cm-content")
+    if (!view) return false
+    const walker = document.createTreeWalker(view, NodeFilter.SHOW_TEXT)
+    let node = walker.nextNode()
+    while (node) {
+      const index = (node.textContent ?? "").indexOf(needle)
+      if (index !== -1) {
+        const range = document.createRange()
+        range.setStart(node, index)
+        range.setEnd(node, index + needle.length)
+        const selection = window.getSelection()
+        selection?.removeAllRanges()
+        selection?.addRange(range)
+        ;(view as HTMLElement).focus()
+        document.dispatchEvent(new Event("selectionchange"))
+        return true
+      }
+      node = walker.nextNode()
+    }
+    return false
+  }, text)
+}
+
+async function typeThai(page: import("playwright").Page, text: string): Promise<void> {
+  await page.keyboard.insertText(text)
+}
+
+async function readMd(base: string, docId: string): Promise<string> {
+  const res = await fetch(`${base}/api/docs/${encodeURIComponent(docId)}`)
+  const body = (await res.json()) as { md?: string }
+  return body.md ?? ""
+}
+
+async function runEditorScenarios(
+  page: import("playwright").Page,
+  base: string,
+  docId: string,
+  theme: string,
+  outDir: string,
+): Promise<ScenarioResult[]> {
+  const results: ScenarioResult[] = []
+  const add = (name: string, ok: boolean, note = "") => results.push({ name, ok, note })
+  const shot = (name: string) => page.screenshot({ path: join(outDir, `${name}.${theme}.png`) })
+  const jsErrors: string[] = []
+  page.on("pageerror", (error) => jsErrors.push(String(error)))
+
+  await page.goto(`${base}/d/${docId}`, { waitUntil: "networkidle" })
+  await page.waitForSelector("html[data-editor-mounted]", { timeout: 15_000 })
+  await page.waitForTimeout(250)
+
+  // 1) เลือกข้อความ → bubble toolbar
+  const lineText = await page.evaluate(() => {
+    // บรรทัดที่ไม่ว่างและยาวพอ (`.cm-line` ที่ 2 ของเอกสารมักเป็นบรรทัดว่าง)
+    const lines = [...document.querySelectorAll(".cm-line")]
+    const line = lines.find((el) => (el.textContent ?? "").trim().length >= 6)
+    return (line?.textContent ?? "").slice(0, 6)
+  })
+  const selected = await selectText(page, lineText)
+  await page.waitForTimeout(250)
+  const bubbleVisible = await page.evaluate(() => {
+    const el = document.getElementById("doku-inline-bar")
+    return Boolean(el && !el.hidden)
+  })
+  add("เลือกข้อความ → bubble ปรากฏ", selected && bubbleVisible, lineText)
+  if (bubbleVisible) await shot("scenario-inline")
+
+  // 2) link popover (Mod+K)
+  await page.keyboard.press("Control+k")
+  await page.waitForTimeout(250)
+  const linkVisible = await page.evaluate(() => {
+    const el = document.getElementById("doku-link-pop")
+    return Boolean(el && !el.hidden)
+  })
+  add("Mod+K → link popover", linkVisible)
+  if (linkVisible) await shot("scenario-link")
+  await page.keyboard.press("Escape")
+  await page.waitForTimeout(150)
+
+  // 3) พิมพ์ไทย (สระ/วรรณยุกต์/คำผสม) — ข้อความต้องลงครบและカーไม่เพี้ยน
+  const thai = "ทดสอบ ภาษาไทย น้ำ ก๋วยเตี๋ยว วรรณยุกต์"
+  await page.keyboard.press("Control+Home")
+  await page.keyboard.press("ArrowDown")
+  await typeThai(page, thai)
+  await page.waitForTimeout(250)
+  const hasThai = await page.evaluate((needle) => {
+    return (document.querySelector(".cm-content")?.textContent ?? "").includes(needle)
+  }, thai)
+  add("พิมพ์ไทย (insertText) ลงครบ", hasThai, thai)
+  await shot("scenario-thai")
+
+  // 4) IME guard (docs/08 ข้อ 69): ระหว่าง composing ต้องไม่ rebuild decoration
+  const ime = await page.evaluate(async () => {
+    const view = document.querySelector(".cm-content") as HTMLElement
+    const api = (
+      window as { DokuEditor?: { perf: { rebuilds: () => number[]; reset: () => void } } }
+    ).DokuEditor
+    view.focus()
+    api?.perf.reset()
+    view.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true, data: "" }))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    const composing =
+      document.querySelector(".cm-editor")?.classList.contains("cm-focused") ?? false
+    return { composing, samples: api?.perf.rebuilds().length ?? -1 }
+  })
+  await typeThai(page, "ต่อ")
+  await page.waitForTimeout(200)
+  const duringCompose = await page.evaluate(() => {
+    const api = (window as { DokuEditor?: { perf: { rebuilds: () => number[] } } }).DokuEditor
+    return api?.perf.rebuilds().length ?? -1
+  })
+  await page.evaluate(() => {
+    document
+      .querySelector(".cm-content")
+      ?.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "" }))
+  })
+  await page.waitForTimeout(100)
+  await typeThai(page, "จบ")
+  await page.waitForTimeout(200)
+  const afterCompose = await page.evaluate(() => {
+    const api = (window as { DokuEditor?: { perf: { rebuilds: () => number[] } } }).DokuEditor
+    return api?.perf.rebuilds().length ?? -1
+  })
+  add(
+    "IME guard: composing ไม่ rebuild · จบแล้ว rebuild",
+    ime.samples === 0 && duringCompose === 0 && afterCompose > 0,
+    `composing=${duringCompose} after=${afterCompose}`,
+  )
+
+  // 5) เลือก block ด้วย Esc (focus ต้องอยู่ที่ editor หลังจังหวะแรก)
+  await page.keyboard.press("Escape")
+  await page.waitForTimeout(200)
+  const blockState = await page.evaluate(() => ({
+    selected: document.querySelectorAll(".cm-doku-block-selected").length,
+    focused: document.querySelector(".cm-editor")?.classList.contains("cm-focused") ?? false,
+  }))
+  add("Esc → เลือก block (editor ยัง focus)", blockState.selected > 0 && blockState.focused)
+  if (blockState.selected > 0) await shot("scenario-block")
+  await page.keyboard.press("Escape")
+  await page.waitForTimeout(200)
+
+  // 6) ลาก block ผ่าน gutter (⋮⋮) → markdown ต้องถูกจัดลำดับใหม่จริง
+  const before = await readMd(base, docId)
+  const dragged = await page.evaluate(async () => {
+    const article = document.querySelector(".doku-article")
+    const line = document.querySelectorAll(".cm-line")[3]
+    if (!article || !line) return null
+    const rect = line.getBoundingClientRect()
+    // pointermove ให้ gutter โผล่ (delay 200ms + follow mouse)
+    const event = new PointerEvent("pointermove", {
+      bubbles: true,
+      clientX: rect.left + 8,
+      clientY: rect.top + rect.height / 2,
+    })
+    article.dispatchEvent(event)
+    return { x: rect.left + 8, y: rect.top + rect.height / 2 }
+  })
+  let dropVisible = false
+  if (dragged) {
+    await page.waitForTimeout(280)
+    const handle = page.locator('[data-gutter="handle"]')
+    if (await handle.count()) {
+      const box = await handle.first().boundingBox()
+      if (box) {
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+        await page.mouse.down()
+        await page.mouse.move(dragged.x + 40, dragged.y + 140, { steps: 8 })
+        await page.waitForTimeout(150)
+        dropVisible = await page.evaluate(
+          () => !(document.getElementById("doku-drop-indicator") as HTMLElement | null)?.hidden,
+        )
+        await shot("scenario-drag")
+        await page.mouse.up()
+      }
+    }
+  }
+  add("ลาก block → drop indicator ปรากฏ", dropVisible)
+  await page.waitForTimeout(1_400) // autosave (debounce 800ms) + เขียนไฟล์
+  const after = await readMd(base, docId)
+  add("ลาก block → markdown ถูกจัดลำดับใหม่", before !== after)
+
+  add("ไม่มี JS error ระหว่าง scenario", jsErrors.length === 0, jsErrors.slice(0, 2).join(" | "))
+  return results
+}
+
 async function main(): Promise<void> {
   const flags = parseFlags(process.argv.slice(2))
-  const vault = resolve(flags.vault)
+  const sourceVault = resolve(flags.vault)
   const outDir = resolve(flags.out)
   const base = `http://127.0.0.1:${flags.port}`
   await mkdir(outDir, { recursive: true })
+
+  // สำเนา vault: scenario พิมพ์/ลาก block → autosave เขียนกลับ (ห้ามแตะ vault ต้นทาง)
+  const workRoot = resolve("var/tmp/shot-vault")
+  rmSync(workRoot, { recursive: true, force: true })
+  mkdirSync(workRoot, { recursive: true })
+  cpSync(sourceVault, workRoot, { recursive: true })
+  const vault = workRoot
 
   const server = spawn("bun", ["run", "packages/server/src/index.ts"], {
     env: {
@@ -157,9 +367,11 @@ async function main(): Promise<void> {
   })
 
   const themes = flags.theme === "both" ? (["light", "dark"] as const) : [flags.theme]
+  const docs = await walkDocs(vault, vault, [])
+  const scenarioDoc = docs.includes("projects/doku/design") ? "projects/doku/design" : docs[0]
   const shots: Array<{ name: string; path: string }> = [
     { name: "home", path: "/" },
-    ...(await walkDocs(vault, vault, []))
+    ...docs
       .slice(0, 12)
       .map((id) => ({ name: `doc-${id.replaceAll("/", "-")}`, path: `/d/${id}` })),
     { name: "styleguide", path: "/styleguide" },
@@ -209,6 +421,15 @@ async function main(): Promise<void> {
           if (zoomOverflow) {
             checks.push({ name: `${shot.name}: 200% zoom ทำให้เกิด horizontal overflow`, ok: false })
           }
+        }
+      }
+      if (flags.scenarios && scenarioDoc) {
+        const results = await runEditorScenarios(page, base, scenarioDoc, theme, outDir)
+        for (const result of results) {
+          console.log(
+            `  ${result.ok ? "ok" : "x "} [${theme}] ${result.name}${result.note ? " — " + result.note : ""}`,
+          )
+          if (!result.ok) checks.push({ name: `scenario ${theme}: ${result.name}` })
         }
       }
       await context.close()

@@ -929,8 +929,17 @@ const livePreview = (options: DecorationOptions) =>
         this.atomic = built.atomic
       }
       update(update: ViewUpdate): void {
-        // composition guard (docs/08 ข้อ 69): ห้าม replace ระหว่าง IME ทำงาน (ไทย/จีน/ญี่ปุ่น)
-        if (update.view.composing) return
+        // composition guard (docs/08 ข้อ 69): ห้าม "สร้าง replace ใหม่" ระหว่าง IME ทำงาน
+        // (ไทย/จีน/ญี่ปุ่น) — แต่ตำแหน่งของ set ที่ค้างอยู่ต้อง map ตาม change เสมอ
+        // ไม่งั้น range เก่าอาจไปคร่อม line break หลังข้อความขยับ → CM throw
+        // "Decorations that replace line breaks may not be specified via plugins"
+        if (update.view.composing) {
+          if (update.docChanged) {
+            this.decorations = this.decorations.map(update.changes)
+            this.atomic = this.atomic.map(update.changes)
+          }
+          return
+        }
         if (
           update.docChanged ||
           update.viewportChanged ||
@@ -1599,9 +1608,15 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
       },
       {
         key: "Escape",
+        // จังหวะ 1 = เลือก block (คง focus) · จังหวะ 2 = ยกเลิกแล้ว **ออกจากเอกสาร**
+        // (docs/08 ข้อ 54 "Esc = ออก" + ข้อ 70 "Esc = เลือก block" รวมกันเป็นบันได 2 จังหวะ)
+        // stopPropagation: chrome ต้องไม่ blur ระหว่างจังหวะ 1 (ไม่งั้นカーหลุดก่อนเลือก block)
+        stopPropagation: true,
         run: (view) => {
           if (view.state.field(blockSelectionField, false)) {
             view.dispatch({ effects: [setBlockSelection.of(null), setHighlight.of(null)] })
+            // ออกจากเอกสารด้วยกลไกของ CM เอง — จบวงที่ 2 จังหวะ ไม่มีจังหวะ 3
+            view.contentDOM.blur()
             return true
           }
           return selectBlockAtCursor(view)
@@ -1612,6 +1627,8 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
       {
         key: "Mod-s",
         preventDefault: true,
+        // กัน client handler ยิง flush ซ้ำ (คีย์นี้เป็นของผิวเอกสาร — docs/08 ข้อ 74)
+        stopPropagation: true,
         run: (view) => {
           options.onSave?.(view.state.doc.toString())
           return true
