@@ -12,49 +12,32 @@
  */
 
 import { autocompletion, type Completion, type CompletionContext } from "@codemirror/autocomplete"
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands"
-import { markdown, markdownKeymap, markdownLanguage } from "@codemirror/lang-markdown"
-import { HighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language"
-import {
-  EditorSelection,
-  EditorState,
-  type Extension,
-  StateEffect,
-  StateField,
-  type Text,
-  type Transaction,
-} from "@codemirror/state"
-import {
-  Decoration,
-  type DecorationSet,
-  EditorView,
-  keymap,
-  placeholder as placeholderExt,
-  ViewPlugin,
-  type ViewUpdate,
-  WidgetType,
-} from "@codemirror/view"
-import type { SyntaxNode } from "@lezer/common"
+import { history } from "@codemirror/commands"
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language"
+import { EditorSelection, EditorState, type Extension } from "@codemirror/state"
+import { Decoration, EditorView, keymap, placeholder as placeholderExt } from "@codemirror/view"
 import { tags as t } from "@lezer/highlight"
-import katex from "katex"
 import {
-  type BlockInfo,
-  type BlockKind,
+  type BlockHit,
+  type BlockOp,
+  blockSelectionField,
+  blocksInView,
+  hoverBlockField,
+  replaceDocument,
+  runBlockOp,
+  selectedDecoField,
+  setBlockSelection,
+  setHighlight,
+  toHit,
+} from "./editor/block-layer.ts"
+import {
   blockAt,
   blockAtCursor,
   blockText,
   computeBlocks,
-  DIRECTIVE_CLOSE,
-  DIRECTIVE_LOOKBACK,
-  DIRECTIVE_OPEN,
-  deleteBlock,
-  duplicateBlock,
-  indentBlock,
-  moveBlock,
   moveBlockTo,
-  outdentBlock,
   parseAttrs,
-  scanDirectives,
   type TurnInto,
   turnIntoBlock,
 } from "./editor/blocks.ts"
@@ -68,18 +51,20 @@ import {
 } from "./editor/decorations.ts"
 import {
   alignPaste,
-  applyLink,
-  detectMarks,
   type HtmlNode,
   htmlToMarkdown,
   type InlineMark,
-  linkAt,
-  minimalChange,
   replaceEmoji,
   setHighlightColor,
-  type TextEdit,
-  toggleInlineMark,
 } from "./editor/inline.ts"
+import {
+  applyTextEdit,
+  type InlineSelection,
+  selectionInfo,
+  setLinkAt,
+  toggleMarkAt,
+} from "./editor/inline-layer.ts"
+import { dokuKeymap } from "./editor/keymap.ts"
 
 export interface DokuEditorHandle {
   getDoc(): string
@@ -138,17 +123,6 @@ export interface DokuEditorHandle {
 }
 
 /** ข้อมูลของข้อความที่เลือก — client ใช้เปิด bubble toolbar (Track D) */
-export interface InlineSelection {
-  from: number
-  to: number
-  /** พิกัดบนจอ (viewport) ของช่วงที่เลือก — ไม่รวม scroll */
-  rect: { left: number; right: number; top: number; bottom: number }
-  /** mark ที่ selection อยู่ในช่วงของมัน — client ตั้ง aria-pressed */
-  marks: InlineMark[]
-  /** ลิงก์ที่カー/selection อยู่ (null = ยังไม่มี) — popover แก้/ลบได้ */
-  link: { label: string; url: string } | null
-}
-
 export interface DokuEditorOptions {
   doc: string
   placeholder?: string
@@ -182,276 +156,17 @@ export interface DokuEditorOptions {
   onBlur?: () => void
 }
 
-/* ── block layer (M3.2 Track C — docs/09 §3.2 · docs/08 ข้อ 64/66/70) ─────
-   block = line range จาก `computeBlocks` (Lezer + fence scan ต่อ visible range)
-   · state ทั้งหมดของ "block layer" เป็น StateField (มีผลต่อ decoration)
-   · ทุก operation เขียนกลับเป็น markdown ผ่าน `editor/blocks.ts` (ไม่มี state ซ่อน) */
-
-/** ข้อมูล block ที่ส่งให้ client (gutter/menu/drag ใช้ร่วมกัน) */
-export interface BlockHit {
-  from: number
-  to: number
-  kind: BlockKind
-  depth: number
-  headLine: number
-  childCount: number
-}
-
-export type BlockOp = "moveUp" | "moveDown" | "duplicate" | "delete" | "indent" | "outdent"
-
-function toHit(block: BlockInfo): BlockHit {
-  return {
-    from: block.from,
-    to: block.to,
-    kind: block.kind,
-    depth: block.depth,
-    headLine: block.headLine,
-    childCount: block.childCount,
-  }
-}
-
-const setHighlight = StateEffect.define<{ from: number; to: number } | null>()
-const setBlockSelection = StateEffect.define<{ from: number; to: number } | null>()
-
-/** สร้าง line decorations สำหรับช่วง [from, to] ด้วยคลาสเดียว */
-function rangeLines(
-  doc: EditorState["doc"],
-  range: { from: number; to: number },
-  cls: string,
-): DecorationSet {
-  const out: Array<{ from: number; to: number; value: Decoration }> = []
-  const first = doc.lineAt(Math.max(0, Math.min(range.from, doc.length)))
-  const last = doc.lineAt(Math.max(0, Math.min(range.to, doc.length)))
-  for (let n = first.number; n <= last.number; n += 1) {
-    const line = doc.line(n)
-    out.push({ from: line.from, to: line.from, value: Decoration.line({ class: cls }) })
-  }
-  return Decoration.set(
-    out.map((entry) => entry.value.range(entry.from, entry.to)),
-    true,
-  )
-}
-
-/** hover = decoration ล้วน (ไม่ต้อง query ตำแหน่ง) */
-const hoverBlockField = StateField.define<DecorationSet>({
-  create: () => Decoration.none,
-  update(value, tr) {
-    for (const item of tr.effects) {
-      if (item.is(setHighlight)) {
-        return item.value
-          ? rangeLines(tr.state.doc, item.value, "cm-doku-block-hover")
-          : Decoration.none
-      }
-    }
-    return value.map(tr.changes)
-  },
-  provide: (field) => EditorView.decorations.from(field),
-})
-
-/** block selection เก็บ "ช่วง" ไว้ด้วย (keymap/Backspace ต้องรู้) */
-const blockSelectionField = StateField.define<{ from: number; to: number } | null>({
-  create: () => null,
-  update(value, tr) {
-    for (const item of tr.effects) {
-      if (item.is(setBlockSelection)) return item.value
-    }
-    if (tr.docChanged && value) {
-      return { from: tr.changes.mapPos(value.from, -1), to: tr.changes.mapPos(value.to, 1) }
-    }
-    return value
-  },
-})
-
-const selectedDecoField = StateField.define<DecorationSet>({
-  create: () => Decoration.none,
-  update(value, tr) {
-    const range = tr.state.field(blockSelectionField)
-    const changed = tr.docChanged || tr.effects.some((item) => item.is(setBlockSelection))
-    if (!changed) return value.map(tr.changes)
-    return range ? rangeLines(tr.state.doc, range, "cm-doku-block-selected") : Decoration.none
-  },
-  provide: (field) => EditorView.decorations.from(field),
-})
-
-/** block ทั้งหมดในช่วงที่มองเห็น */
-function blocksInView(view: EditorView): BlockInfo[] {
-  return computeBlocks(view.state, view.viewport.from, view.viewport.to)
-}
-
-/** block ที่ operation จะทำงานด้วย — block selection มาก่อน แล้วจึง block ที่カーอยู่ */
-function targetBlock(view: EditorView, blocks: readonly BlockInfo[]): BlockInfo | null {
-  const selected = view.state.field(blockSelectionField, false)
-  if (selected) {
-    const block =
-      blocks.find((item) => item.from === selected.from) ??
-      computeBlocks(view.state, selected.from, selected.to).find(
-        (item) => item.from === selected.from,
-      )
-    if (block) return block
-  }
-  return blockAtCursor(view.state, blocks)
-}
-
-/** เขียน md ใหม่ด้วย **change ที่เล็กที่สุด** (prefix/suffix ร่วม)
- *  - เล็กกว่า = undo ละเอียดกว่า และカーไม่กระโดด (replacing ทั้งเอกสารทำให้カーไปที่ 0) */
-function replaceDocument(view: EditorView, md: string, event: string): void {
-  const oldText = view.state.doc.toString()
-  if (oldText === md) return
-  const max = Math.min(oldText.length, md.length)
-  let start = 0
-  while (start < max && oldText[start] === md[start]) start += 1
-  let endOld = oldText.length
-  let endNew = md.length
-  while (endOld > start && endNew > start && oldText[endOld - 1] === md[endNew - 1]) {
-    endOld -= 1
-    endNew -= 1
-  }
-  view.dispatch({
-    changes: { from: start, to: endOld, insert: md.slice(start, endNew) },
-    userEvent: event,
-  })
-}
-
-function runBlockOp(
-  view: EditorView,
-  op: BlockOp,
-  range?: { from: number; to: number } | null,
-): boolean {
-  const blocks = blocksInView(view)
-  const block = range
-    ? (blocks.find((item) => item.from === range.from && item.to === range.to) ??
-      computeBlocks(view.state, range.from, range.to).find((item) => item.from === range.from))
-    : targetBlock(view, blocks)
-  if (!block) return false
-  const md = view.state.doc.toString()
-  const next =
-    op === "moveUp"
-      ? moveBlock(md, block, blocks, -1)
-      : op === "moveDown"
-        ? moveBlock(md, block, blocks, 1)
-        : op === "duplicate"
-          ? duplicateBlock(md, block, blocks)
-          : op === "delete"
-            ? deleteBlock(md, block, blocks)
-            : op === "indent"
-              ? indentBlock(md, block)
-              : outdentBlock(md, block)
-  if (next === null || next === md) return false
-  replaceDocument(view, next, `doku.block.${op}`)
-  view.dispatch({ effects: [setBlockSelection.of(null), setHighlight.of(null)] })
-  return true
-}
-
-/** เลือก block ที่カーอยู่ (ใช้ Esc / Mod-a) */
-function selectBlockAtCursor(view: EditorView): boolean {
-  const blocks = blocksInView(view)
-  const block = blockAtCursor(view.state, blocks)
-  if (!block) return false
-  view.dispatch({
-    selection: EditorSelection.range(block.from, block.to),
-    effects: setBlockSelection.of({ from: block.from, to: block.to }),
-  })
-  return true
-}
-
-/* ── inline layer (M3.2 Track D — docs/09 §5 Track D) ────────────────────
-   ทุก action เขียนกลับเป็น markdown เสมอ (ไฟล์คือความจริง — docs/08 ข้อ 63)
-   · change ที่เล็กที่สุด (minimalChange) → カーไม่กระโดด/undo ละเอียด
-   · ห้ามแตะระหว่าง IME composition (docs/08 ข้อ 69) */
-
 /** HTML ที่มี "โครงสร้าง" จริง → ค่อยแปลงเป็น markdown (ไม่ทับ paste ข้อความธรรมดา) */
 const STRUCTURED_HTML = /<(h[1-6]|ul|ol|li|table|pre|blockquote|strong|b|em|i|a|img)\b/i
 
 /** html จาก clipboard → markdown (allowlist เดียวกับ sanitize — ไม่มี HTML ดิบหลุดเข้า vault) */
-function htmlToMarkdownBrowser(html: string): string {
+export function htmlToMarkdownBrowser(html: string): string {
   return htmlToMarkdown(
     html,
     (source) =>
       // DOMParser ของเบราว์เซอร์ — รูปร่างตรงกับ HtmlNode (docs/06: parse แบบ inert)
       new DOMParser().parseFromString(source, "text/html") as unknown as HtmlNode,
   )
-}
-
-/** dispatch edit ที่ได้จาก inline.ts — ยิง change/selection ชุดเดียว (userEvent สำหรับ undo) */
-function applyTextEdit(view: EditorView, edit: TextEdit, event: string): boolean {
-  if (!edit.changed) return false
-  const change = minimalChange(view.state.doc.toString(), edit.text)
-  if (!change) return false
-  view.dispatch({
-    changes: change,
-    selection: { anchor: edit.from, head: edit.to },
-    userEvent: event,
-    scrollIntoView: true,
-  })
-  return true
-}
-
-/** ครอบ/ถอด mark ที่ selection ปัจจุบัน (คีย์ลัด + bubble) */
-function toggleMarkAt(view: EditorView, kind: InlineMark, color: string | null = null): boolean {
-  const { from, to } = view.state.selection.main
-  return applyTextEdit(
-    view,
-    toggleInlineMark(view.state.doc.toString(), from, to, kind, color),
-    "doku.inline.mark",
-  )
-}
-
-/** ลิงก์ที่カー/selection สัมผัสอยู่ (ใช้ทั้ง popover และ setLink) */
-function linkAround(
-  view: EditorView,
-): { from: number; to: number; label: string; url: string } | null {
-  const { from, to } = view.state.selection.main
-  const text = view.state.doc.toString()
-  const hit = linkAt(text, from) ?? linkAt(text, to)
-  if (!hit) return null
-  return { from: hit.from, to: hit.to, label: hit.label, url: hit.url }
-}
-
-/** ใส่/แก้/ลบลิงก์ที่ selection (url ว่าง = ถอดลิงก์) */
-function setLinkAt(view: EditorView, url: string): boolean {
-  const { from, to } = view.state.selection.main
-  const existing = linkAround(view)
-  const target = existing ?? { from, to }
-  return applyTextEdit(
-    view,
-    applyLink(view.state.doc.toString(), target.from, target.to, url, target.from),
-    "doku.inline.link",
-  )
-}
-
-/** พิกัดบนจอของช่วงที่เลือก (สำหรับ bubble toolbar) */
-function selectionRect(view: EditorView, from: number, to: number): InlineSelection["rect"] | null {
-  const start = view.coordsAtPos(from, 1)
-  const end = view.coordsAtPos(Math.max(from, to - 1), -1)
-  if (!start || !end) return null
-  return {
-    left: Math.min(start.left, end.left),
-    right: Math.max(start.left, end.left, start.right, end.right),
-    top: Math.min(start.top, end.top),
-    bottom: Math.max(start.bottom, end.bottom),
-  }
-}
-
-/** ข้อมูล inline ของ selection — null = ไม่มีอะไรให้ bubble ทำ */
-function selectionInfo(view: EditorView): InlineSelection | null {
-  const { from, to } = view.state.selection.main
-  // block selection คือการเลือก "block" ไม่ใช่ข้อความ — bubble ต้องไม่โผล่ (docs/09 §4)
-  if (view.state.field(blockSelectionField, false)) return null
-  const existing = linkAround(view)
-  if (from === to) {
-    // カーในลิงก์ = ยังต้องมี popover (แก้/ลบ URL) แต่ไม่มี bubble จัดรูปแบบ
-    if (!existing) return null
-  }
-  const rect = selectionRect(view, from, to)
-  if (!rect) return null
-  const text = view.state.doc.toString()
-  return {
-    from,
-    to,
-    rect,
-    marks: from === to ? [] : detectMarks(text, from, to),
-    link: existing ? { label: existing.label, url: existing.url } : null,
-  }
 }
 
 /* ── slash menu (docs/08 ข้อ 55) ────────────────────────────────────────── */
@@ -763,101 +478,7 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
       "aria-label": "เนื้อหาเอกสาร (markdown)",
       spellcheck: "false",
     }),
-    keymap.of([
-      // คีย์ล็อกของ Doku มาก่อน defaultKeymap (docs/08 ข้อ 70)
-      ...markdownKeymap,
-      // inline layer (Track D): Mod+i/Mod+Shift+s/Mod+e/Mod+b/Mod+k — Docs 09 §2.3
-      { key: "Mod-b", preventDefault: true, run: (view) => toggleMarkAt(view, "bold") },
-      { key: "Mod-i", preventDefault: true, run: (view) => toggleMarkAt(view, "italic") },
-      { key: "Mod-Shift-s", preventDefault: true, run: (view) => toggleMarkAt(view, "strike") },
-      { key: "Mod-e", preventDefault: true, run: (view) => toggleMarkAt(view, "code") },
-      {
-        key: "Mod-k",
-        preventDefault: true,
-        run: (view) => {
-          const info = selectionInfo(view)
-          if (!info || !options.onLink) return false
-          options.onLink(info)
-          return true
-        },
-      },
-      {
-        // ใช้ `shift:` แบบเดียวกับ indentWithTab ของ CM6 — "Shift-Tab" ตรง ๆ ไม่ถูก match
-        key: "Tab",
-        preventDefault: true,
-        run: (view) => runBlockOp(view, "indent"),
-        shift: (view) => runBlockOp(view, "outdent"),
-      },
-      { key: "Mod-Shift-ArrowUp", preventDefault: true, run: (view) => runBlockOp(view, "moveUp") },
-      {
-        key: "Mod-Shift-ArrowDown",
-        preventDefault: true,
-        run: (view) => runBlockOp(view, "moveDown"),
-      },
-      { key: "Mod-d", preventDefault: true, run: (view) => runBlockOp(view, "duplicate") },
-      { key: "Shift-Delete", preventDefault: true, run: (view) => runBlockOp(view, "delete") },
-      {
-        key: "Mod-Backspace",
-        run: (view) =>
-          view.state.field(blockSelectionField, false) ? runBlockOp(view, "delete") : false,
-      },
-      {
-        key: "Mod-/",
-        preventDefault: true,
-        run: (view) => {
-          const blocks = blocksInView(view)
-          const block = targetBlock(view, blocks)
-          if (!block || !options.onTurnInto) return false
-          const coords = view.coordsAtPos(block.from)
-          options.onTurnInto({
-            from: block.from,
-            to: block.to,
-            x: (coords?.left ?? 0) + 24,
-            y: (coords?.bottom ?? 0) + 4,
-          })
-          return true
-        },
-      },
-      {
-        key: "Mod-a",
-        run: (view) => {
-          // จังหวะ 1 = เลือก block · จังหวะ 2 = ทั้งเอกสาร (defaultKeymap)
-          if (view.state.field(blockSelectionField, false)) {
-            view.dispatch({ effects: setBlockSelection.of(null) })
-            return false
-          }
-          return selectBlockAtCursor(view)
-        },
-      },
-      {
-        key: "Escape",
-        // จังหวะ 1 = เลือก block (คง focus) · จังหวะ 2 = ยกเลิกแล้ว **ออกจากเอกสาร**
-        // (docs/08 ข้อ 54 "Esc = ออก" + ข้อ 70 "Esc = เลือก block" รวมกันเป็นบันได 2 จังหวะ)
-        // stopPropagation: chrome ต้องไม่ blur ระหว่างจังหวะ 1 (ไม่งั้นカーหลุดก่อนเลือก block)
-        stopPropagation: true,
-        run: (view) => {
-          if (view.state.field(blockSelectionField, false)) {
-            view.dispatch({ effects: [setBlockSelection.of(null), setHighlight.of(null)] })
-            // ออกจากเอกสารด้วยกลไกของ CM เอง — จบวงที่ 2 จังหวะ ไม่มีจังหวะ 3
-            view.contentDOM.blur()
-            return true
-          }
-          return selectBlockAtCursor(view)
-        },
-      },
-      ...defaultKeymap,
-      ...historyKeymap,
-      {
-        key: "Mod-s",
-        preventDefault: true,
-        // กัน client handler ยิง flush ซ้ำ (คีย์นี้เป็นของผิวเอกสาร — docs/08 ข้อ 74)
-        stopPropagation: true,
-        run: (view) => {
-          options.onSave?.(view.state.doc.toString())
-          return true
-        },
-      },
-    ]),
+    keymap.of(dokuKeymap(options)),
     // `:emoji:` — เขียนกลับเป็นอักขระจริงใน markdown (Track D · docs/09 §4)
     // IME guard: ห้ามแทรกแซงระหว่าง composition (docs/08 ข้อ 69)
     EditorView.inputHandler.of((view, from, to, text) => {

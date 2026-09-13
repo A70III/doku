@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 import { memoryVaultFs, RENDERER_VERSION } from "@doku/core"
 import { createDokuApp } from "../src/app.tsx"
 import { FragmentCache } from "../src/cache.ts"
@@ -7,8 +6,8 @@ import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
 import { CLIENT_JS } from "../src/web/client.ts"
-import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 import { parseAttrs } from "../src/web/editor/blocks.ts"
+import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 
 /**
  * M3.2 Track B — read-parity (docs/09 §5 Track B · docs/08 ข้อ 69)

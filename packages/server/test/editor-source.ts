@@ -15,7 +15,11 @@ function read(relative: string): string {
 export const EDITOR_SOURCE = [
   read("../src/web/editor.ts"),
   read("../src/web/editor/decorations.ts"),
+  read("../src/web/editor/block-layer.ts"),
+  read("../src/web/editor/inline-layer.ts"),
+  read("../src/web/editor/keymap.ts"),
   read("../src/web/editor/blocks.ts"),
+  read("../src/web/editor/inline.ts"),
 ].join("\n")
 
 /** เฉพาะ `editor.ts` — สำหรับสัญญาที่ต้องอยู่ที่ชั้นประกอบ (create/extensions/keymap) */
