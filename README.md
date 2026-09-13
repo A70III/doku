@@ -91,6 +91,8 @@ bun run doku -- render --vault examples/vault projects/doku/design > out.html
 bun run doku -- check  --vault examples/vault --json
 bun run dev                                 # server + Tailwind → localhost:7667
 bun run build:css                           # generate app.css สำหรับ production
+bun run build:client                        # bundle browser client → public/client.js
+bun run build:editor                        # bundle CodeMirror → public/editor.js
 bun run gen:schema                          # Zod → schema/ (ไม่ commit)
 ```
 

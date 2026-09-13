@@ -45,6 +45,11 @@ doku build --out dist/                       # export ไว้อ่าน offl
 
 ทุกคำสั่งสำคัญมี `--json` ให้ agent parse
 
+> `doku serve` เสิร์ฟ **artifact ที่ generate ไว้** — ต้องรัน `bun run build:client` (browser client)
+> · `bun run build:editor` (CodeMirror) · `bun run build:css` (Tailwind) ก่อน หรือใช้ `bun run dev`
+> ที่ทำให้ทั้งสาม · ถ้าไม่มี artifact หน้าเว็บยังอ่านได้ครบแต่ **ไม่มี JS** (progressive enhancement)
+> และ server จะเตือนตั้งแต่ตอนเปิด
+
 ---
 
 ## 3. REST API

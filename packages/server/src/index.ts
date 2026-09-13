@@ -52,8 +52,9 @@ const watcher = createVaultWatcher(fs.root, {
   },
 })
 
-// public/ = artifact ที่ generate (Tailwind app.css, editor.js) — ยังไม่มี = 404 เงียบๆ
-// editor.js ถูก build ครั้งเดียวตอนเปิด dev → cache ได้ · app.css ต้องอ่านใหม่ (tailwind --watch)
+// public/ = artifact ที่ generate (Tailwind app.css, client.js, editor.js) — ยังไม่มี = 404 เงียบ ๆ
+// client.js/editor.js ถูก build ครั้งเดียวตอนเปิด dev → cache ได้ · app.css ต้องอ่านใหม่ (tailwind --watch)
+// (หน้าอ่านได้ครบโดยไม่มี JS = progressive enhancement — แต่ไม่มี editor/live reload/drag)
 const publicDir = new URL("../public/", import.meta.url)
 const publicCache = new Map<string, string>()
 const readPublic = async (name: string): Promise<string | null> => {
@@ -62,10 +63,21 @@ const readPublic = async (name: string): Promise<string | null> => {
   if (cached !== undefined) return cached
   try {
     const content = await Bun.file(new URL(name, publicDir)).text()
-    if (name === "editor.js") publicCache.set(name, content)
+    if (name === "editor.js" || name === "client.js") publicCache.set(name, content)
     return content
   } catch {
     return null
+  }
+}
+
+// เตือนตั้งแต่ตอนเปิด server แทนที่จะให้ผู้ใช้เจอหน้าที่ไม่มี JS แล้วเดาไม่ออก
+// (`doku serve` ไม่ได้ build ให้ — ต่างจาก `bun run dev`)
+for (const name of ["client.js", "editor.js"]) {
+  if (!(await Bun.file(new URL(name, publicDir)).exists())) {
+    const script = name === "client.js" ? "build:client" : "build:editor"
+    process.stderr.write(
+      `[doku] ไม่มี public/${name} — รัน \`bun run ${script}\` (หรือ \`bun run dev\`)\n`,
+    )
   }
 }
 
