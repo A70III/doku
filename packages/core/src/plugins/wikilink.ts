@@ -79,9 +79,14 @@ function resolveToNodes(
   options: WikiLinkOptions,
 ): MutableNode[] {
   const label = alias ?? target
-  const fallback = textNode(alias ? `${target}|${alias}` : `[[${target}]]`)
+  // หาไม่เจอ = คงข้อความต้นฉบับเป๊ะ ๆ (รวมเคส alias) — docs/08 ข้อ 61
+  const fallback = textNode(alias ? `[[${target}|${alias}]]` : `[[${target}]]`)
   const index = options.index ?? new Map<string, string[]>()
-  const resolution = resolveTarget(target, index, options.docId)
+  // `[[doc#anchor]]` — แยก anchor ออกจาก target ก่อน resolve (docs/08 ข้อ 56)
+  const hash = target.indexOf("#")
+  const targetPath = hash === -1 ? target : target.slice(0, hash)
+  const anchor = hash === -1 ? "" : target.slice(hash)
+  const resolution = resolveTarget(targetPath, index, options.docId)
 
   if (!resolution.id) {
     options.onWarning(
@@ -104,7 +109,14 @@ function resolveToNodes(
     )
   }
 
-  return [{ type: "link", url: docUrl(resolution.id), title: null, children: [textNode(label)] }]
+  return [
+    {
+      type: "link",
+      url: docUrl(resolution.id) + anchor,
+      title: null,
+      children: [textNode(label)],
+    },
+  ]
 }
 
 function resolveTarget(

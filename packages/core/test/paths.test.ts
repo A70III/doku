@@ -3,6 +3,7 @@ import {
   assetUrl,
   docUrl,
   isSafeVaultPath,
+  normalizeLinkTarget,
   normalizeVaultPath,
   PathError,
   resolveRelativePath,
@@ -95,5 +96,19 @@ describe("URL helpers", () => {
     expect(assetUrl("projects/doku/assets/diagram.svg", "abc123")).toBe(
       "/assets/projects/doku/assets/diagram.svg?h=abc123",
     )
+  })
+})
+
+describe("normalizeLinkTarget (#56)", () => {
+  test("ตัด anchor แบบข้อความอิสระได้ แต่ normalizeVaultPath ไม่ตัด", () => {
+    expect(normalizeLinkTarget("design#callout")).toBe("design")
+    expect(normalizeLinkTarget("vault/projects/design.md#x", { vaultName: "vault" })).toBe(
+      "projects/design",
+    )
+  })
+
+  test("`#` ในชื่อไฟล์ถูกปฏิเสธ (กันเสิร์ฟผิดไฟล์เงียบ ๆ)", () => {
+    expect(() => normalizeVaultPath("a#b")).toThrow(PathError)
+    expect(() => normalizeVaultPath("notes/a#b.md")).toThrow(PathError)
   })
 })

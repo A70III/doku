@@ -79,6 +79,7 @@ export {
   isSafeVaultPath,
   mdPathFromDocId,
   metaPathFromDocId,
+  normalizeLinkTarget,
   normalizeVaultPath,
   PathError,
   resolveRelativePath,

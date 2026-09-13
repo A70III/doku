@@ -32,9 +32,12 @@ import { remarkMark } from "./plugins/mark.ts"
 import { rehypeCollectToc, type TocEntry } from "./plugins/toc.ts"
 import { remarkWikilinks } from "./plugins/wikilink.ts"
 import { rehypeRewrite } from "./rewrite.ts"
-import { dokuSanitizeSchema } from "./sanitize.ts"
+import { dokuSanitizeSchema, rehypeNormalizeLinks } from "./sanitize.ts"
 import { defaultMeta, type Meta } from "./schema.ts"
 import { type Warning, type WarningCode, warning } from "./types.ts"
+
+/** จับ `$…$` / `$$…$$` — ใช้เตือนเมื่อ meta ปิด math ไว้ (docs/08 ข้อ 60) */
+const MATH_DELIMITER = /(^|[^\\])\$\$?[^$\n]+\$\$?/m
 
 export interface RenderVault {
   fs: VaultFs
@@ -101,11 +104,22 @@ export async function renderMarkdown(
     ? createAssetResolver(options.vault.fs)
     : undefined
 
-  const processor = unified()
-    .use(remarkParse)
-    .use(remarkGfm)
-    .use(remarkDirective)
-    .use(remarkMath)
+  const mathOn = meta.render.math
+  const processor = unified().use(remarkParse).use(remarkGfm).use(remarkDirective)
+  // math: ต้องแทรก remark-math "ตรงตำแหน่งนี้" (หลัง remarkParse ก่อน remarkRehype) — docs/08 ข้อ 60
+  if (mathOn) {
+    processor.use(remarkMath)
+  } else if (MATH_DELIMITER.test(body)) {
+    collect(
+      warning(
+        "math_disabled",
+        "meta.render.math = false — คงข้อความ $…$ ไว้ตามต้นฉบับ (ไม่ render สมการ)",
+        "info",
+        { path: docId },
+      ),
+    )
+  }
+  processor
     .use(remarkMark, { docId, onWarning: collect })
     .use(remarkDokuDirectives, { source: body, onWarning: collect, docId })
     .use(remarkWikilinks, { docId, index: options.vault?.index, onWarning: collect })
@@ -123,6 +137,7 @@ export async function renderMarkdown(
         children: [{ type: "text", value: "#" }],
       },
     })
+    .use(rehypeNormalizeLinks) // ก่อน sanitize: lowercase scheme + rel ให้ target=_blank
     .use(rehypeSanitize, dokuSanitizeSchema)
     .use(rehypeRewrite, {
       docId,
@@ -136,7 +151,7 @@ export async function renderMarkdown(
   // KaTeX error color: ไม่ส่ง `errorColor` (จะกลายเป็น inline style ที่ hardcode สีและไม่ตามธีม)
   // → บังคับด้วย CSS `.katex-error { color: var(--k-danger) !important }` ใน prose.ts (docs/08 ข้อ 47)
   // rehype-katex ไมรับ `throwOnError` (มัน Omit ออก) — ผิดพลาดแล้วได้ node .katex-error
-  if (meta.render.math) {
+  if (mathOn) {
     processor.use(rehypeKatex)
   }
 

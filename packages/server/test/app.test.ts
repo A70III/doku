@@ -147,14 +147,22 @@ describe("routes", () => {
   test("GET /assets/* — serve ตาม mime allowlist (docs/06)", async () => {
     const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
     const { app } = setup({ "assets/img.png": png, "notes.txt": "nope" })
-    const res = await app.request("/assets/assets/img.png?h=abc123")
+    const res = await app.request("/assets/assets/img.png")
     expect(res.status).toBe(200)
     expect(res.headers.get("content-type")).toBe("image/png")
-    expect(res.headers.get("cache-control")).toContain("immutable")
     expect(res.headers.get("content-security-policy")).toBe("default-src 'none'")
+    // ต้อง revalidate ด้วย ETag เสมอ (docs/08 ข้อ 58)
+    expect(res.headers.get("cache-control")).toBe("no-cache")
+    const hash = res.headers.get("etag")?.replaceAll('"', "") as string
+    expect(hash).toBeTruthy()
 
-    const noHash = await app.request("/assets/assets/img.png")
-    expect(noHash.headers.get("cache-control")).toBe("no-cache")
+    // immutable ได้เฉพาะเมื่อ ?h= ตรงกับเนื้อไฟล์จริง
+    const matched = await app.request(`/assets/assets/img.png?h=${hash}`)
+    expect(matched.headers.get("cache-control")).toContain("immutable")
+
+    const fake = await app.request("/assets/assets/img.png?h=abc123")
+    expect(fake.status).toBe(200)
+    expect(fake.headers.get("cache-control")).toBe("no-cache")
 
     const notAllowed = await app.request("/assets/notes.txt")
     expect(notAllowed.status).toBe(404)

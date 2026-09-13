@@ -14,7 +14,7 @@ import {
   defaultMeta,
   type Meta,
   MetaSchema,
-  normalizeVaultPath,
+  normalizeLinkTarget,
   renderMarkdown,
   resolveDoc,
   resolveInline,
@@ -314,7 +314,7 @@ async function commandRestore(args: ParsedArgs): Promise<number> {
   const varDir = resolvePath(
     typeof varFlag === "string" ? varFlag : (process.env.DOKU_VAR ?? "var"),
   )
-  const id = normalizeVaultPath(target, { vaultName: vault.vaultName })
+  const id = normalizeLinkTarget(target, { vaultName: vault.vaultName })
   const revisions = await createNodeRevisionStore(varDir)
 
   const list = await revisions.list(id)

@@ -17,12 +17,14 @@ export class PathError extends Error {
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: การกัน control char ใน path คือจุดประสงค์ของ regex นี้ (docs/06)
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/
-const FORBIDDEN_CHARS = /[<>:"|?*\\]/
+// `#` อยู่ใน forbidden ด้วย: HTTP แยก fragment ให้แล้ว (browser ไม่ส่ง `#` มาให้ server)
+// ถ้าเราตัด `#` ทิ้งอีกชั้น ไฟล์ชื่อ `a#b.md` จะถูกเปิดเป็น `a.md` แบบเงียบ ๆ (docs/08 ข้อ 56)
+const FORBIDDEN_CHARS = /[<>:"|?*\\#]/
 
 /**
  * path สัมพัทธ์จาก vault รูปแบบเดียวที่ยอมรับ
  * - ไม่ขึ้นต้น `/` ไม่ลงท้าย `/` ไม่มี segment ว่าง
- * - ไม่มี `.` / `..` / ตัวอักษรควบคุม / `<>:"|?*\`
+ * - ไม่มี `.` / `..` / ตัวอักษรควบคุม / `<>:"|?*\#`
  * - ไม่มี dotfile/dotfolder (`vault/.trash`, `.git` ต้องไม่ถูกอ้างเป็น path)
  */
 export function isSafeVaultPath(rel: string): boolean {
@@ -53,8 +55,9 @@ export function normalizeVaultPath(input: string, options: NormalizePathOptions 
 
   // `/d/<path>` (URL) → `<path>`
   if (path.startsWith("/d/")) path = path.slice(3)
-  // ตัด query/hash ที่อาจติดมา
-  path = path.split("#")[0]?.split("?")[0] ?? path
+  // ตัด query ที่อาจติดมา (`?` อยู่ใน FORBIDDEN_CHARS อยู่แล้ว จึงตัดได้ปลอดภัย)
+  // **ไม่ตัด `#`** — path ที่มาจาก URL/API ถือว่า `#` คือชื่อไฟล์จริง (ถ้ามี = ไม่ผ่าน validation)
+  path = path.split("?")[0] ?? path
 
   while (path.startsWith("./")) path = path.slice(2)
   while (path.startsWith("/")) path = path.slice(1)
@@ -153,4 +156,16 @@ export function mdPathFromDocId(id: string): string {
 
 export function metaPathFromDocId(id: string): string {
   return `${id}.meta.json`
+}
+
+/**
+ * แปลง "ข้อความอิสระ" ที่คน/agent พิมพ์ (CLI arg, wikilink target) เป็น vault path
+ *
+ * ต่างจาก `normalizeVaultPath` ตรงที่ **ตัด `#<anchor>` ได้** เพราะข้อความอิสระมี anchor ได้จริง
+ * (`[[design#callout]]`, `doku render design#callout`) — ส่วน path จาก URL/API ไม่ควรมี anchor
+ * (HTTP แยก fragment ให้แล้ว — docs/08 ข้อ 56)
+ */
+export function normalizeLinkTarget(input: string, options: NormalizePathOptions = {}): string {
+  const withoutAnchor = input.trim().split("#")[0] ?? input
+  return normalizeVaultPath(withoutAnchor, options)
 }

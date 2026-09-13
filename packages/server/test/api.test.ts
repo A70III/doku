@@ -422,3 +422,37 @@ describe("GET /api/schema (M3.1) — registry สำหรับ slash menu / bl
     }
   })
 })
+
+describe("correctness lock M3.1 (docs/08 ข้อ 56–61)", () => {
+  test("ข้อ 58: ?h= ต้องตรงกับ hash จริงถึงจะได้ immutable", async () => {
+    const { app, fs } = setup({ "a.md": DOC })
+    await fs.writeBytes("pic.png", new Uint8Array([1, 2, 3]))
+    const real = (await app.request("/assets/pic.png")).headers.get("etag")?.replaceAll('"', "")
+    expect(real).toBeTruthy()
+
+    const matched = await app.request(`/assets/pic.png?h=${real}`)
+    expect(matched.headers.get("cache-control")).toContain("immutable")
+
+    const fake = await app.request("/assets/pic.png?h=deadbeef")
+    expect(fake.headers.get("cache-control")).toBe("no-cache")
+
+    // ไม่ส่ง h = revalidate ด้วย ETag
+    const plain = await app.request("/assets/pic.png")
+    expect(plain.headers.get("cache-control")).toBe("no-cache")
+    expect(plain.headers.get("etag")).toBe(`"${real}"`)
+  })
+
+  test("ข้อ 58: If-None-Match ของ asset ตอบ 304", async () => {
+    const { app, fs } = setup({ "a.md": DOC })
+    await fs.writeBytes("pic.png", new Uint8Array([9, 9]))
+    const etag = (await app.request("/assets/pic.png")).headers.get("etag") as string
+    const res = await app.request("/assets/pic.png", { headers: { "if-none-match": etag } })
+    expect(res.status).toBe(304)
+  })
+
+  test("ข้อ 56: path ที่มี # ถูกปฏิเสธ (ไม่เปิดไฟล์ผิด)", async () => {
+    const { app } = setup({ "a.md": DOC })
+    const res = await app.request("/d/a%23b")
+    expect(res.status).toBe(404)
+  })
+})

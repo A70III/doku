@@ -22,6 +22,7 @@ import {
 import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
 import { createApi } from "./api.ts"
+import { AssetHasher } from "./asset-hash.ts"
 import type { DocRenderer } from "./doc.ts"
 import { loadKatexCss } from "./katex.ts"
 import type { SseHub } from "./sse.ts"
@@ -48,6 +49,8 @@ export interface DokuAppDeps {
   trash?: TrashStore
   revisions?: RevisionStore
   readOnly?: boolean
+  /** M3.1: ตรวจ `?h=<hash>` ของ asset ก่อนให้ immutable (docs/08 ข้อ 58) */
+  assetHasher?: AssetHasher
 }
 
 /** MIME allowlist (docs/06) — ไม่อยู่ในนี้ = ไม่ serve */
@@ -84,6 +87,7 @@ function tailPath(url: string, prefix: string): string {
 
 export function createDokuApp(deps: DokuAppDeps): Hono {
   const app = new Hono()
+  const assetHasher = deps.assetHasher ?? new AssetHasher(deps.fs)
 
   /** จำนวนรายการใน trash สำหรับ badge บน sidebar — อ่านสดเสมอ (หลัง delete/restore ต้องตรงทันที) */
   const trashCount = async (): Promise<number> => {
@@ -316,11 +320,21 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     const bytes = await deps.fs.readBytes(assetPath)
     if (!bytes) return context.notFound()
 
-    // ?h=<hash> = content address → immutable cache; ไม่มี h = ไม่แคช
-    const hasHash = new URL(context.req.raw.url).searchParams.has("h")
+    // ตรวจ hash จริงก่อนให้ immutable (docs/08 ข้อ 58)
+    // hash ตรง = content address → immutable ได้ · ไม่ตรง/ไม่มี = ETag + no-cache (revalidate ทุกครั้ง)
+    const actualHash = await assetHasher.hash(assetPath)
+    const etagValue = actualHash ? etagHeader(actualHash) : undefined
+    if (etagValue) {
+      context.header("etag", etagValue)
+      if (actualHash && matchesIfMatch(context.req.header("if-none-match"), actualHash)) {
+        return context.body(null, 304, { etag: etagValue, "cache-control": "no-cache" })
+      }
+    }
+    const claimed = new URL(context.req.raw.url).searchParams.get("h")
+    const immutable = Boolean(claimed && actualHash && claimed === actualHash)
     return context.body(bytes as Uint8Array<ArrayBuffer>, 200, {
       "content-type": mime,
-      "cache-control": hasHash ? "public, max-age=31536000, immutable" : "no-cache",
+      "cache-control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
       "content-security-policy": "default-src 'none'", // svg/ทุก asset ไม่ทำงาน script
       "x-content-type-options": "nosniff",
       "content-disposition": "inline",

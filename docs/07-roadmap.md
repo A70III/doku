@@ -115,12 +115,12 @@
 
 **correctness lock** ([08 ข้อ 56–61](08-decisions.md) — เคาะแล้ว ยังไม่ implement)
 
-- [ ] **ข้อ 56** — `#` เป็น forbidden char + แยก `normalizeVaultPath` / `normalizeLinkTarget`
-- [ ] **ข้อ 57** — `href` รับ `mailto:`/`tel:` + lowercase scheme + `target`/`rel` allowlist + เติม `rel` เอง + ถอด `color` ออกจาก global allowlist
-- [ ] **ข้อ 58** — asset `?h=` verify ก่อนให้ `immutable` (ไม่ตรง = `ETag` + `no-cache`)
-- [ ] **ข้อ 59** — `width` รับ `70`/`70%` (มีแล้ว — เพิ่ม test กันถอย)
-- [ ] **ข้อ 60** — `render.math=false` คง `$…$` ต้นฉบับ (ข้าม remark-math ตั้งแต่ต้น) + warning `math_disabled`
-- [ ] **ข้อ 61** — wikilink หาไม่เจอ = คงข้อความต้นฉบับเป๊ะ ๆ (รวมเคส alias)
+- [x] **ข้อ 56** — `#` เป็น forbidden char + แยก `normalizeVaultPath` / `normalizeLinkTarget`
+- [x] **ข้อ 57** — `href` รับ `mailto:`/`tel:` + lowercase scheme + `target`/`rel` allowlist + เติม `rel` เอง + ถอด `color` ออกจาก global allowlist
+- [x] **ข้อ 58** — asset `?h=` verify ก่อนให้ `immutable` (ไม่ตรง = `ETag` + `no-cache`)
+- [x] **ข้อ 59** — `width` รับ `70`/`70%` (มีแล้ว — เพิ่ม test กันถอย)
+- [x] **ข้อ 60** — `render.math=false` คง `$…$` ต้นฉบับ (ข้าม remark-math ตั้งแต่ต้น) + warning `math_disabled`
+- [x] **ข้อ 61** — wikilink หาไม่เจอ = คงข้อความต้นฉบับเป๊ะ ๆ (รวมเคส alias)
 
 **ปิดงาน**
 

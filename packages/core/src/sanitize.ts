@@ -12,8 +12,10 @@
  * — เนื้อหาที่ AI เขียน (raw HTML/directive attr/href) ถูกกรองครบก่อนถึงจุดนั้น
  */
 
+import type { Root } from "hast"
 import type { Options as SanitizeOptions } from "rehype-sanitize"
 import { defaultSchema } from "rehype-sanitize"
+import { visit } from "unist-util-visit"
 
 const K = /^doku-/
 
@@ -70,6 +72,43 @@ const GLOBAL_EXTRA: AttrList = [
   "ariaCurrent",
 ]
 
+/** rel ที่ยอมให้อยู่ใน markdown (เข้มกว่า "อะไรก็ได้" — docs/08 ข้อ 57) */
+const ALLOWED_REL = ["noopener", "noreferrer", "nofollow", "external", "ugc", "tag", "me"]
+
+/**
+ * normalize ลิงก์ **ก่อน** sanitize (docs/08 ข้อ 57)
+ *
+ * - scheme ต้องเทียบได้ — hast-util-sanitize เทียบแบบ case-sensitive
+ *   (`HTTP://x` จึงเคยถูกลบทิ้งทั้งลิงก์) → ลดเป็นตัวพิมพ์เล็กก่อน
+ * - `target="_blank"` ต้องมี rel กัน tabnabbing — เติมให้เอง ไม่ต้องให้คนเขียน md จำ
+ */
+export function rehypeNormalizeLinks(): (tree: Root) => undefined {
+  return (tree) => {
+    visit(tree, "element", (node: { tagName: string; properties?: Record<string, unknown> }) => {
+      const properties = node.properties
+      if (!properties) return
+      for (const key of ["href", "src"]) {
+        const value = properties[key]
+        if (typeof value !== "string") continue
+        const match = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(value)
+        if (!match) continue
+        const scheme = match[1] as string
+        properties[key] = scheme.toLowerCase() + value.slice(scheme.length)
+      }
+      if (node.tagName !== "a") return
+      if (properties.target !== "_blank") return
+      const rel = new Set(
+        String(properties.rel ?? "")
+          .split(/\s+/)
+          .filter(Boolean),
+      )
+      rel.add("noopener")
+      rel.add("noreferrer")
+      properties.rel = [...rel].join(" ")
+    })
+  }
+}
+
 export const dokuSanitizeSchema: SanitizeOptions = {
   ...defaultSchema,
   // id ที่ rehype-slug สร้างเป็นของเรา (ไม่มี raw HTML ที่แอบตั้ง id ได้) → ไม่ต้อง prefix
@@ -95,8 +134,14 @@ export const dokuSanitizeSchema: SanitizeOptions = {
   ],
   attributes: {
     ...defaultSchema.attributes,
-    "*": attrs("*", GLOBAL_EXTRA),
-    a: attrs("a", [["className", K], "target", "rel"]),
+    // `color` มาจาก default schema แต่ docs/06 บอก raw color ปิด default —
+    // สีของ block มาจาก `color=` -> data attribute -> CSS (docs/08 ข้อ 29/57)
+    "*": (attrs("*", GLOBAL_EXTRA) as unknown[]).filter((entry) => entry !== "color") as AttrList,
+    a: attrs("a", [
+      ["className", K],
+      ["target", "_blank", "_self"],
+      ["rel", ...ALLOWED_REL],
+    ]),
     img: attrs("img", ["loading", "decoding"]),
     video: attrs("video", [
       ["className", K],
@@ -149,8 +194,9 @@ export const dokuSanitizeSchema: SanitizeOptions = {
   },
   protocols: {
     ...defaultSchema.protocols,
-    // docs/06: http(s) + relative + `/` + `#` เท่านั้น (ตัด irc/xmpp ของ default ออก)
-    href: ["http", "https"],
+    // docs/06 + 08 ข้อ 57: http(s) + mailto/tel + relative + `/` + `#`
+    // (ตัด irc/xmpp ของ default ออก · `data:` ห้ามทั้ง href และ src)
+    href: ["http", "https", "mailto", "tel"],
     src: ["http", "https"],
   },
 }
