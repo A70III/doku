@@ -12,6 +12,18 @@
  * **ห้ามเพิ่มโค้ดใหม่ในไฟล์นี้** · เป้าหมายคือไฟล์นี้ว่างแล้วลบ @ts-nocheck ออก
  */
 import { installInteractions } from "@doku/core/client"
+import {
+  basename,
+  dirname,
+  encodePath,
+  fenceMarker,
+  frontmatterLength,
+  headingsInMarkdown,
+  inRect,
+  joinPath,
+  normalizeHeading,
+  shouldReloadOnChange,
+} from "./pure.ts"
 
 ;(() => {
   "use strict"
@@ -47,12 +59,6 @@ import { installInteractions } from "@doku/core/client"
   window.addEventListener("doku:saved", () => {
     suppressReloadUntil = Date.now() + 1500
   })
-
-  /** ควร reload ตาม SSE ไหม — pure function ให้เทสต์ได้ตรง ๆ (docs/09 §8) */
-  function shouldReloadOnChange(dirty, suppressUntil, now) {
-    if (dirty) return false
-    return !(suppressUntil > 0 && now < suppressUntil)
-  }
 
   const source = new EventSource("/sse")
   source.addEventListener("change", () => {
@@ -104,12 +110,6 @@ import { installInteractions } from "@doku/core/client"
     )
   }
 
-  const encodePath = (path) =>
-    path
-      .split("/")
-      .map((segment) => encodeURIComponent(segment))
-      .join("/")
-
   async function api(path, options) {
     const response = await fetch(path, options)
     let body = null
@@ -138,20 +138,6 @@ import { installInteractions } from "@doku/core/client"
   function fail(error) {
     const fields = error.fields && error.fields.length ? " (" + error.fields.join(", ") + ")" : ""
     toast(error.message + fields, "error")
-  }
-
-  function basename(path) {
-    const index = path.lastIndexOf("/")
-    return index === -1 ? path : path.slice(index + 1)
-  }
-
-  function dirname(path) {
-    const index = path.lastIndexOf("/")
-    return index === -1 ? "" : path.slice(0, index)
-  }
-
-  function joinPath(dir, name) {
-    return dir ? dir + "/" + name : name
   }
 
   function currentDocPath() {
@@ -656,9 +642,6 @@ import { installInteractions } from "@doku/core/client"
     schema: null,
   }
 
-  /** codepoint ของ backtick — ห้ามเขียนตรง ๆ โค้ดนี้อยู่ใน template literal */
-  const TICK = String.fromCharCode(96)
-
   /** id หัวข้อ → offset ใน markdown (TOC เลื่อนカー · สร้างจาก md + TOC ของ server) */
   let headingPositions = null
 
@@ -710,94 +693,6 @@ import { installInteractions } from "@doku/core/client"
   }
 
   /* ── heading map: TOC → offset (CM6 ไม่มี id ใน DOM — ต้องแมพจาก markdown เอง) ── */
-
-  /** เทียบข้อความหัวข้อแบบหลวม ๆ — ตัด marker ที่ render ออกแล้ว
-   *  หมายเหตุ: normalize ถูกใช้ทั้งกับข้อความจาก markdown และ text ของ TOC (server)
-   *  การตัดอักขระจึงสมมาตร · ยกเว้นลิงก์/รูปที่เป็นโครงสร้างของ markdown เท่านั้น */
-  function normalizeHeading(text) {
-    const linked = String(text).replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    let out = ""
-    for (const ch of linked) {
-      if ("*_~[](){}=".indexOf(ch) !== -1 || ch === TICK) continue
-      out += ch
-    }
-    return out.replace(/ +/g, " ").trim().toLowerCase()
-  }
-
-  /** fence marker ของ CommonMark: {char,len,rest} หรือ null — ปิดต้องเทียบ char+len
-   *  (fence backtick 4 ตัวครอบ fence 3 ตัว ไม่ควร toggle กลางบล็อก) */
-  function fenceMarker(line) {
-    const match = new RegExp("^ {0,3}([" + TICK + "]{3,}|~{3,})(.*)$").exec(line)
-    if (!match) return null
-    const marker = match[1]
-    // info string ของ backtick fence ห้ามมี backtick (CommonMark)
-    if (marker.charAt(0) === TICK && match[2].indexOf(TICK) !== -1) return null
-    return { char: marker.charAt(0), len: marker.length, rest: match[2] }
-  }
-
-  /** ความยาว frontmatter ของ markdown ดิบ — offset ของ heading ต้องนับจากเอกสาร
-   *  ที่ editor เห็น (มี frontmatter) · ใช้สูตร md.length − body.length เท่านั้น
-   *  (body ตัด newline หลัง block ออกหนึ่งตัว เหมือน core/frontmatter.ts) */
-  function frontmatterLength(md) {
-    const match = /^(?:\ufeff)?---[ \t]*\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(md)
-    if (!match) return 0
-    return md.length - md.slice(match[0].length).replace(/^\r?\n/, "").length
-  }
-
-  /** หัวข้อระดับ h2/h3 ตามลำดับในเอกสาร + offset (ข้าม code fence · รู้จัก setext)
-   *  renderer (mdast) นับ setext (Title ตามด้วยขีด) เป็น h2 ด้วย — ถ้าไม่นับ จำนวน heading
-   *  จะไม่ตรงกับ TOC แล้วการจับคู่ด้วย index จะ drift ทั้งชุด */
-  function headingsInMarkdown(md) {
-    const found = []
-    const start = frontmatterLength(md)
-    let fence = null
-    let offset = 0
-    let prevText = null
-    let prevOffset = 0
-    let prevIsParagraph = false
-    for (const line of md.slice(start).split("\n")) {
-      const marker = fenceMarker(line)
-      if (fence) {
-        if (
-          marker &&
-          marker.char === fence.char &&
-          marker.len >= fence.len &&
-          marker.rest.trim() === ""
-        ) {
-          fence = null
-        }
-        prevIsParagraph = false
-      } else if (marker) {
-        fence = marker
-        prevIsParagraph = false
-      } else {
-        const atx = /^(#{1,6}) +(.*)$/.exec(line)
-        if (atx) {
-          const depth = atx[1].length
-          if (depth === 2 || depth === 3) {
-            found.push({ depth, text: normalizeHeading(atx[2]), pos: start + offset })
-          }
-          prevIsParagraph = false
-        } else {
-          // setext underline: ขีด = h2 · เท่ากับ = h1 · ต้องตามหลังย่อหน้าจริง (ไม่ใช่บรรทัดว่าง)
-          const setext = /^ {0,3}(-+|=+)[ \t]*$/.exec(line)
-          if (setext && prevIsParagraph) {
-            const depth = setext[1].charAt(0) === "=" ? 1 : 2
-            if (depth === 2) {
-              found.push({ depth, text: normalizeHeading(prevText), pos: start + prevOffset })
-            }
-            prevIsParagraph = false
-          } else {
-            prevIsParagraph = line.trim() !== ""
-          }
-        }
-      }
-      prevText = line
-      prevOffset = offset
-      offset += line.length + 1
-    }
-    return found
-  }
 
   /** จับคู่ TOC entry (server) กับบรรทัดจริง — ลำดับ + ข้อความ + ถอยหลังได้ไม่เกิน 4 */
   function buildHeadingMap(md) {
@@ -1242,20 +1137,6 @@ import { installInteractions } from "@doku/core/client"
       articleEl.appendChild(el)
     }
     return el
-  }
-
-  /** พิกัดของ event อยู่ในกรอบ element ไหม — วัดด้วย rect ไม่ใช่ contains อย่างเดียว
-   *  (กันเคส element ถูกแทนที่ระหว่างคลิก → target หลุดจาก DOM) */
-  function inRect(el, event, pad) {
-    if (!el || el.hidden) return false
-    const r = el.getBoundingClientRect()
-    const p = pad || 0
-    return (
-      event.clientX >= r.left - p &&
-      event.clientX <= r.right + p &&
-      event.clientY >= r.top - p &&
-      event.clientY <= r.bottom + p
-    )
   }
 
   function hideStrip() {

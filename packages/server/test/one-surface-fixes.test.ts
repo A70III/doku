@@ -5,6 +5,7 @@ import { FragmentCache } from "../src/cache.ts"
 import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
+import { headingsInMarkdown, normalizeHeading } from "../src/web/client/pure.ts"
 import { CLIENT_SOURCE } from "./client-source.ts"
 
 /**
@@ -32,22 +33,16 @@ function extractFunction(source: string, signature: string): string {
   throw new Error(`function ไม่ปิด block: ${signature}`)
 }
 
-const TICK = String.fromCharCode(96)
-
-/** ประกอบ heading pipeline จริงจาก CLIENT_SOURCE แล้วรันบน markdown */
+/** ประกอบ heading map จากของจริง: pure pipeline import ตรง + `buildHeadingMap`
+ *  (ยังผูก state ร่วมใน main.ts → seam ถัดไป) งัดออกมาเฉพาะตัวนั้นแล้วป้อน pure เข้าไป */
 function makeHeadingTools(): {
   headingsInMarkdown: (md: string) => Array<{ depth: number; text: string; pos: number }>
   buildHeadingMap: (md: string, links: Array<{ id: string; text: string }>) => Map<string, number>
 } {
-  const source = [
-    extractFunction(CLIENT_SOURCE, "function normalizeHeading"),
-    extractFunction(CLIENT_SOURCE, "function fenceMarker"),
-    extractFunction(CLIENT_SOURCE, "function frontmatterLength"),
-    extractFunction(CLIENT_SOURCE, "function headingsInMarkdown"),
-    extractFunction(CLIENT_SOURCE, "function buildHeadingMap"),
-  ].join("\n")
+  const source = extractFunction(CLIENT_SOURCE, "function buildHeadingMap")
   const factory = new Function(
-    "TICK",
+    "headingsInMarkdown",
+    "normalizeHeading",
     `
     let headingPositions = null;
     let $$ = () => [];
@@ -66,7 +61,7 @@ function makeHeadingTools(): {
     };
     `,
   )
-  return factory(TICK)
+  return factory(headingsInMarkdown, normalizeHeading)
 }
 
 describe("R1 heading map — setext + frontmatter (docs/09 §3.1)", () => {

@@ -5,7 +5,7 @@ import { FragmentCache } from "../src/cache.ts"
 import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
-import { CLIENT_SOURCE } from "./client-source.ts"
+import { headingsInMarkdown, shouldReloadOnChange } from "../src/web/client/pure.ts"
 
 /**
  * M3.2 Track A — one surface (docs/08 ข้อ 63/65 · docs/09 §3.1)
@@ -28,28 +28,7 @@ function setup(files: Record<string, string | Uint8Array>) {
   return { app }
 }
 
-/** ดึงซอร์สของ function ที่ขึ้นต้นด้วย signature ที่กำหนด (นับวงเล็บปีกกาจับคู่) */
-function extractFunction(source: string, signature: string): string {
-  const start = source.indexOf(signature)
-  if (start === -1) throw new Error(`ไม่เจอ function: ${signature}`)
-  const open = source.indexOf("{", start)
-  let depth = 0
-  for (let i = open; i < source.length; i += 1) {
-    const ch = source[i]
-    if (ch === "{") depth += 1
-    else if (ch === "}") {
-      depth -= 1
-      if (depth === 0) return source.slice(start, i + 1)
-    }
-  }
-  throw new Error(`function ไม่ปิด block: ${signature}`)
-}
-
 describe("one surface — live reload guard (docs/08 ข้อ 65)", () => {
-  const shouldReloadOnChange = new Function(
-    `${extractFunction(CLIENT_SOURCE, "function shouldReloadOnChange")}; return shouldReloadOnChange;`,
-  )() as (dirty: boolean, suppressUntil: number, now: number) => boolean
-
   test("มีงานค้าง (data-dirty) → ห้าม reload ทุกกรณี", () => {
     expect(shouldReloadOnChange(true, 0, 10_000)).toBe(false)
     expect(shouldReloadOnChange(true, 5_000, 1_000)).toBe(false)
@@ -71,20 +50,6 @@ describe("one surface — live reload guard (docs/08 ข้อ 65)", () => {
 })
 
 describe("heading map — TOC เลื่อนカーใน editor ได้ (docs/09 §3.1)", () => {
-  const source = [
-    extractFunction(CLIENT_SOURCE, "function normalizeHeading"),
-    extractFunction(CLIENT_SOURCE, "function fenceMarker"),
-    extractFunction(CLIENT_SOURCE, "function frontmatterLength"),
-    extractFunction(CLIENT_SOURCE, "function headingsInMarkdown"),
-  ].join("\n")
-  const headingsInMarkdown = new Function("TICK", `${source}; return headingsInMarkdown;`)(
-    String.fromCharCode(96),
-  ) as (md: string) => Array<{
-    depth: number
-    text: string
-    pos: number
-  }>
-
   test("เก็บเฉพาะ h2/h3 ตามลำดับ + offset ตรงบรรทัดจริง + ข้าม code fence", () => {
     const md = [
       "# ชื่อเรื่อง",

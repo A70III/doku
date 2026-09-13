@@ -16,4 +16,7 @@ function read(relative: string): string {
 }
 
 /** entry + โมดูลที่แยกออกมาแล้วทั้งหมด (เรียงตามที่ย้าย) */
-export const CLIENT_SOURCE = [read("../src/web/client/main.ts")].join("\n")
+export const CLIENT_SOURCE = [
+  read("../src/web/client/main.ts"),
+  read("../src/web/client/pure.ts"),
+].join("\n")
