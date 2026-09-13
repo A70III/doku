@@ -968,6 +968,9 @@ html[data-zen] .doku-rail {
 html[data-zen] .doku-toc-col {
   display: none;
 }
+html[data-zen] .doku-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
 html[data-zen] .doku-article {
   max-width: 74ch;
   margin-inline: auto;
