@@ -6,7 +6,7 @@
  */
 
 import type { Element, ElementContent } from "hast"
-import { type BlockDefinition, blockElement, h, t } from "./types.ts"
+import { type BlockDefinition, blockElement, h, t, warnStrayChildren } from "./types.ts"
 
 interface TabLike {
   type: string
@@ -41,10 +41,10 @@ export const tabsDefinition: BlockDefinition = {
     // เนื้อหาที่ไม่ใช่ :::tab — ย้ายไปท้ายบล็อก (ห้ามทิ้ง: "ไฟล์คือความจริง" · docs/08 ข้อ 60/61)
     const stray = elements.filter((child) => !isTab(child))
     if (stray.length > 0) {
-      ctx.warn(
-        "block_stray_child",
+      warnStrayChildren(
+        ctx,
+        stray.length,
         `เนื้อหาใน ::::tabs ที่ไม่ใช่ :::tab ถูกย้ายไปท้ายบล็อก (${stray.length} ก้อน)`,
-        "warning",
       )
     }
 

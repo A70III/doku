@@ -152,6 +152,8 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · สลับ read ↔ write แล้ว rail/layout ต้องอยู่นิ่ง + ยึด "บรรทัดเดิม" ไม่ใช่ scrollY — height lock + instant scroll + `scrollbar-gutter: stable` + `offsetForElement` แก้ caret (ข้อ 64)
   · `:::video` เหลือ `src` เดียว (asset หรือ YouTube) + poster derive จากไฟล์ข้าง src + CSP `frame-src` เฉพาะ youtube-nocookie (ข้อ 65)
   · แผงควบคุม block: `flex-wrap` + กันชื่อง block ถูกบีบ (ข้อ 65) · เขียน fence กลับต้องคง attribute เดิมทั้งหมด — รับ attr ทุกรูปแบบ, `null` = สั่งลบเท่านั้น (ข้อ 66)
+  · **block ต้องไม่ทำเนื้อหาหาย** (bug-hunt sweep `blocks/*.ts`): `::::tabs` จับคู่ panel ผิดตัว + `:::card` href `.md#anchor` + `:::motion once` กลับด้าน (ข้อ 67)
+  · ต่อด้วย sweep รอบสอง: block ที่ไม่ใช้เนื้อใน (`figure`/`video`/`progress`/`section divider`) คงเนื้อหาไว้ + `block_stray_child` · `progress` value ผิดไม่ทำ block หาย · `video` placeholder มีข้อความบอกเหตุ · `card` ไม่มี href ไม่เป็น `<a>` (ข้อ 68)
   · **ยังรอเคาะ**: Q7 asset filename charset (รอ upload API M4)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)

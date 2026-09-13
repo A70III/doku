@@ -113,4 +113,44 @@ describe("regression: block ต้องไม่ทำเนื้อหาผ�
     expect(await once("{once=0}")).toBe("false") // เดิมได้ "true"
     expect(await once("{once=no}")).toBe("false") // เดิมได้ "true"
   })
+
+  test("blocks ที่ไม่ใช้เนื้อใน — เนื้อหายังอยู่ + เตือน block_stray_child", async () => {
+    const cases: Array<[string, string]> = [
+      ["figure", ':::figure{src="a.png"}\ncaption เพิ่ม\n:::'],
+      ["video", ':::video{src="assets/clip.mp4"}\ncaption เพิ่ม\n:::'],
+      ["progress", ":::progress{value=70}\ncaption เพิ่ม\n:::"],
+      ["section", ":::section{type=divider}\ncaption เพิ่ม\n:::"],
+    ]
+    for (const [name, md] of cases) {
+      const { html, warnings } = await renderWithWarnings(md, "doc")
+      expect(`${name}: ${html.includes("caption เพิ่ม")}`).toBe(`${name}: true`)
+      expect(`${name}: ${warnings.some((w) => w.code === "block_stray_child")}`).toBe(
+        `${name}: true`,
+      )
+    }
+  })
+
+  test("progress value ผิด — ไม่มีแถบ แต่ block และเนื้อหายังอยู่", async () => {
+    const { html, warnings } = await renderWithWarnings(
+      ':::progress{value=abc label="X"}\nโน้ต\n:::',
+      "doc",
+    )
+    expect(html).not.toContain("<progress")
+    expect(html).toContain("X")
+    expect(html).toContain("โน้ต")
+    expect(warnings.some((item) => item.message.includes("abc"))).toBe(true)
+  })
+
+  test("video ไม่มี src — placeholder ต้องมีข้อความบอกเหตุ", async () => {
+    const { html } = await renderWithWarnings(":::video\n:::", "doc")
+    expect(html).toContain("ไม่พบ src")
+    expect(html).toContain('data-block="video"')
+  })
+
+  test(":::card ไม่มี href — ไม่ render เป็น <a> ที่คลิกไม่ได้", async () => {
+    const { html } = await renderWithWarnings(':::card{title="T"}\nbody\n:::', "doc")
+    expect(html).toContain('<div data-block="card"')
+    expect(html).not.toContain("<a ")
+    expect(html).toContain("body")
+  })
 })

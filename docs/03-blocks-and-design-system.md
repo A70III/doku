@@ -35,6 +35,13 @@ Markdown มาตรฐาน (GFM) ใช้ได้ครบ: `**bold**` `*i
 - attribute ทั้งหมดถูก escape ก่อนใส่ HTML (กัน XSS)
 - directive แบบบรรทัดเดียวใช้ `:ชื่อ[ข้อความ]{attr}` (เช่น `:badge`, `:stat`)
 
+### เนื้อในของ block
+
+block บางตัว **ไม่ใช้เนื้อใน** (`figure` · `video` · `progress` · `section{type=divider}` · `tabs`)
+— ถ้าเขียนเนื้อในมา ระบบ **แสดงต่อท้ายให้เสมอ ไม่ทิ้ง** พร้อม warning `block_stray_child`
+(เช่น เนื้อในของ `:::figure` ออกหลัง caption · `:::tabs` ที่มีอย่างอื่นนอกจาก `:::tab` ย้ายไปท้ายบล็อก)
+หลักการ: **ผิด/ไม่รู้จัก = ไม่ทำข้อมูลหาย** (docs/08 ข้อ 60/61/67/68)
+
 ### การซ้อน block (สำคัญ)
 
 **ชั้นนอกสุดต้องใช้ `:::` ที่ยาวกว่าชั้นใน** — remark-directive (micromark) ปิด container
@@ -102,13 +109,19 @@ type: `note` `info` `tip` `success` `warning` `danger` `quote`
 
 ```md
 ::::gallery{cols=3}
-:::figure{src=assets/a.png caption="A"}:::
-:::figure{src=assets/b.png caption="B"}:::
-:::figure{src=assets/c.png caption="C"}:::
+:::figure{src=assets/a.png caption="A"}
+:::
+:::figure{src=assets/b.png caption="B"}
+:::
+:::figure{src=assets/c.png caption="C"}
+:::
 ::::
 ```
 
 - grid รูปหลายใบ; `cols`: `2` `3` `4` (responsive ลดคอลัมน์อัตโนมัติ)
+- **แต่ละ `:::figure` ต้องเปิด–ปิดคนละบรรทัด** — `:::figure{…}:::` บรรทัดเดียว micromark
+  อ่านเป็นข้อความธรรมดา (block ไม่ทำงาน) · `:::` แบบบรรทัดเดียวที่ตามหลัง directive ใช้ได้เฉพาะ
+  กรณีเปิด+ปิดพร้อมกัน → ระบบถือว่าไม่ค้าง stack
 
 ## Card
 
@@ -120,6 +133,7 @@ type: `note` `info` `tip` `success` `warning` `danger` `quote`
 
 - การ์ดลิงก์ ใช้ประกอบใน `:::grid` ทำ dashboard/สารบัญได้
 - `href` ใช้ path ในเว็บหรือ relative ก็ได้; `icon` เป็นชื่อไอคอนที่มีในชุด
+- **ไม่มี `href` = ไม่ใช่ลิงก์** — render เป็น `<div>` (ไม่ใช่ `<a>` ที่คลิกไม่ได้)
 
 ## Section
 
@@ -130,6 +144,7 @@ type: `note` `info` `tip` `success` `warning` `danger` `quote`
 ```
 
 - `type`: `hero` (เปิดเรื่อง) `divider` (เส้นคั่น) — ไม่มี `bleed` แล้ว ใช้ `:::figure{align=full}` แทน
+- `divider` แสดงเป็น `<hr>` — ถ้าใส่เนื้อในมา จะแสดงต่อท้ายเส้นให้ + `block_stray_child` (ไม่ทิ้ง)
 
 ## Key-Value
 
@@ -163,6 +178,8 @@ db: bun:sqlite
 ```
 
 - `value`: 0–100; `label` optional
+- `value` ผิด (ไม่ใช่ตัวเลข 0–100) → **ไม่มีแถบ** แต่ label/เนื้อในยังแสดง (ไม่มี label = แสดงข้อความบอกเหตุแทน)
+  + warning `block_attribute_unknown` — ไม่ทิ้ง block ทั้งก้อนอีกต่อไป
 
 ## Steps
 
@@ -314,6 +331,7 @@ fenced ```` ```d2 ```` → เรียก binary → SVG → cache `var/diagram
 - YouTube → `<iframe>` จาก `youtube-nocookie.com` (CSP `frame-src` เปิดเฉพาะโดเมนนี้)
 - **ไม่รองรับ** embed/ไฟล์จากภายนอกอื่น (allowlist ปิด) — เขียนมาจะได้ placeholder + warning
 - `loop` / `muted` / `controls` / `poster` **ไม่ใช่ attribute ของ block นี้อีกแล้ว** (docs/08 ข้อ 65)
+- `src` หาย หรือเป็นลิงก์ภายนอกที่ไม่ใช่ YouTube → placeholder พร้อมข้อความบอกเหตุ (ไม่ใช่กล่องเปล่า)
 
 ## Links & Backlinks
 

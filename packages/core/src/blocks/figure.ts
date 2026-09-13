@@ -5,7 +5,8 @@
  * ไม่มี `src` = placeholder (ไม่ใช่รูปแตก) · asset จริงถูก rewrite เป็น `/assets/…` ทีหลัง sanitize
  */
 
-import { type BlockDefinition, blockElement, flag, h, intAttr, t } from "./types.ts"
+import type { ElementContent } from "hast"
+import { type BlockDefinition, blockElement, flag, h, intAttr, strayChildren, t } from "./types.ts"
 
 const ALIGN = ["left", "center", "right", "full"] as const
 
@@ -23,9 +24,9 @@ export const figureDefinition: BlockDefinition = {
       ctx.warn("block_attribute_unknown", "figure ต้องมี src — แสดง placeholder แทน")
       return blockElement("figure", "figure", { dataAlign: "center", dataMissing: "true" }, [
         h("figcaption", { dataPart: "figure-caption" }, [t("asset not found: (ไม่มี src)")]),
+        ...strayChildren(ctx),
       ])
     }
-
     const properties: Record<string, unknown> = {
       dataAlign: ctx.attrs.align ?? "center",
     }
@@ -38,8 +39,10 @@ export const figureDefinition: BlockDefinition = {
     if (flag(ctx.attrs, "zoom")) properties.dataZoom = "true"
 
     const image = h("img", { src, alt: alt ?? caption ?? "", loading: "lazy", decoding: "async" })
-    const children = [image]
+    const children: ElementContent[] = [image]
     if (caption) children.push(h("figcaption", { dataPart: "figure-caption" }, [t(caption)]))
+    // เนื้อในเป็นของ caption/รูป ไม่ใช่ block — ไม่ใช้ก็ต้องไม่หาย (docs/08 ข้อ 68)
+    children.push(...strayChildren(ctx))
     return blockElement("figure", "figure", properties, children)
   },
 }

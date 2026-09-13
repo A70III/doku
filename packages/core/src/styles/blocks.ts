@@ -146,7 +146,8 @@ ${CALLOUT_VARIANTS}
   border-radius: var(--d-radius-md);
   background: var(--d-bg-subtle);
 }
-.doku-prose [data-block='figure'][data-missing] {
+.doku-prose [data-block='figure'][data-missing],
+.doku-prose [data-block='video'][data-missing] {
   border: 1px dashed var(--d-border-strong);
   border-radius: var(--d-radius-md);
   padding: var(--d-space-4);
@@ -198,6 +199,12 @@ ${FIGURE_WIDTH_CSS}
 
 /* YouTube embed (docs/08 ข้อ 65) — figure ครอบ iframe 16:9 · ไม่มีเงา/สีเพิ่ม
    ปล่อยให้ iframe แบนในกรอบเดียวกับ player อื่น */
+/* เนื้อในของ :::video (ไม่ใช่ส่วนของ player) → ห่อ figure: media ต้องเต็มความกว้างเหมือนเดิม */
+.doku-prose [data-block='video'] > :is(video, audio) {
+  display: block;
+  width: 100%;
+}
+
 .doku-prose [data-block='video'][data-provider='youtube'] {
   margin: 0;
   overflow: hidden;
@@ -212,7 +219,7 @@ ${FIGURE_WIDTH_CSS}
 /* ── card / section / grid / col ──────────────────────────────────────────
    card = object จริงที่มีการกระทำ → คงกรอบไว้ แต่ **ตัด shadow/hover-lift**
    (depth มาจาก hairline + พื้น ไม่ใช่เงา — docs/08 ข้อ 33) */
-.doku-prose a[data-block='card'] {
+.doku-prose [data-block='card'] {
   display: block;
   padding: var(--d-space-4) var(--d-space-5);
   border: 1px solid var(--d-border);
@@ -245,7 +252,7 @@ ${FIGURE_WIDTH_CSS}
   font-size: var(--d-read-h2);
   letter-spacing: -0.008em;
 }
-.doku-prose hr[data-block='section'][data-variant='divider'] {
+.doku-prose [data-block='section'][data-variant='divider'] > hr {
   border: 0;
   border-top: 1px solid var(--d-border);
   margin-block: var(--d-rhythm-h2);

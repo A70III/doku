@@ -48,6 +48,7 @@ export const cardDefinition: BlockDefinition = {
     if (ctx.children.length > 0) {
       children.push(h("div", { dataPart: "card-body" }, ctx.children))
     }
-    return blockElement("a", "card", properties, children)
+    // ไม่มี href = ไม่ใช่ลิงก์ → อย่าให้เป็น `<a>` ที่คลิกไม่ได้ (docs/08 ข้อ 68)
+    return blockElement(href ? "a" : "div", "card", properties, children)
   },
 }

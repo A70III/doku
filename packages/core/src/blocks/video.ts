@@ -9,7 +9,8 @@
  * - `loop` / `muted` / `controls` ถอดออกทั้งหมด · controls เปิดเสมอ (ตั้งใน renderer)
  */
 
-import { type BlockDefinition, blockElement, h } from "./types.ts"
+import type { Element } from "hast"
+import { type BlockDefinition, blockElement, h, strayChildren, t } from "./types.ts"
 
 const AUDIO = /\.(mp3|m4a|wav|ogg|opus|flac)$/i
 /** src ที่มี scheme = ลิงก์ภายนอก (ต้องเป็น provider ที่รองรับเท่านั้น) */
@@ -46,10 +47,17 @@ export const videoDefinition: BlockDefinition = {
   values: {},
   example: ":::video{src=/assets/demo.mp4}\n:::\n\n:::video{src=https://youtu.be/dQw4w9WgXcQ}\n:::",
   render(ctx) {
+    // placeholder ต้องบอกเหตุให้อ่านออก (เดิมเป็นกล่องว่างที่ไม่มีข้อความ — docs/08 ข้อ 68)
+    const placeholder = (reason: string): Element =>
+      blockElement("figure", "video", { dataMissing: "true" }, [
+        h("figcaption", { dataPart: "figure-caption" }, [t(reason)]),
+        ...strayChildren(ctx),
+      ])
+
     const src = (ctx.attrs.src ?? "").trim()
     if (!src) {
       ctx.warn("block_attribute_unknown", "video ต้องมี src")
-      return blockElement("figure", "figure", { dataMissing: "true" }, [])
+      return placeholder("video: ไม่พบ src — ระบุ asset ใน vault หรือ URL ของ YouTube")
     }
 
     const youtube = youtubeId(src)
@@ -65,6 +73,7 @@ export const videoDefinition: BlockDefinition = {
           referrerPolicy: "strict-origin-when-cross-origin",
           frameBorder: "0",
         }),
+        ...strayChildren(ctx),
       ])
     }
 
@@ -74,15 +83,16 @@ export const videoDefinition: BlockDefinition = {
         "block_attribute_unknown",
         `video: ยังไม่รองรับ src ภายนอกที่ไม่ใช่ YouTube (${src}) — แสดง placeholder`,
       )
-      return blockElement("figure", "figure", { dataMissing: "true" }, [])
+      return placeholder(
+        "video: ยังไม่รองรับ src ภายนอกที่ไม่ใช่ YouTube — ใช้ asset ใน vault หรือลิงก์ YouTube",
+      )
     }
 
-    const isAudio = AUDIO.test(src)
-    return blockElement(
-      isAudio ? "audio" : "video",
-      "video",
-      { src, controls: true, preload: "metadata" },
-      [],
-    )
+    const tag = AUDIO.test(src) ? "audio" : "video"
+    const properties: Record<string, unknown> = { src, controls: true, preload: "metadata" }
+    const extra = strayChildren(ctx)
+    // ถ้าเขียนเนื้อในมา — media element เก็บ children ไม่ได้ ต้องห่อ figure แล้วต่อท้าย
+    if (extra.length === 0) return blockElement(tag, "video", properties, [])
+    return blockElement("figure", "video", {}, [h(tag, properties), ...extra])
   },
 }

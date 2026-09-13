@@ -90,6 +90,26 @@ export function flag(attrs: Record<string, string>, key: string): boolean {
   return value === "" || value === "true" || value === "1" || value === "yes"
 }
 
+/**
+ * เนื้อในของ block ที่ **ไม่ได้ใช้ children** (figure · video · progress · section divider · tabs)
+ * — ห้ามทิ้ง: เตือน `block_stray_child` แล้วให้ผู้เรียกเอา children ไปแสดงต่อท้าย
+ * หลักการเดียวกับ "ปิด/ผิดไม่ทำข้อมูลหาย" (docs/08 ข้อ 60/61 · ข้อ 68)
+ */
+export function warnStrayChildren(
+  ctx: BlockContext,
+  count = ctx.children.length,
+  message = `เนื้อหาใน :::${ctx.node.name} ไม่ได้เป็นส่วนของ block นี้ — แสดงต่อท้ายให้ (ไม่ทิ้ง)`,
+): void {
+  if (count === 0) return
+  ctx.warn("block_stray_child", message, "warning")
+}
+
+/** เตือน (ถ้ามีเนื้อใน) แล้วคืน children ให้ผู้เรียกต่อท้าย */
+export function strayChildren(ctx: BlockContext): ElementContent[] {
+  warnStrayChildren(ctx)
+  return ctx.children
+}
+
 /** สีที่อยู่ใน allowlist — ค่าอื่นคืน undefined */
 export function colorAttr(value: string | undefined): string | undefined {
   return value && (BLOCK_COLORS as readonly string[]).includes(value) ? value : undefined
