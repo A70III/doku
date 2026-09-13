@@ -659,6 +659,9 @@ migrate แล้วใน UI pass ([08 ข้อ 36](08-decisions.md))
 ```
 
 - คอลัมน์/ฟอนต์/leading **เดียวกับตอนอ่านเป๊ะ** — ผิวเดียว (ไม่ใช่ overlay ไม่ใช่ split pane ไม่มี resize)
+- **หัวเอกสาร (ชื่อเรื่อง · สรุป · meta) อยู่นอกส่วนที่แก้** — ส่วนที่ editor แทนที่คือเนื้อหาเท่านั้น
+  (`#doku-doc-body`) · ถ้าหัวเรื่องอยู่ใน fragment เดียวกัน ชื่อเอกสารจะหายขณะพิมพ์
+  (fragment ที่ cache = warnings + เนื้อหา · ชื่อเรื่อง render จาก meta ที่ TSX)
 - syntax marker ซ่อนเมื่อカーอยู่นอก node · node ที่ render ได้ (table · figure · code · math · `:::`) กลายเป็น widget ในบรรทัด
 - **block control strip** ลอยเหนือบรรทัดแรกของ `:::` เมื่อカーเข้า → แก้ variant/`color=`/`title=`/`icon=`/align/width แล้ว **เขียนกลับเป็นข้อความ directive**
 - autosave ตาม debounce · ออกด้วย `Esc` (カーออกจากเอกสาร → คีย์ลัดงานอ่านกลับมาทำงาน)

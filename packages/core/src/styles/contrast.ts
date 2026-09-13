@@ -259,9 +259,9 @@ export function paletteReport(): ThemeReport[] {
     }
 
     for (const [name, surface] of surfaces) {
-      push("--k-text บน " + name, at("--k-text"), surface, 4.5)
-      push("--d-text-subtle บน " + name, at("--d-text-subtle"), surface, 4.5)
-      push("--d-accent บน " + name, at("--d-accent"), surface, 4.5)
+      push(`--k-text บน ${name}`, at("--k-text"), surface, 4.5)
+      push(`--d-text-subtle บน ${name}`, at("--d-text-subtle"), surface, 4.5)
+      push(`--d-accent บน ${name}`, at("--d-accent"), surface, 4.5)
     }
     push("--d-border-control บน --k-bg", at("--d-border-control"), bg, 3)
     push("--k-on-accent บน --d-accent", at("--k-on-accent"), at("--d-accent"), 4.5)

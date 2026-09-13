@@ -192,7 +192,7 @@ describe("DocRenderer", () => {
     await expect(renderer.render("nope")).rejects.toBeInstanceOf(DocNotFoundError)
   })
 
-  test("fragment รวม header + prose และ meta ครบ", async () => {
+  test("fragment = ส่วนเนื้อหา + warnings (header ย้ายไปหน้าเว็บ — M3.1)", async () => {
     const files = {
       "p/q.md": GOOD_DOC,
       "p/q.meta.json": JSON.stringify({ title: "สวัสดี", tags: ["th"] }),
@@ -201,8 +201,9 @@ describe("DocRenderer", () => {
     const renderer = new DocRenderer(fs, new VaultState(fs, "vault"), new FragmentCache(null, "1"))
     const doc = await renderer.render("p/q")
     expect(doc.meta.title).toBe("สวัสดี")
-    expect(doc.fragment).toContain("doku-doc-title")
-    expect(doc.fragment).toContain("หัวเรื่อง")
+    // fragment เก็บเฉพาะเนื้อหา — ชื่อเรื่อง/สรุป/meta render ที่ header ของหน้า (pages.tsx)
+    expect(doc.fragment).not.toContain("doku-doc-title")
+    expect(doc.fragment).toContain("เนื้อหายาว")
     expect(doc.warnings).toHaveLength(0)
   })
 })

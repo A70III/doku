@@ -394,6 +394,27 @@ const TocSheet: FC<{ toc: TocEntry[] }> = ({ toc }) =>
     </div>
   )
 
+/** หัวเอกสาร — อยู่นอก #doku-doc-body โดยตั้งใจ: ตอนเขียนในที่ ชื่อเรื่องต้องไม่หาย
+ *  (fragment ที่ cache คือ warnings + เนื้อหาเท่านั้น — docs/08 ข้อ 52) */
+const DocHeader: FC<{ meta: Meta }> = ({ meta }) => {
+  const bits: Child[] = []
+  if (meta.status !== "active") {
+    bits.push(<span class="doku-status">{meta.status}</span>)
+  }
+  for (const tag of meta.tags) bits.push(<span class="doku-tag">#{tag}</span>)
+  if (meta.created) bits.push(<span>{formatDateTime(meta.created)}</span>)
+  if (meta.authors.length > 0) {
+    bits.push(<span>{meta.authors.map((author) => author.name).join(", ")}</span>)
+  }
+  return (
+    <header class="doku-doc-header">
+      <h1 class="doku-doc-title">{meta.title ?? ""}</h1>
+      {meta.summary ? <p class="doku-doc-lede">{meta.summary}</p> : null}
+      {bits.length > 0 ? <div class="doku-doc-meta">{bits}</div> : null}
+    </header>
+  )
+}
+
 /** colophon ท้ายเอกสาร — path (คือ id) · ขนาด · แก้ไขล่าสุด (docs/08 ข้อ 49) */
 const Colophon: FC<{ path: string; meta: Meta; mtimeMs?: number; words?: number }> = ({
   path,
@@ -482,6 +503,7 @@ export const DocPage: FC<{
             data-motion={meta.render.motion ? undefined : "off"}
           >
             <DocToolbar path={path} hasToc={toc.length >= 2} />
+            <DocHeader meta={meta} />
             <section id="doku-meta-panel" class="doku-meta-panel-wrap" hidden>
               <header class="doku-meta-panel-head">
                 <h2 class="doku-meta-panel-title">คุณสมบัติ</h2>

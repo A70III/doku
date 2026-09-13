@@ -91,10 +91,12 @@ describe("GET /api/docs", () => {
     expect((await app.request("/api/docs/..%2F..%2Fetc%2Fpasswd")).status).toBe(400)
   })
 
-  test("format=html คืน fragment", async () => {
+  test("format=html คืน fragment ของส่วนเนื้อหา (header/ชื่อเรื่องอยู่นอก fragment — M3.1)", async () => {
     const { app } = setup({ "a.md": DOC })
     const body = await (await app.request("/api/docs/a?format=html")).json()
-    expect(body.html).toContain("doku-doc-header")
+    expect(body.html).toContain("เนื้อหา")
+    // ชื่อเรื่อง render โดยหน้าเอกสาร (TSX) ไม่ใช่ใน fragment — ตอนเขียนในที่ชื่อเรื่องต้องไม่หาย
+    expect(body.html).not.toContain("doku-doc-title")
   })
 })
 

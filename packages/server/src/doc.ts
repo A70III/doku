@@ -11,7 +11,6 @@
  */
 
 import {
-  type Meta,
   RENDERER_VERSION,
   type ResolvedDoc,
   renderMarkdown,
@@ -78,7 +77,7 @@ export class DocRenderer {
 
     await this.#cache.store(
       {
-        fragment: this.fragment(result.meta, result.html, result.warnings),
+        fragment: this.fragment(result.html, result.warnings),
         meta: result.meta,
         toc: result.toc,
         warnings: result.warnings,
@@ -106,13 +105,14 @@ export class DocRenderer {
     )
   }
 
-  /** HTML ภายในการ์ดเนื้อหา — header + warnings + prose
-   *  TOC **ไม่อยู่ใน fragment** อีกต่อไป (M3.1): มันกลายเป็นคอลัมน์ sticky ที่ render จาก `doc.toc`
-   *  → fragment เปลี่ยน = bump `RENDERER_VERSION` (bump เป็น 5 แล้ว — docs/08 ข้อ 49) */
-  private fragment(meta: Meta, html: string, warnings: Warning[]): string {
+  /** HTML ภายในส่วนเนื้อหา — warnings + prose
+   *  TOC ไม่อยู่ใน fragment (M3.1: คอลัมน์ sticky — docs/08 ข้อ 49)
+   *  header (ชื่อเรื่อง/สรุป/meta) ก็ไม่อยู่ด้วย เพราะตอนเขียนในที่ เนื้อหาส่วนนี้ถูก
+   *  แทนที่ด้วย editor — ถ้าหัวเรื่องอยู่ในนั้นด้วย ชื่อเอกสารจะหายขณะพิมพ์ (bump RENDERER_VERSION = 6) */
+  private fragment(html: string, warnings: Warning[]): string {
     // ใช้ JSX ผ่าน app.tsx จะสะอาดกว่า — จุดนี้ assemble ด้วย string ที่เราคุมเอง
     // (input ทั้งหมดมาจาก meta/escape แล้ว หรือจาก HTML ที่ผ่าน sanitize)
-    return `${docHeaderHtml(meta)}${warningsBannerHtml(warnings)}${html}`
+    return `${warningsBannerHtml(warnings)}${html}`
   }
 }
 
@@ -123,32 +123,6 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;")
-}
-
-function formatArchiveDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium" }).format(date)
-}
-
-export function docHeaderHtml(meta: Meta): string {
-  const bits: string[] = []
-  // "active" = สถานะปกติ — ไม่ต้องประกาศ (เหลือแต่ state ที่ต่างจากปกติ)
-  if (meta.status !== "active")
-    bits.push(`<span class="doku-status">${escapeHtml(meta.status)}</span>`)
-  for (const tag of meta.tags) bits.push(`<span class="doku-tag">#${escapeHtml(tag)}</span>`)
-  if (meta.created) bits.push(`<span>${escapeHtml(formatArchiveDate(meta.created))}</span>`)
-  if (meta.authors.length > 0) {
-    bits.push(`<span>${meta.authors.map((author) => escapeHtml(author.name)).join(", ")}</span>`)
-  }
-  const lede = meta.summary ? `<p class="doku-doc-lede">${escapeHtml(meta.summary)}</p>` : ""
-  const metaLine = bits.length > 0 ? `<div class="doku-doc-meta">${bits.join("")}</div>` : ""
-
-  return `<header class="doku-doc-header">
-<h1 class="doku-doc-title">${escapeHtml(meta.title ?? "")}</h1>
-${lede}
-${metaLine}
-</header>`
 }
 
 export function warningsBannerHtml(warnings: readonly Warning[]): string {

@@ -105,6 +105,20 @@ describe("tokens — สัญญาที่ต้องถือ", () => {
     expect(missing).toEqual([])
   })
 
+  test("weight ที่ใช้ได้คือ 400/600 เท่านั้น (docs/08 ข้อ 48)", () => {
+    const offenders = [...`${PROSE_CSS}\n${BLOCKS_CSS}`.matchAll(/font-weight:\s*(\d+)/g)]
+      .map((match) => match[1] as string)
+      .filter((weight) => weight !== "400" && weight !== "600" && weight !== "bolder")
+    expect(offenders).toEqual([])
+  })
+
+  test("prose ไม่ใช้ font-size นอกสเกล (rem/clamp/em/token เท่านั้น)", () => {
+    const offenders = [...PROSE_CSS.matchAll(/font-size:\s*([^;]+);/g)]
+      .map((match) => (match[1] as string).trim())
+      .filter((value) => !/^(var\(--|clamp\(|[\d.]+(rem|em|%)|0$)/.test(value))
+    expect(offenders).toEqual([])
+  })
+
   test("mark เป็น brush underline ไม่ใช่พื้นทึบ (ต้องปิด UA background-color)", () => {
     const rule = PROSE_CSS.match(/\.doku-prose \[data-block='mark'\]\s*\{([^}]*)\}/)
     expect(rule?.[1]).toContain("background-color: transparent")

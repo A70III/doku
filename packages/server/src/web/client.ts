@@ -612,6 +612,9 @@ ${INTERACTIONS_JS}
     writing.editing = true;
     writing.dirty = false;
     articleEl.setAttribute("data-editing", "1");
+    // SSE guard อ่านจาก <html> (ดู listener ด้านบน) — ต้องตั้งทั้งสองที่
+    // ไม่งั้น autosave ที่เราเขียนเองจะ trigger watcher → SSE → reload กลางการพิมพ์
+    docEl.setAttribute("data-editing", "1");
     setDocStatus("clean", "พร้อมแก้ไข");
     mountWritingSurface(payload.md, offsetForElement(payload.md, anchor), buildSlashItems(schema));
   }
@@ -635,18 +638,42 @@ ${INTERACTIONS_JS}
     writing.dirty = false;
     clearTimeout(writing.timer);
     if (articleEl) articleEl.removeAttribute("data-editing");
+    docEl.removeAttribute("data-editing");
     setDocStatus("clean", "");
   }
 
   async function renderFragment(md) {
     const result = await jsonRequest("POST", "/api/render", { md, path: writing.path });
-    return result.html;
+    return result;
+  }
+
+  /** ชื่อเรื่อง/สรุป อยู่ที่ header นอกส่วนที่แก้ — อัปเดตจาก meta ที่ server คืนมา */
+  function syncHeader(meta) {
+    if (!meta) return;
+    const title = document.querySelector(".doku-doc-title");
+    if (title && meta.title) title.textContent = meta.title;
+    const lede = document.querySelector(".doku-doc-lede");
+    const summary = meta.summary || "";
+    if (lede) {
+      if (summary) lede.textContent = summary;
+      else lede.remove();
+    } else if (summary) {
+      const header = document.querySelector(".doku-doc-header");
+      const paragraph = document.createElement("p");
+      paragraph.className = "doku-doc-lede";
+      paragraph.textContent = summary;
+      title?.insertAdjacentElement("afterend", paragraph);
+      void header;
+    }
+    const colophon = document.querySelector(".doku-colophon");
+    if (colophon && meta.title) colophon.setAttribute("data-title", meta.title);
   }
 
   /** วาด HTML กลับเข้าที่เดิม + sync TOC/colophon ให้ตรงกับเนื้อหาใหม่ */
   async function paintRendered(md) {
-    const html = await renderFragment(md);
-    bodyEl.innerHTML = html;
+    const result = await renderFragment(md);
+    bodyEl.innerHTML = result.html;
+    syncHeader(result.meta);
     syncTocFromBody();
     const colophon = $(".doku-colophon");
     if (colophon) {
@@ -1341,7 +1368,8 @@ ${INTERACTIONS_JS}
     }
   });
 
-  for (const overlay of [folderOverlay]) {
+  // คลิกพื้นหลัง = ปิด (เหมือน overlay อื่น) — รวมแผ่น TOC ของจอแคบ
+  for (const overlay of [folderOverlay, tocSheetEl]) {
     if (!overlay) continue;
     overlay.addEventListener("click", (event) => {
       if (event.target === overlay) overlay.hidden = true;

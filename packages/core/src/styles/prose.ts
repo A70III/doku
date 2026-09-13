@@ -90,7 +90,6 @@ export const PROSE_CSS = `
   margin-bottom: var(--d-space-3);
   color: var(--d-text-subtle);
   font-size: var(--d-text-xs);
-  font-weight: 500;
 }
 .doku-toc ul { list-style: none; margin: 0; padding: 0; }
 .doku-toc li { margin: 0; }
@@ -104,7 +103,7 @@ export const PROSE_CSS = `
   transition: color var(--d-dur-fast) var(--d-ease);
 }
 .doku-toc a:hover { color: var(--k-text); }
-.doku-toc a[aria-current='true'] { color: var(--d-accent); font-weight: 500; }
+.doku-toc a[aria-current='true'] { color: var(--d-accent); font-weight: 600; }
 .doku-toc .doku-toc-h3 { padding-left: var(--d-space-3); }
 /* จอแคบ: TOC เป็น <details> ท้ายเอกสาร — ย่อได้ ต้องอ่านออก */
 .doku-toc[data-variant='inline'] { margin-top: var(--d-rhythm-h2); }
