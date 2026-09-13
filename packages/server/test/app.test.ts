@@ -358,6 +358,7 @@ describe("client.js", () => {
       "dragstart",
       "cycleTheme",
       "data-zen",
+      "window.DokuInteractions", // block interaction ต้องติดตั้งซ้ำได้หลัง innerHTML ถูกวาดใหม่
     ]) {
       expect(CLIENT_JS).toContain(marker)
     }

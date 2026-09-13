@@ -148,6 +148,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - ล็อกเพิ่มตอนแก้บั๊ก UX editor หลัง M3.1: highlight `==mark==` เป็นพื้นเต็มบล็อกจางสี mapped ตาม `{.color}` — เดิม brush underline (ข้อ 6 แก้ทบทวน)
   · แผงควบคุม block ไม่ผูกกับ focus ของ CM — pin ระหว่างโต้ตอบ + ไม่ rebuild DOM + live patch (ข้อ 62)
   · ออกโหมดเขียนแบบ 3 วง: tolerance ~3rem รอบคอลัมน์ + neutral gutter + คลิก chrome/`Esc` (ปรับข้อ 54)
+  · block interaction ต้องติดตั้งซ้ำได้หลัง `innerHTML` ถูกวาดใหม่ — delegation + `window.DokuInteractions` (ข้อ 63)
   · **ยังรอเคาะ**: Q7 asset filename charset (รอ upload API M4)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)

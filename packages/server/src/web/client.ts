@@ -838,12 +838,17 @@ ${INTERACTIONS_JS}
     if (colophon && meta.title) colophon.setAttribute("data-title", meta.title);
   }
 
-  /** วาด HTML กลับเข้าที่เดิม + sync TOC/colophon ให้ตรงกับเนื้อหาใหม่ */
+  /** วาด HTML กลับเข้าที่เดิม + sync TOC/colophon ให้ตรงกับเนื้อหาใหม่
+   *  ⚠️ innerHTML ทำให้ node เดิมตายทั้งยวง — interaction ของ block (tabs/zoom/copy/motion)
+   *  ต้องติดตั้งใหม่ทุกครั้ง ไม่งั้นกดแท็บไม่ได้จนกว่าจะ refresh (docs/03 progressive enhancement) */
   async function paintRendered(md, docId) {
     const result = await renderDocFragment(docId);
     bodyEl.innerHTML = result.html;
     syncHeader(result.meta);
     syncTocFromBody();
+    if (typeof window !== "undefined" && typeof window.DokuInteractions === "function") {
+      window.DokuInteractions(document);
+    }
     const colophon = $(".doku-colophon");
     if (colophon) {
       const words = md.trim().split(/\\s+/u).filter(Boolean).length;
