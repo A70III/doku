@@ -119,10 +119,12 @@ describe("tokens — สัญญาที่ต้องถือ", () => {
     expect(offenders).toEqual([])
   })
 
-  test("mark เป็น brush underline ไม่ใช่พื้นทึบ (ต้องปิด UA background-color)", () => {
+  test("mark เป็นพื้นเต็มจางสี ไม่ใช่ brush underline (แทนที่ UA background-color + clone ตอนพับบรรทัด)", () => {
+    // docs/08 ข้อ 6 — เดิมเป็น brush underline แต่วัดจากการใช้จริงแล้วสีไม่เต็มข้อความจนดูพลาดพาด
     const rule = PROSE_CSS.match(/\.doku-prose \[data-block='mark'\]\s*\{([^}]*)\}/)
-    expect(rule?.[1]).toContain("background-color: transparent")
-    expect(rule?.[1]).toContain("background-image: linear-gradient")
+    expect(rule?.[1]).toContain("background-color: var(--dk-mapped-bg, var(--d-accent-weak))")
+    expect(rule?.[1]).not.toContain("background-image")
+    expect(rule?.[1]).toContain("box-decoration-break: clone")
   })
 
   test("prose ไม่มี hex สีดิบ (ทุกสีมาจาก token)", () => {

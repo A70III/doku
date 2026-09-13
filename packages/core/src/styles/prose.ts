@@ -165,18 +165,15 @@ export const PROSE_CSS = `
   background: var(--d-bg-subtle);
 }
 
-/* highlight (==…==) — brush underline ตาม docs/08 ข้อ 6 · สีอิ่มใช้กับ "เส้น" ไม่ใช่ข้อความ
-   ต้องปิด background-color ของ UA (mark มี background-color: Mark เป็น default) ไม่งั้นได้พื้นเหลืองทึบ
-   ทับเส้นขีดทับ — เป็น inversion ที่ผู้ใช้มองเห็นจริง */
+/* highlight (==…==) — พื้นเต็มบล็อกจางสี (docs/08 ข้อ 6) · สี mapped ตาม {.color} ผ่าน --dk-mapped-bg
+   ต้อง set background-color แทนที่ UA default ของ <mark> (background-color: Mark)
+   · box-decoration-break: clone — mark ที่พับหลายบรรทัดต้องมีพื้นทุกบรรทัด */
 .doku-prose [data-block='mark'] {
   color: inherit;
   padding: 0 0.1em;
-  background-color: transparent;
-  background-image: linear-gradient(
-    transparent 58%,
-    var(--dk-mapped-bg, var(--d-accent-weak)) 58%
-  );
-  background-repeat: no-repeat;
+  background-color: var(--dk-mapped-bg, var(--d-accent-weak));
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 /* ── code ── พื้นจาง + ไม่มีกรอบ (บันไดขั้น 5 ไม่ใช่ 6) */

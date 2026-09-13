@@ -227,12 +227,41 @@ ${INTERACTIONS_JS}
 
   document.addEventListener("click", (event) => {
     if (menuEl && !menuEl.hidden && !menuEl.contains(event.target)) closeMenu();
-    // คลิกนอกเอกสาร = ออกจากโหมดเขียน (flush ให้เรียบร้อยก่อนวาดกลับ)
-    // isConnected กันเคส event เดียวกันนั้น: ตอนเข้าถึง handler นี้ เนื้อหาเดิมถูกแทนที่ไปแล้ว
-    // → event.target หลุดจาก DOM → contains() = false ทั้งที่ผู้ใช้คลิก "ใน" เอกสาร
-    if (writing.editing && articleEl && event.target.isConnected && !articleEl.contains(event.target)) {
-      void exitWriting();
+    // ── การออกจากโหมดเขียน (docs/08 ข้อ 52/54) — 3 วง ──
+    // วงใน = tolerance zone รอบคอลัมน์อ่าน (~3rem): คลิกเยื้องนิดเดียวต้องไม่เด้งออก
+    //   → ส่ง focus กลับ editor แทน (จิ้มพลาด = พิมพ์ต่อได้)
+    // วงกลาง = พื้นหลังเปล่า (neutral gutter): ไม่ทำอะไร อยู่ต่อ
+    // วงนอก = chrome ที่มีความหมาย (rail / TOC คอลัมน์+แผ่น / เมนู): ออกจริง
+    // วัดด้วยพิกัด event กับ rect เสมอ — กันเคส element ถูกแทนที่ระหว่างคลิก
+    // (เดิมใช้ isConnected guard + contains → คลิกหลุดกรอบคอลัมน์นิดเดียวก็ออกทันที)
+    if (!writing.editing || !articleEl || !articleEl.isConnected) return;
+    const strip = stripEl();
+    const mark = markBarEl();
+    if (strip && !strip.hidden && (strip.contains(event.target) || inRect(strip, event, 4))) {
+      return; // โต้ตอบกับแผงควบคุม block — ห้ามโฟกัสกลับ editor ทับ interaction
     }
+    if (mark && !mark.hidden && (mark.contains(event.target) || inRect(mark, event, 4))) {
+      return; // โต้ตอบกับแถบ swatch ของ mark — ห้ามโฟกัสกลับ editor ทับ interaction
+    }
+    const rect = articleEl.getBoundingClientRect();
+    const pad = 48; // ~3rem
+    const inTolerance =
+      event.clientX >= rect.left - pad &&
+      event.clientX <= rect.right + pad &&
+      event.clientY >= rect.top - pad &&
+      event.clientY <= rect.bottom + pad;
+    if (inTolerance) {
+      const hit = event.target.closest
+        ? event.target.closest("a, button, input, select, textarea, summary")
+        : null;
+      if (!hit && writing.handle) writing.handle.focus();
+      return;
+    }
+    const chrome = event.target.closest
+      ? event.target.closest(".doku-rail, .doku-toc-col, .doku-overlay, .doku-menu")
+      : null;
+    if (chrome) void exitWriting();
+    // นอกนั้น = พื้นหลังเปล่า → อยู่ต่อ ไม่ออกจากโหมดเขียน
   });
   window.addEventListener("resize", closeMenu);
 
@@ -573,6 +602,7 @@ ${INTERACTIONS_JS}
         resolveAsset: makeAssetResolver(writing.path),
         slashItems,
         onDirective: (info) => renderDirectiveStrip(info),
+        onMark: (info) => renderMarkStrip(info),
         onChange: () => {
           writing.dirty = true;
           setDocStatus("dirty", "กำลังบันทึก…");
@@ -636,7 +666,8 @@ ${INTERACTIONS_JS}
   }
 
   function teardownWriting() {
-    renderDirectiveStrip(null);
+    hideStrip(); // ตัดสินที่ hideStrip ตรง ๆ — ไม่ผ่าน renderDirectiveStrip (pin ไม่รอดออกจากโหมดเขียน)
+    hideMarkBar(); // เช่นเดียวกับ mark swatch strip
     writing.editing = false;
     writing.path = null;
     writing.dirty = false;
@@ -860,7 +891,16 @@ ${INTERACTIONS_JS}
     return items;
   }
 
-  /* block control strip — แถบลอยเมื่อカーเข้า directive block */
+  /* block control strip — แถบลอยเมื่อカーเข้า directive block (docs/08 ข้อ 55)
+     แผง "ไม่ผูกกับ focus ของ editor": editor รายงานตำแหน่ง directive จาก selection เสมอ
+     → ฝั่ง client เป็นผู้ตัดสินว่าเมื่อไหร่ควรซ่อน — pin ระหว่างโต้ตอบ (คลิก select/input
+     ในแผงต้องไม่ทำแผงหาย) และห้าม rebuild DOM กลาง interaction */
+  let stripKey = null; // ตัวตนของ block ที่แผงแสดง (ชื่อ + fence + บรรทัด) — เปลี่ยน = rebuild
+  let stripPin = false; // กำลังโต้ตอบกับแผง — ยังไม่ซ่อนแม้ focus หลุดจาก editor
+  let stripInfo = null; // info ล่าสุด — ใช้ตอน scroll/resize
+  let stripViewTop = null; // viewport-relative top ของ editor host ตอนวางแผงล่าสุด
+  let patchTimer = 0;
+
   function stripEl() {
     let el = document.getElementById("doku-block-strip");
     if (!el && articleEl) {
@@ -868,9 +908,37 @@ ${INTERACTIONS_JS}
       el.id = "doku-block-strip";
       el.className = "doku-block-strip";
       el.hidden = true;
+      el.addEventListener("focusin", () => {
+        stripPin = true;
+      });
+      el.addEventListener("focusout", (event) => {
+        if (!el.contains(event.relatedTarget)) stripPin = false;
+      });
       articleEl.appendChild(el);
     }
     return el;
+  }
+
+  /** พิกัดของ event อยู่ในกรอบ element ไหม — วัดด้วย rect ไม่ใช่ contains อย่างเดียว
+   *  (กันเคส element ถูกแทนที่ระหว่างคลิก → target หลุดจาก DOM) */
+  function inRect(el, event, pad) {
+    if (!el || el.hidden) return false;
+    const r = el.getBoundingClientRect();
+    const p = pad || 0;
+    return (
+      event.clientX >= r.left - p &&
+      event.clientX <= r.right + p &&
+      event.clientY >= r.top - p &&
+      event.clientY <= r.bottom + p
+    );
+  }
+
+  function hideStrip() {
+    stripPin = false;
+    stripKey = null;
+    stripInfo = null;
+    const el = stripEl();
+    if (el) el.hidden = true;
   }
 
   function stripControl(label, node) {
@@ -883,17 +951,42 @@ ${INTERACTIONS_JS}
     return wrap;
   }
 
-  function renderDirectiveStrip(info) {
-    const el = stripEl();
-    if (!el) return;
-    if (!info || !writing.editing) {
-      el.hidden = true;
-      el.textContent = "";
-      return;
+  function positionStrip(el, info) {
+    // วาง "เหนือ" บรรทัด fence และชิดขวาของคอลัมน์อ่าน
+    // → ข้อความในบรรทัด fence ไม่ถูกบัง และหัวข้อ (ชิดซ้าย) ก็ไม่ถูกทับ
+    const stripWidth = el.offsetWidth;
+    const stripHeight = el.offsetHeight;
+    const columnWidth = articleEl ? articleEl.clientWidth : stripWidth;
+    el.style.top = Math.max(0, info.top - stripHeight - 4) + "px";
+    el.style.left = Math.max(0, columnWidth - stripWidth) + "px";
+    if (writing.mounted) stripViewTop = writing.mounted.getBoundingClientRect().top;
+  }
+
+  function syncStripValues(el, info) {
+    // block เดิม — อัปเดตค่า control ที่มีอยู่แทนการ rebuild (dropdown ที่เปิดค้าง/focus
+    // จึงไม่ถูกทำลาย) · ถ้ากำลังพิมพ์/เลือกอยู่ในแผง อย่าแตะค่าที่ control กำลังถือ
+    if (el.contains(document.activeElement)) return;
+    const variant = el.querySelector("[data-variant]");
+    if (variant && variant.value !== info.name) variant.value = info.name;
+    for (const control of el.querySelectorAll("[data-attr]")) {
+      const next = info.attrs[control.getAttribute("data-attr")] || "";
+      if (control.value !== next) control.value = next;
     }
+  }
+
+  /** text input ในแผงแก้แบบ live — debounce ~300ms ต่อการพิมพ์ */
+  function schedulePatch(patch) {
+    clearTimeout(patchTimer);
+    patchTimer = setTimeout(() => {
+      if (writing.handle) writing.handle.patchDirective(patch);
+    }, 300);
+  }
+
+  function buildStrip(el, info, key) {
     const schema = writing.schema;
     const block = schema && schema.blocks ? schema.blocks.find((b) => b.name === info.name) : null;
     el.textContent = "";
+    el.setAttribute("data-strip-key", key);
 
     const name = document.createElement("span");
     name.className = "doku-block-strip-name";
@@ -904,6 +997,7 @@ ${INTERACTIONS_JS}
       // callout ทั้ง 7 type ใช้ renderer เดียวกัน → สลับชื่อ block ได้
       if (schema.variants && schema.variants.indexOf(info.name) !== -1) {
         const select = document.createElement("select");
+        select.setAttribute("data-variant", "1");
         for (const variant of schema.variants) {
           const option = document.createElement("option");
           option.value = variant;
@@ -912,7 +1006,7 @@ ${INTERACTIONS_JS}
           select.appendChild(option);
         }
         select.addEventListener("change", () => {
-          writing.handle.patchDirective({ name: select.value });
+          if (writing.handle) writing.handle.patchDirective({ name: select.value });
         });
         el.appendChild(stripControl("ชนิด", select));
       }
@@ -954,10 +1048,19 @@ ${INTERACTIONS_JS}
           control.size = attr === "title" || attr === "caption" ? 14 : 7;
         }
         control.setAttribute("aria-label", attr);
+        control.setAttribute("data-attr", attr);
+        if (control.tagName === "INPUT") {
+          control.addEventListener("input", () => {
+            const patch = {};
+            patch[attr] = control.value;
+            schedulePatch(patch);
+          });
+        }
         control.addEventListener("change", () => {
+          clearTimeout(patchTimer);
           const patch = {};
           patch[attr] = control.value;
-          writing.handle.patchDirective(patch);
+          if (writing.handle) writing.handle.patchDirective(patch);
         });
         el.appendChild(stripControl(attr, control));
       }
@@ -969,18 +1072,90 @@ ${INTERACTIONS_JS}
     remove.title = "ลบ block นี้";
     remove.setAttribute("aria-label", "ลบ block นี้");
     remove.textContent = "×";
-    remove.addEventListener("click", () => writing.handle.removeDirective());
+    remove.addEventListener("click", () => writing.handle && writing.handle.removeDirective());
     el.appendChild(remove);
 
     el.hidden = false;
-    // วาง "เหนือ" บรรทัด fence และชิดขวาของคอลัมน์อ่าน
-    // → ข้อความในบรรทัด fence ไม่ถูกบัง และหัวข้อ (ชิดซ้าย) ก็ไม่ถูกทับ
-    const stripWidth = el.offsetWidth;
-    const stripHeight = el.offsetHeight;
-    const columnWidth = articleEl ? articleEl.clientWidth : stripWidth;
-    el.style.top = Math.max(0, info.top - stripHeight - 4) + "px";
-    el.style.left = Math.max(0, columnWidth - stripWidth) + "px";
+    positionStrip(el, info);
   }
+
+  function renderDirectiveStrip(info) {
+    if (!writing.editing) {
+      hideStrip();
+      return;
+    }
+    // カーอยู่ใน mark → mark bar ชนะ — block strip หลบจนกว่าカーออกจาก mark
+    if (markInfo) {
+      hideStrip();
+      return;
+    }
+    if (!info) {
+      // カーย้ายออกนอก directive — ซ่อน ยกเว้นแผงกำลังถูก pin (โต้ตอบกับแผงอยู่)
+      if (stripPin) {
+        stripInfo = null;
+        return;
+      }
+      hideStrip();
+      return;
+    }
+    stripInfo = info;
+    const el = stripEl();
+    if (!el) return;
+    const key = info.name + "@" + info.lineFrom + "/" + info.fence;
+    if (!el.hidden && el.getAttribute("data-strip-key") === key) {
+      // block เดิม (รวมกรณี patchDirective จากแผงแล้ว fence เปลี่ยน) — sync ค่า ไม่ rebuild
+      syncStripValues(el, info);
+      positionStrip(el, info);
+      return;
+    }
+    buildStrip(el, info, key);
+  }
+
+  // pin/unpin ด้วย pointer — คลิกในแผง (แม้ target ถูกแทนที่ระหว่างคลิก) = ยัง pin อยู่
+  document.addEventListener("pointerdown", (event) => {
+    if (!writing.editing) return;
+    const mark = markBarEl();
+    if (mark && !mark.hidden && (mark.contains(event.target) || inRect(mark, event, 4))) {
+      markPin = true; // แผง mark คนละ state กับ block strip — ห้ามไปแตะ pin ของอีกฝั่ง
+      return;
+    }
+    markPin = false;
+    const el = stripEl();
+    if (el && !el.hidden && (el.contains(event.target) || inRect(el, event, 4))) {
+      stripPin = true;
+      return;
+    }
+    stripPin = false;
+    // คลิกนอกทั้ง editor และแผง → ซ่อนแผง (การออกจากโหมดเขียนจัดการใน click handler หลัก)
+    const inEditor =
+      writing.mounted &&
+      (writing.mounted.contains(event.target) || inRect(writing.mounted, event, 4));
+    if (!inEditor) hideStrip();
+    if (!inEditor) hideMarkBar();
+  });
+
+  // แผงลอยอยู่บนเอกสาร → ตำแหน่งต้องตาม scroll/resize ด้วย (delta ของ editor host)
+  // ใช้กับทั้ง block strip และ mark swatch strip (แผงเดียว visible ต่อจังหวะ — กฎ mark-ชนะ)
+  function onViewportMove() {
+    if (!writing.mounted) return;
+    const nowTop = writing.mounted.getBoundingClientRect().top;
+    const delta = stripViewTop !== null ? nowTop - stripViewTop : 0;
+    stripViewTop = nowTop;
+    for (const [el, info] of [
+      [stripEl(), stripInfo],
+      [markBarEl(), markInfo],
+    ]) {
+      if (!el || el.hidden || !info) continue;
+      if (delta) {
+        el.style.top = Math.max(0, (parseFloat(el.style.top) || 0) + delta) + "px";
+      }
+      const barWidth = el.offsetWidth;
+      const columnWidth = articleEl ? articleEl.clientWidth : barWidth;
+      el.style.left = Math.max(0, columnWidth - barWidth) + "px";
+    }
+  }
+  window.addEventListener("scroll", onViewportMove, true);
+  window.addEventListener("resize", onViewportMove);
 
   /* ── เข้าโหมดเขียนด้วยการคลิกที่เอกสาร (Notion-like — docs/08 ข้อ 52) ──── */
 
@@ -1001,6 +1176,120 @@ ${INTERACTIONS_JS}
     });
     // a11y: เข้าโหมดเขียนด้วยคีย์บอร์ด (โฟกัสที่เอกสาร + Enter/Space)
     articleEl.setAttribute("tabindex", "-1");
+  }
+
+  /* ── mark swatch strip (docs/08 ข้อ 6/55) — แถบสีของ ==mark== เมื่อカーอยู่ในช่วง ──
+     reuse กลไก pin/ไม่-rebuild ของ block strip เดิม (key ต่อบรรทัด · sync ค่าในที่
+     · pin ระหว่างโต้ตอบ) — แผงลูกแยกจาก block strip เพราะ mark อยู่ “ใน” directive ได้
+     ทั้งสองแผงจึงแข่งกัน — กฎ: カーอยู่ใน mark = mark bar ชนะ (ตัวเฉพาะจุดกว่า) */
+  const MARK_COLORS = ["red", "orange", "amber", "yellow", "green", "teal", "blue", "purple"];
+  // ชุดเดียวกับ schema.colors (BLOCK_COLORS — docs/08 ข้อ 30) · ชื่อไทยไว้ทำ aria-label
+  const MARK_COLOR_LABELS = {
+    red: "แดง",
+    orange: "ส้ม",
+    amber: "เหลืองอำพัน",
+    yellow: "เหลือง",
+    green: "เขียว",
+    teal: "เขียวอมน้ำเงิน",
+    blue: "น้ำเงิน",
+    purple: "ม่วง",
+  };
+  let markKey = null; // ตัวตนของ mark ที่แถบแสดง (บรรทัด) — เปลี่ยน = rebuild
+  let markPin = false; // กำลังโต้ตอบกับแถบ — ยังไม่ซ่อนแม้ focus หลุดจาก editor
+  let markInfo = null; // info ล่าสุดของ mark ที่カーอยู่ (null = ไม่ได้อยู่ใน mark)
+
+  function markBarEl() {
+    let el = document.getElementById("doku-mark-strip");
+    if (!el && articleEl) {
+      el = document.createElement("div");
+      el.id = "doku-mark-strip";
+      el.className = "doku-mark-strip";
+      el.hidden = true;
+      el.addEventListener("focusin", () => {
+        markPin = true;
+      });
+      el.addEventListener("focusout", (event) => {
+        if (!el.contains(event.relatedTarget)) markPin = false;
+      });
+      articleEl.appendChild(el);
+    }
+    return el;
+  }
+
+  function hideMarkBar() {
+    markPin = false;
+    markKey = null;
+    const el = markBarEl();
+    if (el) el.hidden = true;
+  }
+
+  function syncMarkBar(el, info) {
+    // mark เดิม — อัปเดต aria-pressed ในที่ (ไม่ rebuild) · ถ้ากำลังโฟกัสในแถบ อย่าแตะ
+    if (el.contains(document.activeElement)) return;
+    for (const button of el.querySelectorAll("button")) {
+      // ปุ่ม swatch จับคู่ด้วย data-color · ปุ่ม "ไม่ระบุสี" ตรงเมื่อไม่มีสี (null === null)
+      const color = button.classList.contains("doku-mark-clear") ? null : button.getAttribute("data-color");
+      button.setAttribute("aria-pressed", String(color === info.color));
+    }
+  }
+
+  function buildMarkBar(el, info, key) {
+    el.textContent = "";
+    el.setAttribute("data-mark-key", key);
+    const name = document.createElement("span");
+    name.className = "doku-block-strip-name";
+    name.textContent = BLOCK_LABELS.mark;
+    el.appendChild(name);
+    for (const color of MARK_COLORS) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "doku-mark-swatch";
+      button.setAttribute("data-color", color);
+      button.setAttribute("aria-label", "สีไฮไลต์: " + (MARK_COLOR_LABELS[color] || color));
+      button.setAttribute("aria-pressed", String(color === info.color));
+      button.addEventListener("click", () => {
+        if (writing.handle) writing.handle.patchMark(color);
+      });
+      el.appendChild(button);
+    }
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "doku-mark-clear";
+    clear.textContent = "ไม่ระบุสี";
+    clear.setAttribute("aria-label", "ไม่ระบุสี (ลบสีของไฮไลต์)");
+    clear.setAttribute("aria-pressed", String(!info.color));
+    clear.addEventListener("click", () => {
+      if (writing.handle) writing.handle.patchMark(null);
+    });
+    el.appendChild(clear);
+    el.hidden = false;
+    positionStrip(el, info);
+  }
+
+  function renderMarkStrip(info) {
+    if (!writing.editing) {
+      hideMarkBar();
+      return;
+    }
+    markInfo = info;
+    if (!info) {
+      // カ์ออกจาก mark — ซ่อน ยกเว้นกำลัง pin (โต้ตอบกับแถบอยู่)
+      if (markPin) return;
+      hideMarkBar();
+      return;
+    }
+    // อยู่ใน mark → block strip หลบ (กฎ mark-ชนะ — ดูหัวข้อ)
+    hideStrip();
+    const el = markBarEl();
+    if (!el) return;
+    const key = "mark@" + info.lineFrom;
+    if (!el.hidden && el.getAttribute("data-mark-key") === key) {
+      // mark เดิม (patchMark แล้วข้อความเปลี่ยน) — sync สี ไม่ rebuild
+      syncMarkBar(el, info);
+      positionStrip(el, info);
+      return;
+    }
+    buildMarkBar(el, info, key);
   }
 
   /* ── command palette ─────────────────────────────────────────────────── */

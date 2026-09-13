@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { readFileSync } from "node:fs"
 import {
   DocNotFoundError,
   memoryRevisionStore,
@@ -357,6 +358,80 @@ describe("client.js", () => {
       "dragstart",
       "cycleTheme",
       "data-zen",
+    ]) {
+      expect(CLIENT_JS).toContain(marker)
+    }
+  })
+
+  test("block control strip ไม่ผูกกับ focus ของ editor — pin ระหว่างโต้ตอบ ไม่ rebuild กลาง interaction (regression: แผงหายเมื่อคลิก select)", () => {
+    // editor.ts: รายงาน directive จาก selection เสมอ — ห้ามกรองด้วย hasFocus
+    // (เดิม: คลิกที่ strip → CM เสีย focus → ส่ง null → แผงหาย + rebuild DOM ทุก update)
+    const editorSource = readFileSync(new URL("../src/web/editor.ts", import.meta.url), "utf8")
+    expect(editorSource).not.toContain("update.view.hasFocus")
+    expect(editorSource).toContain("options.onDirective?.(directiveAtCursor(update.view))")
+
+    // client.ts: ตัดสินการซ่อนเอง + pin ระหว่างโต้ตอบ + rebuild เฉพาะเปลี่ยน block
+    for (const marker of [
+      "stripPin", // pin ระหว่างโต้ตอบกับแผง
+      "data-strip-key", // rebuild เฉพาะเมื่อชื่อ/บรรทัด fence เปลี่ยน
+      "syncStripValues", // อัปเดตค่า control ในที่ (ไม่สร้าง DOM ใหม่)
+      "data-variant", // select เปลี่ยนชนิด block
+      "schedulePatch", // text input แก้แบบ live (debounce ~300ms)
+      "pointerdown", // คลิกนอกทั้ง CM และแผง → ซ่อน (วัดด้วยพิกัด)
+      "inRect", // วัดด้วย getBoundingClientRect ไม่ใช่ contains อย่างเดียว
+    ]) {
+      expect(CLIENT_JS).toContain(marker)
+    }
+  })
+
+  test("คลิกเยื้องออกจากคอลัมน์เล็กน้อยไม่เด้งออกโหมดเขียน — tolerance zone + neutral gutter + chrome (regression: เด้งกลับโหมดอ่าน)", () => {
+    // เดิม: !articleEl.contains(event.target) → คลิกหลุดกรอบคอลัมน์นิดเดียว = ออกทันที
+    expect(CLIENT_JS).not.toContain("!articleEl.contains(event.target)) void exitWriting()")
+    expect(CLIENT_JS).not.toContain("event.target.isConnected && !articleEl.contains(event.target)")
+    for (const marker of [
+      "inTolerance", // วงใน: rect ของ article ขยาย ~3rem
+      "doku-rail", // วงนอก: sidebar/rail = ออกจริง
+      "doku-toc-col", // วงนอก: TOC คอลัมน์
+      "doku-overlay", // วงนอก: TOC แผ่น / palette / overlay อื่น
+      "doku-menu", // วงนอก: เมนูบริบท
+    ]) {
+      expect(CLIENT_JS).toContain(marker)
+    }
+  })
+
+  test("highlight ==mark== เป็นพื้นเต็มจางสี + แถบ swatch ตั้งค่าสี (regression: brush underline สีไม่เต็มข้อความ / {.color} ค้างเป็นข้อความดิบ — docs/08 ข้อ 6/55)", () => {
+    // prose.ts: พื้นเต็ม mapped ตาม {.color} + clone ตอนพับบรรทัด (ห้ามกลับไป gradient)
+    const proseSource = readFileSync(
+      new URL("../../core/src/styles/prose.ts", import.meta.url),
+      "utf8",
+    )
+    expect(proseSource).toContain("background-color: var(--dk-mapped-bg, var(--d-accent-weak))")
+    expect(proseSource).toContain("box-decoration-break: clone")
+    expect(proseSource).not.toContain("background-image")
+
+    // editor.ts: regex จับ suffix {.color} + ซ่อน suffix เมื่อカーอยู่นอกช่วง + patchMark
+    const editorSource = readFileSync(new URL("../src/web/editor.ts", import.meta.url), "utf8")
+    expect(editorSource).toContain("DOKU_MARK = /==([^=\\n]+?)==(\\{\\.[\\w-]+\\})?/g")
+    expect(editorSource).toContain("patchMark(color: string | null)")
+    expect(editorSource).toContain('"data-color": color')
+    expect(editorSource).toContain("onMark")
+
+    // app.css: .cm-doku-mark ใช้พื้นเต็ม ไม่ใช่ gradient ตายตัว
+    const appCss = readFileSync(new URL("../src/web/styles/app.css", import.meta.url), "utf8")
+    expect(appCss).not.toContain("linear-gradient(transparent 58%")
+    expect(appCss).toContain(".cm-doku-mark")
+    expect(appCss).toContain(".doku-mark-swatch")
+
+    // client.ts: แถบ swatch — pin แยกจาก block strip + patchMark เขียนกลับ markdown + a11y
+    for (const marker of [
+      "renderMarkStrip", // state machine ของแถบ mark
+      "doku-mark-strip", // element แยกจาก block strip (mark อยู่ “ใน” directive ได้)
+      "markPin", // pin ระหว่างโต้ตอบ — reuse กลไก stripPin
+      "data-mark-key", // rebuild เฉพาะเปลี่ยน mark (บรรทัดต่างกัน)
+      "syncMarkBar", // อัปเดตสีในที่ ไม่ rebuild
+      "patchMark(null)", // ปุ่ม “ไม่ระบุสี” ลบ suffix
+      "aria-pressed", // บอกสีปัจจุบันสำหรับ screen reader
+      "สีไฮไลต์: ", // aria-label ชื่อสีไทย
     ]) {
       expect(CLIENT_JS).toContain(marker)
     }

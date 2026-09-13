@@ -5,7 +5,7 @@
  * M3.1: **Live Preview เขียนในที่** — ผิวเดียวกับหน้าอ่าน (docs/08 ข้อ 52)
  *   · syntax marker ซ่อนเมื่อカーอยู่นอก node นั้น
  *   · หัวข้อ/โค้ด/blockquote ได้ decoration ระดับบรรทัด → หน้าตาใกล้ตอนอ่าน
- *   · รูปแสดงเป็น widget ในบรรทัด · `==mark==` ได้ขีดทับใต้ตาม docs/08 ข้อ 6
+ *   · รูปแสดงเป็น widget ในบรรทัด · `==mark==` ได้พื้นจางเต็มช่วง (mapped ตาม `{.color}`) ตาม docs/08 ข้อ 6
  *   · `:::` directive ได้ style ของ fence (ตัว block control strip อยู่ที่ client)
  *
  * ธีมใช้ CSS variable ของ token (`--d-*`) → ตรงกับหน้าอ่านโดยไม่ต้องตั้งค่าซ้ำ
@@ -34,6 +34,8 @@ export interface DokuEditorHandle {
   destroy(): void
   /** แก้ attribute ของ directive ที่カーอยู่ (ค่าที่เขียนกลับเป็นข้อความ markdown) */
   patchDirective(patch: Record<string, string | null>): void
+  /** ตั้ง/ลบสีของ `==mark==` ที่カーอยู่ในช่วง — null = ลบ `{.color}` (เขียนกลับเป็น markdown เสมอ) */
+  patchMark(color: string | null): void
   /** ลบ directive block ที่カーอยู่ทั้ง block (รวม fence ปิด) */
   removeDirective(): void
 }
@@ -49,6 +51,8 @@ export interface DokuEditorOptions {
   slashItems?: SlashItem[]
   /** カーเข้า/ออก directive block — client ใช้โชว์ block control strip */
   onDirective?: (info: DirectiveInfo | null) => void
+  /** カ์อยู่ใน `==mark==` หรือไม่ — client ใช้โชว์แถบ swatch สี (docs/08 ข้อ 55) */
+  onMark?: (info: MarkInfo | null) => void
   onChange?: (value: string) => void
   onSave?: (value: string) => void
   /** カーออกจาก editor (คลิกนอกกล่อง) — ให้ client ปิดโหมดเขียน */
@@ -107,7 +111,8 @@ const markDeco = (cls: string) => Decoration.mark({ class: cls })
 const hide = () => Decoration.replace({})
 
 const DOKU_FENCE = /^(:{3,})\s*([\w-]*)\s*(\{[^}]*\})?\s*$/
-const DOKU_MARK = /==([^=\n]+)==/g
+/** จับ suffix `{.color}` ด้วย — カーอยู่นอกช่วงต้องซ่อนทั้ง `==` และ suffix (docs/08 ข้อ 52) */
+const DOKU_MARK = /==([^=\n]+?)==(\{\.[\w-]+\})?/g
 
 /** ซ่อน marker + ใส่คลาสระดับบรรทัด — เฉพาะช่วงที่มองเห็น (ไม่เดินทั้งเอกสาร) */
 function buildDecorations(view: EditorView, resolveAsset: (src: string) => string): DecorationSet {
@@ -214,11 +219,19 @@ function buildDecorations(view: EditorView, resolveAsset: (src: string) => strin
       while (match) {
         const start = line.from + match.index
         const end = start + match[0].length
+        const color = match[2] ? match[2].slice(2, -1) : ""
+        // Decoration.mark แนบ data-color → CSS อ่าน --dk-mapped-bg ตาม {.color} (ผิวเดียวกับหน้าอ่าน)
+        const deco = Decoration.mark({
+          class: "cm-doku-mark",
+          ...(color ? { attributes: { "data-color": color } } : {}),
+        })
+        ranges.push({ from: start, to: end, value: deco })
         if (!touching(start, end)) {
           ranges.push({ from: start, to: start + 2, value: hide() })
           ranges.push({ from: end - 2, to: end, value: hide() })
+          // ซ่อน `{.color}` ท้ายช่วงด้วย — ไม่งั้นผู้ใช้เห็นข้อความดิบค้าง (docs/08 ข้อ 52)
+          if (match[2]) ranges.push({ from: end - match[2].length, to: end, value: hide() })
         }
-        ranges.push({ from: start, to: end, value: markDeco("cm-doku-mark") })
         match = DOKU_MARK.exec(text)
       }
       if (line.to >= doc.length) break
@@ -409,6 +422,47 @@ function writeAttrs(
   view.dispatch({ changes: { from: line.from, to: line.to, insert: next } })
 }
 
+/* ── mark: แถบ swatch สีของ ==mark== (docs/08 ข้อ 6/55) ───────────────── */
+
+export interface MarkInfo {
+  /** สีปัจจุบันจาก `{.color}` — null = ไม่ระบุ (ใช้ accent) */
+  color: string | null
+  /** ต้นบรรทัดของ mark (key กัน rebuild แถบ) */
+  lineFrom: number
+  /** ตำแหน่งบนจอ (สำหรับวางแถบ swatch) */
+  top: number
+  left: number
+}
+
+/** หา mark ที่カーอยู่ในช่วง — mark ไม่ข้ามบรรทัด (regex กัน \n) จึงสแกนบรรทัดเดียวพอ */
+function markAtCursor(view: EditorView): MarkInfo | null {
+  const pos = view.state.selection.main.head
+  const line = view.state.doc.lineAt(pos)
+  DOKU_MARK.lastIndex = 0
+  let match = DOKU_MARK.exec(line.text)
+  while (match) {
+    const start = line.from + match.index
+    const end = start + match[0].length
+    if (pos >= start && pos <= end) {
+      const info: MarkInfo = {
+        color: match[2] ? match[2].slice(2, -1) : null,
+        lineFrom: line.from,
+        top: 0,
+        left: 0,
+      }
+      const coords = view.coordsAtPos(start)
+      if (coords) {
+        const rect = view.dom.getBoundingClientRect()
+        info.top = coords.top - rect.top
+        info.left = coords.left - rect.left
+      }
+      return info
+    }
+    match = DOKU_MARK.exec(line.text)
+  }
+  return null
+}
+
 /* ── theme: ให้ตรงกับหน้าอ่าน (docs/03 §1.3) ───────────────────────────── */
 
 const theme = EditorView.theme({
@@ -476,11 +530,16 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
   if (options.slashItems && options.slashItems.length > 0) {
     extensions.push(slashCompletion(options.slashItems))
   }
-  if (options.onDirective) {
+  if (options.onDirective || options.onMark) {
     extensions.push(
       EditorView.updateListener.of((update) => {
         if (!update.selectionSet && !update.docChanged && !update.focusChanged) return
-        options.onDirective?.(update.view.hasFocus ? directiveAtCursor(update.view) : null)
+        // รายงานตำแหน่ง directive จาก selection เสมอ แม้ focus จะอยู่นอก editor
+        // (เช่น ผู้ใช้คลิกที่ block control strip) — การตัดสินซ่อน/โชว์เป็นหน้าที่ของ client
+        // ห้ามกรองด้วย hasFocus: คลิกที่แผง = CM เสีย focus แต่カーยังอยู่ใน block เดิม
+        // รายงาน mark ก่อน directive — client ให้ mark (ตัวเฉพาะจุดกว่า) ชนะเมื่อทั้งคู่ active
+        options.onMark?.(markAtCursor(update.view))
+        options.onDirective?.(directiveAtCursor(update.view))
       }),
     )
   }
@@ -508,6 +567,28 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
     patchDirective: (patch) => {
       const info = directiveAtCursor(view)
       if (info) writeAttrs(view, info, patch)
+    },
+    patchMark: (color) => {
+      const pos = view.state.selection.main.head
+      const line = view.state.doc.lineAt(pos)
+      DOKU_MARK.lastIndex = 0
+      let match = DOKU_MARK.exec(line.text)
+      while (match) {
+        const start = line.from + match.index
+        const end = start + match[0].length
+        if (pos >= start && pos <= end) {
+          const body = match[1] as string
+          const next = color ? `==${body}=={.${color}}` : `==${body}==`
+          // คงカーในช่วงข้อความ (clamp กันเลื่อนออกนอก mark เมื่อ suffix ยาวขึ้น/สั้นลง)
+          const cursor = Math.min(Math.max(pos, start + 2), start + 2 + body.length)
+          view.dispatch({
+            changes: { from: start, to: end, insert: next },
+            selection: EditorSelection.cursor(cursor),
+          })
+          return
+        }
+        match = DOKU_MARK.exec(line.text)
+      }
     },
     removeDirective: () => {
       const info = directiveAtCursor(view)

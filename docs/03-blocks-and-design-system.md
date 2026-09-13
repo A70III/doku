@@ -664,6 +664,7 @@ migrate แล้วใน UI pass ([08 ข้อ 36](08-decisions.md))
   (fragment ที่ cache = warnings + เนื้อหา · ชื่อเรื่อง render จาก meta ที่ TSX)
 - syntax marker ซ่อนเมื่อカーอยู่นอก node · node ที่ render ได้ (table · figure · code · math · `:::`) กลายเป็น widget ในบรรทัด
 - **block control strip** ลอยเหนือบรรทัดแรกของ `:::` เมื่อカーเข้า → แก้ variant/`color=`/`title=`/`icon=`/align/width แล้ว **เขียนกลับเป็นข้อความ directive**
+  · สีของ `==mark==` แก้ผ่านแถบ swatch เมื่อカーอยู่ในช่วง — เขียนกลับ `{.color}` ใน markdown เสมอ (docs/08 ข้อ 6/55)
 - autosave ตาม debounce · ออกด้วย `Esc` (カーออกจากเอกสาร → คีย์ลัดงานอ่านกลับมาทำงาน)
 - ยังไม่มีカー = หน้าตาเหมือนหน้าอ่านทุกอย่าง ต่างกันแค่พิมพ์ได้
 

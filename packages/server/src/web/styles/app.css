@@ -714,6 +714,49 @@ html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
   line-height: 1;
 }
 
+/* ── mark swatch strip (docs/08 ข้อ 6/55) — แถบสีของ ==mark== ลอยเหนือบรรทัด
+   เมื่อカーอยู่ในช่วง · reuse กลไก block strip (pin + sync ค่าในที่ ไม่ rebuild) */
+.doku-mark-strip {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--d-space-2);
+  max-width: 100%;
+  padding: var(--d-space-1) var(--d-space-2);
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-md);
+  background: var(--k-bg);
+  box-shadow: var(--k-shadow-md);
+  font-size: var(--d-text-xs);
+  color: var(--d-text-muted);
+}
+.doku-mark-strip[hidden] {
+  display: none;
+}
+.doku-mark-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--d-border-control);
+  border-radius: var(--d-radius-sm);
+  /* สีจุด = --dk-mapped-color ที่ tokens คำนวณจาก data-color · ไม่มี = accent */
+  background: var(--dk-mapped-color, var(--d-accent));
+}
+.doku-mark-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--d-accent);
+  outline-offset: 1px;
+}
+.doku-mark-clear {
+  padding: 0.1rem 0.3rem;
+  border: 1px solid var(--d-border-control);
+  border-radius: var(--d-radius-sm);
+  background: var(--k-bg);
+  font: inherit;
+  font-size: var(--d-text-xs);
+  color: var(--k-text);
+}
+
 /* ── slash menu (CodeMirror autocomplete) ─────────────────────────────── */
 .cm-tooltip.cm-tooltip-autocomplete {
   border: 1px solid var(--d-border);
@@ -811,7 +854,13 @@ html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
   text-underline-offset: 2px;
 }
 .cm-doku-mark {
-  background-image: linear-gradient(transparent 58%, var(--d-accent-weak) 58%);
+  /* พื้นเต็มจางสี เหมือนหน้าอ่าน (docs/08 ข้อ 6) — data-color ที่ Decoration แนบ
+     ให้ --dk-mapped-bg จาก tokens (content.css โหลดอยู่แล้วบนหน้าเอกสาร) */
+  color: inherit;
+  padding: 0 0.1em;
+  background-color: var(--dk-mapped-bg, var(--d-accent-weak));
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 .cm-doku-image {
   display: block;
