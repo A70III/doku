@@ -19,6 +19,13 @@
     background: var(--d-accent-weak);
   }
 
+  /* สลับ read ↔ write (และเปลี่ยนหน้า) ทำให้ document สูงคร่อมเส้น scrollable ได้ —
+     จองราง scrollbar ไว้ถาวร ไม่ให้ scrollbar โผล่/หายจน shell ที่จัดกลางเลื่อนซ้าย-ขวา
+     (rail เด้ง) · คู่กับการล็อกความสูงใน client.ts (docs/08 ข้อ 64) */
+  html {
+    scrollbar-gutter: stable;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     html {
       scroll-behavior: smooth;

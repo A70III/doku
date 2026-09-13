@@ -80,7 +80,7 @@ async function bootInteractions(markdown = MD) {
   const body = document.getElementById("doku-doc-body") as HTMLElement
   const click = (selector: string) => {
     const node = document.querySelector(selector)
-    if (!node) throw new Error("ไม่เจอ element: " + selector)
+    if (!node) throw new Error(`ไม่เจอ element: ${selector}`)
     node.dispatchEvent(new window.Event("click", { bubbles: true, cancelable: true }))
     return node
   }

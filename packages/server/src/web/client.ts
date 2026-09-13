@@ -703,10 +703,24 @@ ${INTERACTIONS_JS}
   function offsetForElement(md, target) {
     if (!target || !target.closest) return null;
     const block = target.closest("p, li, h1, h2, h3, h4, h5, h6, pre, aside, figure, blockquote, td");
-    const text = (block ? block.textContent : "").trim().slice(0, 32);
+    if (!block) return null;
+    // ต้องถอด decorative anchor ก่อนอ่านข้อความ — heading ถูกเติม a.doku-anchor ("#") ต่อท้าย
+    // ถ้าไม่ถอดจะหา "หัวข้อ 3#" ใน markdown ไม่เจอ → カーตกไปต้นไฟล์ทุกครั้งที่คลิกหัวข้อ
+    const clone = block.cloneNode(true);
+    for (const anchor of $$("a.doku-anchor", clone)) anchor.remove();
+    const text = (clone.textContent || "").trim();
     if (!text) return null;
-    const index = md.indexOf(text);
-    return index >= 0 ? index : null;
+    // ลองข้อความเต็มก่อน (block สั้นอย่างหัวข้อ "หัวข้อ 6" ใช้ได้เลย) แล้วค่อยใช้ prefix
+    // ที่สั้นลงสำหรับ block ที่ขึ้นต้นด้วย inline markup (**หนา** / [ลิงก์] / code)
+    // เพราะข้อความจาก DOM กับ markdown ไม่ตรงกันตรง ๆ · prefix สั้นกว่า 12 ตัวไม่ใช้
+    // (เสี่ยงไป match ข้อความเดียวกันที่อยู่ต้นเอกสาร)
+    for (const length of [text.length, 32, 24, 16, 12]) {
+      const needle = text.slice(0, length);
+      if (needle.length !== text.length && needle.length < 12) continue;
+      const index = md.indexOf(needle);
+      if (index >= 0) return index;
+    }
+    return null;
   }
 
   function isInteractiveTarget(target) {
@@ -718,17 +732,174 @@ ${INTERACTIONS_JS}
     );
   }
 
-  function mountWritingSurface(md, anchor, slashItems) {
+  /* ── สลับ read ↔ write แล้วทั้ง layout และ "บรรทัดที่カーอยู่" ต้องไม่ขยับ ─────
+     ระหว่างสลับ DOM (ล้าง body ตอนเข้า · ลบ editor host ตอนออก) คอลัมน์อ่านสูงเป็น 0 ชั่วขณะ
+     → document สูงไม่ถึง viewport → ① เบราว์เซอร์ clamp scrollY เป็น 0 (วัดจริง: อ่านอยู่ที่
+     scrollY 1200 แล้วเด้งไป 0) ② scrollbar ถูกถอด–ใส่กลับ ทำให้ shell ที่ "margin-inline: auto"
+     เลื่อนซ้าย/ขวา (rail เด้งไปเด้งมา)
+     อีกชั้น: prose กับ editor ใช้ rhythm ต่างกัน → เอกสารยาวไม่เท่ากัน (วัดจริง 5362px vs 4031px)
+     → คืน scrollY ตรง ๆ ยังทำให้บรรทัดเดิมเลื่อน ~1.2k px · จึงยึด "บรรทัด" ไม่ใช่ตัวเลข:
+     จำข้อความ + ตำแหน่งบนจอของบรรทัดนั้น แล้วจัดบรรทัดเดียวกันให้อยู่ที่เดิมหลังสลับ */
+
+  /** ล็อกความสูงคอลัมน์อ่านไว้ระหว่างสลับ DOM (คืนความสูงเดิมเป็น px) */
+  function lockReadingHeight() {
+    if (!bodyEl) return 0;
+    const height = Math.round(bodyEl.getBoundingClientRect().height);
+    if (height > 0) bodyEl.style.minHeight = height + "px";
+    return height;
+  }
+
+  function releaseReadingHeight() {
+    if (bodyEl) bodyEl.style.minHeight = "";
+  }
+
+  /** เลื่อนแบบไม่ให้เห็นการเลื่อน — <html> ตั้ง "scroll-behavior: smooth" ไว้ (docs/03 §7)
+   *  ถ้าใช้ "scrollTo(0, top)" ธรรมดาจะกลายเป็นเลื่อนยาวให้เห็น = "เด้ง" */
+  function applyScrollTop(top) {
+    window.scrollTo({ top: Math.max(0, Math.round(top)), left: 0, behavior: "instant" });
+  }
+
+  /** เนื้อความที่ตัด inline markup กับ decorative anchor — ใช้เทียบสองฝั่ง
+   *  (prose ↔ markdown source · ตัว # ท้ายหัวข้อมาจาก rehype-autolink-headings)
+   *  TICK = backtick แบบไม่เขียนตรง ๆ (โค้ดนี้อยู่ใน template literal) */
+  const TICK = String.fromCharCode(96);
+  function plainText(text) {
+    return String(text || "")
+      .split(TICK)
+      .join("")
+      .replace(/[*_~#]/g, "")
+      .replace(/\\s+/g, " ")
+      .trim();
+  }
+
+  /** ข้อความที่ใช้ตามหา "บรรทัดเดิม" — เป็นกลางทั้ง markdown และ prose
+   *  (ตัด marker ต้นบรรทัดก่อน แล้ว normalize แบบเดียวกับ plainText) */
+  function alignedNeedle(text) {
+    const line = String(text || "")
+      .replace(/^[\\s>#]+/, "")
+      .replace(/^(?:[-*+]|\\d+[.)])\\s+/, "");
+    return plainText(line).slice(0, 24);
+  }
+
+  /** บรรทัดที่ใช้เป็น "ที่เดิม" ตอนออกจากโหมดเขียน
+   *  = บรรทัดที่カーอยู่ "ถ้าอยู่ในจอ" · ไม่งั้นบรรทัดบนสุดที่มองเห็น
+   *  (カーอาจตกไปต้นไฟล์เมื่อ offsetForElement หา block ใน markdown ไม่เจอ —
+   *  เช่นบรรทัดขึ้นต้นด้วย inline markup · ออกโหมดแล้วต้องยึดที่ "สิ่งที่เห็นอยู่") */
+  function anchorLine() {
+    const selection = window.getSelection ? window.getSelection() : null;
+    const node = selection ? selection.anchorNode : null;
+    const element = node ? (node.nodeType === 1 ? node : node.parentElement) : null;
+    const caret = element && element.closest ? element.closest(".cm-line") : null;
+    const visible = (line) => {
+      const rect = line.getBoundingClientRect();
+      return rect.bottom > 0 && rect.top < window.innerHeight;
+    };
+    const line = caret && visible(caret) ? caret : firstVisibleLine();
+    if (!line) return null;
+    const needle = alignedNeedle(line.textContent);
+    if (needle.length < 4) return null;
+    return { top: line.getBoundingClientRect().top, needle };
+  }
+
+  /** บรรทัดบนสุดที่ยังเห็นบนจอ (ไล่ตามลำดับเอกสาร) */
+  function firstVisibleLine() {
+    for (const line of $$(".cm-line", bodyEl)) {
+      if (line.getBoundingClientRect().bottom > 0) return line;
+    }
+    return null;
+  }
+
+  /** จัด element ที่มีข้อความเดียวกันให้อยู่ที่ viewport top เดิม
+   *  เลือก element เล็กสุดที่เข้าเงื่อนไข (li ห่อ p → เอา p)
+   *  คืนระยะที่เพี้ยนก่อนจัด (px · ≤ 1 = นิ่งแล้ว) — คืน null = หาไม่เจอ */
+  function alignByNeedle(needle, top) {
+    if (!needle || needle.length < 4) return null;
+    const depth = (node) => {
+      let count = 0;
+      for (let el = node; el && el !== bodyEl; el = el.parentElement) count += 1;
+      return count;
+    };
+    const candidates = $$("p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td, .cm-line", bodyEl)
+      .filter((node) => plainText(node.textContent).includes(needle))
+      // ข้อความสั้นสุด = บล็อกที่ตรงที่สุด · ยาวเท่ากัน (li ห่อ p) → ตัวที่ลึกกว่า
+      // (ไม่เรียงตามระยะบนจอ: ตอน CM ยังไม่วัด layout ตำแหน่งเป็นค่า estimate → เลือกมั่วได้)
+      .sort(
+        (a, b) => (a.textContent || "").length - (b.textContent || "").length || depth(b) - depth(a),
+      );
+    const hit = candidates[0];
+    if (!hit) return null;
+    const delta = hit.getBoundingClientRect().top - top;
+    if (Math.abs(delta) > 1) applyScrollTop(window.scrollY + delta);
+    return Math.abs(delta);
+  }
+
+  /** ปล่อยความสูงที่ล็อก + จัดบรรทัดเดิมให้อยู่ที่เดิม (fallback = คืน scrollY)
+   *  CM วัด layout เป็นระยะ — จัดครั้งเดียวแล้วบรรทัดยังเลื่อนต่อได้อีก ~350px (วัดจริง)
+   *  จึงวนจน "นิ่งจริง": อย่างน้อย MIN เฟรม และ residual ≤ 1 ติดกัน STABLE เฟรม
+   *  อ่าน/เขียน layout + scroll ใน rAF เดียวกัน → การปรับไม่ปรากฎเป็นภาพ
+   *  หยุดเมื่อ: カーย้ายเอง (wheel/touch/key) · ออกจากโหมดเขียน · ครบ MAX เฟรม */
+  const SETTLE_MIN_FRAMES = 8;
+  const SETTLE_STABLE_FRAMES = 4;
+  const SETTLE_MAX_FRAMES = 45;
+
+  function settleReadingHeight(scrollTop, needle, top) {
+    if (!bodyEl) return;
+    const host = bodyEl.firstElementChild;
+    let tries = 0;
+    let stable = 0;
+    let released = false;
+    let moved = false;
+    const onUserMove = () => {
+      moved = true;
+    };
+    window.addEventListener("wheel", onUserMove, { passive: true });
+    window.addEventListener("touchmove", onUserMove, { passive: true });
+    window.addEventListener("keydown", onUserMove);
+    const cleanup = () => {
+      window.removeEventListener("wheel", onUserMove);
+      window.removeEventListener("touchmove", onUserMove);
+      window.removeEventListener("keydown", onUserMove);
+    };
+    const step = () => {
+      tries += 1;
+      // カーย้ายเอง หรือออกจากโหมดเขียนไปแล้ว → หยุดแทรกแซงทันที
+      const aborted = moved || !writing.editing || writing.mounted !== host;
+      const residual = aborted ? null : alignByNeedle(needle, top);
+      stable = residual !== null && residual <= 1 ? stable + 1 : 0;
+      if (!released && (stable > 0 || tries >= SETTLE_MIN_FRAMES)) {
+        releaseReadingHeight();
+        released = true;
+      }
+      const settled = tries >= SETTLE_MIN_FRAMES && stable >= SETTLE_STABLE_FRAMES;
+      if (aborted || settled || tries >= SETTLE_MAX_FRAMES) {
+        cleanup();
+        if (!released) releaseReadingHeight();
+        if (!aborted && residual === null) applyScrollTop(scrollTop);
+        return;
+      }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function mountWritingSurface(md, anchorOffset, slashItems, clicked) {
+    const rect = clicked && clicked.getBoundingClientRect ? clicked.getBoundingClientRect() : null;
+    const needle = clicked && clicked.textContent ? alignedNeedle(clicked.textContent) : "";
+    const scrollTop = window.scrollY;
+    lockReadingHeight();
     const host = document.createElement("div");
     host.className = "doku-inline-editor";
     bodyEl.textContent = "";
     bodyEl.appendChild(host);
     writing.mounted = host;
+    // ยังไม่ทัน paint — คืนตำแหน่งไว้ก่อน (ความสูงถูกล็อกแล้ว scroll จึงไม่ถูก clamp)
+    applyScrollTop(scrollTop);
+    settleReadingHeight(scrollTop, needle, rect ? rect.top : 0);
 
     if (window.DokuEditor) {
       writing.handle = window.DokuEditor.create(host, {
         doc: md,
-        anchor,
+        anchor: anchorOffset,
         placeholder: "เริ่มเขียน… (พิมพ์ / เพื่อแทรก block)",
         resolveAsset: makeAssetResolver(writing.path),
         slashItems,
@@ -781,7 +952,8 @@ ${INTERACTIONS_JS}
     // ไม่งั้น autosave ที่เราเขียนเองจะ trigger watcher → SSE → reload กลางการพิมพ์
     docEl.setAttribute("data-editing", "1");
     setDocStatus("clean", "พร้อมแก้ไข");
-    mountWritingSurface(payload.md, offsetForElement(payload.md, anchor), buildSlashItems(schema));
+    // ส่งทั้ง offset (ให้ CM วางカー) และ element ที่คลิก (ให้จัด "บรรทัดเดิม" กลับที่เดิม)
+    mountWritingSurface(payload.md, offsetForElement(payload.md, anchor), buildSlashItems(schema), anchor);
   }
 
   function writeSnapshot() {
@@ -956,13 +1128,22 @@ ${INTERACTIONS_JS}
     if (!writing.editing) return;
     // ต้องจำ doc id ก่อน teardown — ไม่งั้น paint จะ render เป็น "untitled"
     const docId = writing.path;
+    const caret = anchorLine();
+    const scrollTop = window.scrollY;
+    lockReadingHeight();
     const md = await flushAndTeardown();
     try {
       await paintRendered(md, docId);
     } catch (error) {
       fail(error);
+      releaseReadingHeight();
       reload();
+      return;
     }
+    // editor กับ prose ยาวไม่เท่ากัน — ยึด "บรรทัดที่カーอยู่" ไม่ใช่ตัวเลข scrollY
+    const residual = caret ? alignByNeedle(caret.needle, caret.top) : null;
+    if (residual === null) applyScrollTop(scrollTop);
+    releaseReadingHeight();
   }
 
   /* ── slash menu + block control strip (docs/08 ข้อ 55) ─────────────────── */

@@ -149,6 +149,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · แผงควบคุม block ไม่ผูกกับ focus ของ CM — pin ระหว่างโต้ตอบ + ไม่ rebuild DOM + live patch (ข้อ 62)
   · ออกโหมดเขียนแบบ 3 วง: tolerance ~3rem รอบคอลัมน์ + neutral gutter + คลิก chrome/`Esc` (ปรับข้อ 54)
   · block interaction ต้องติดตั้งซ้ำได้หลัง `innerHTML` ถูกวาดใหม่ — delegation + `window.DokuInteractions` (ข้อ 63)
+  · สลับ read ↔ write แล้ว rail/layout ต้องอยู่นิ่ง + ยึด "บรรทัดเดิม" ไม่ใช่ scrollY — height lock + instant scroll + `scrollbar-gutter: stable` + `offsetForElement` แก้ caret (ข้อ 64)
   · **ยังรอเคาะ**: Q7 asset filename charset (รอ upload API M4)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
