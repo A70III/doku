@@ -107,7 +107,11 @@
 **พื้นที่เขียน — พิมพ์ได้ทันที ไม่มีปุ่มแก้ไข** ([08 ข้อ 52/54/55](08-decisions.md))
 
 - [x] **เอกสารเป็น editor ตั้งแต่แรก** — เลิก overlay/split **และเลิกปุ่ม "แก้ไข"** · เอกสารที่ render แล้วเป็น CM6 Live Preview ในคอลัมน์เดิม · กว้าง/ฟอนต์/leading เท่ากับตอนอ่าน · ไม่มี mode switch
-- [x] **Live Preview** — ซ่อน syntax marker เมื่อカーออกจาก node · widget สำหรับ table · figure · code · math · callout (`:::`)
+- [x] **Live Preview** — ซ่อน syntax marker เมื่อカーออกจาก node (emphasis · inline code · strikethrough · link URL · `==mark==`)
+      · รูป `![](...)` เป็น **widget** ในบรรทัด (resolve asset ตามโฟลเดอร์เอกสาร)
+      · หัวข้อ/โค้ด/ตาราง/quote/`:::` ได้ decoration **ระดับบรรทัด** ตาม reading scale
+      _(ยังไม่ทำในรอบนี้: widget ที่ render เต็มของ table/callout/tabs/math — ยังเห็นเป็นข้อความ markdown ที่จัดสไตล์แล้ว
+      แก้ attribute ของ block เหล่านั้นผ่าน block control strip แทน)_
 - [x] **slash menu** — `/` → เมนู block ภาษาไทย (กรองได้) → แทรก directive จริง (รวม `::::tabs`+`:::tab` ตามข้อ 24) · ใช้ `@codemirror/autocomplete`
 - [x] **block control strip** — แถบลอยเมื่อカーเข้า block: variant · `color=` · `title=` · `icon=` · align/width · ลบ block → **เขียนกลับเป็น directive text** · รายการ attribute มาจาก `/api/schema`
 - [x] **คุณสมบัติ inline** — property panel บนหัวเอกสาร (ชื่อ · แท็ก · สรุป · สถานะ · theme) ไม่ใช่ modal
