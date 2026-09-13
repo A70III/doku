@@ -7,6 +7,7 @@ import {
   blockText,
   computeBlocks,
   deleteBlock,
+  directiveTitle,
   duplicateBlock,
   indentBlock,
   moveBlock,
@@ -214,5 +215,34 @@ describe("block operations (md → md)", () => {
         blockText(turnIntoBlock(MD, paragraph, "code"), b).includes("ย่อหน้าแรก"),
     )
     expect(code).toBeDefined()
+  })
+})
+
+/**
+ * Regression — หัว block ใน editor แสดงชื่อ block กลาง ๆ แทนข้อความของผู้ใช้
+ *
+ * อาการ (รายงานจากผู้ใช้): `:::progress{label="อาหารเป็นพิษ"}` ใน editor เห็นหัวเป็น
+ * "แถบความคืบหน้า" เฉย ๆ — ไม่มีวี่แววของ label/value ที่ตัวเองเขียน
+ *
+ * root cause: `BlockHeadWidget` รับชื่อจาก `block.attrs.title` อย่างเดียว → block ที่
+ * ตั้งชื่อด้วย attribute อื่น (`label` ของ progress/stat · `caption` ของ figure) ได้ค่าว่าง
+ * ต่างจาก callout (note/tip) ที่ใช้ `title` จึงเห็นข้อความตามปกติ
+ *
+ * อ้างอิง: docs/08 ข้อ 79
+ */
+describe("directiveTitle — หัว block ต้องสื่อข้อความของผู้ใช้", () => {
+  test("ใช้ attribute ตัวแรกที่มีค่า: title → label → caption", () => {
+    expect(directiveTitle({ title: "เกร็ด" })).toBe("เกร็ด")
+    expect(directiveTitle({ label: "อาหารเป็นพิษ" })).toBe("อาหารเป็นพิษ")
+    expect(directiveTitle({ caption: "Fig 1 — render pipeline" })).toBe("Fig 1 — render pipeline")
+    expect(directiveTitle({ title: "", label: "M2 — blocks" })).toBe("M2 — blocks")
+    expect(directiveTitle({ title: "", label: "", caption: "B — poster" })).toBe("B — poster")
+  })
+
+  test("ไม่มี attribute ที่ใช้ตั้งชื่อ → ค่าว่าง (client ตกไปใช้ชื่อ block)", () => {
+    expect(directiveTitle({})).toBe("")
+    expect(directiveTitle(undefined)).toBe("")
+    expect(directiveTitle({ value: "70" })).toBe("")
+    expect(directiveTitle({ label: "   " })).toBe("")
   })
 })

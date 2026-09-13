@@ -336,6 +336,31 @@ async function runEditorScenarios(
   const after = await readMd(base, docId)
   add("ลาก block → markdown ถูกจัดลำดับใหม่", before !== after)
 
+  // 8) คลิกหัว `:::` → เปิด source ของบรรทัด fence (docs/08 ข้อ 79)
+  const headBox = await page.evaluate(() => {
+    const head = document.querySelector(".cm-doku-block-head") as HTMLElement | null
+    if (!head) return null
+    const rect = head.getBoundingClientRect()
+    return {
+      heads: document.querySelectorAll(".cm-doku-block-head").length,
+      x: rect.left + 40,
+      y: rect.top + rect.height / 2,
+    }
+  })
+  let revealed = false
+  if (headBox) {
+    await page.mouse.click(headBox.x, headBox.y)
+    await page.waitForTimeout(250)
+    revealed = await page.evaluate((headsBefore) => {
+      const lines = [...document.querySelectorAll(".cm-line")].map((line) => line.textContent ?? "")
+      const hasFence = lines.some((text) => /^:{3,}\s*[\w-]/.test(text.trim()))
+      const headsNow = document.querySelectorAll(".cm-doku-block-head").length
+      return hasFence && headsNow === headsBefore - 1
+    }, headBox.heads)
+    if (revealed) await shot("scenario-directive-source")
+  }
+  add("คลิกหัว `:::` → เห็น source ของ fence", revealed)
+
   add("ไม่มี JS error ระหว่าง scenario", jsErrors.length === 0, jsErrors.slice(0, 2).join(" | "))
   return results
 }

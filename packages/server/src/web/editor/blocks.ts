@@ -64,6 +64,23 @@ export function parseAttrs(raw: string | undefined): Record<string, string> {
   return attrs
 }
 
+/** attribute ที่ "ตั้งชื่อ" block — เรียงตามลำดับความหมาย (docs/08 ข้อ 79)
+ * `note`/`card` ใช้ `title` · `progress`/`stat` ใช้ `label` · `figure` ใช้ `caption` */
+export const DIRECTIVE_TITLE_ATTRS = ["title", "label", "caption"] as const
+
+/** ข้อความที่โชว์บนหัว block ใน editor — ใช้ attribute ที่ผู้ใช้ตั้งเองตัวแรกที่มีค่า
+ *
+ * หัว block บอก "ก้อนนี้คืออะไร" จึงต้องมีข้อความของผู้ใช้ ไม่ใช่แค่ชื่อ block กลาง ๆ
+ * (progress ที่ label="อาหารเป็นพิษ" ต้องไม่เห็นแค่ "แถบความคืบหน้า") — ค่าว่าง = ใช้ชื่อ block */
+export function directiveTitle(attrs: Record<string, string> | undefined): string {
+  if (!attrs) return ""
+  for (const key of DIRECTIVE_TITLE_ATTRS) {
+    const value = (attrs[key] ?? "").trim()
+    if (value) return value
+  }
+  return ""
+}
+
 /** สแกน `:::` ในช่วงบรรทัด — stack ตามความยาว fence (ชั้นนอกต้องยาวกว่าชั้นใน — docs/08 ข้อ 24) */
 export function scanDirectives(
   doc: EditorState["doc"],

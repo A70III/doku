@@ -82,6 +82,32 @@ describe("editor read-parity (Track B)", () => {
   })
 })
 
+describe("หัว block + การ reveal source ของ `:::` (docs/08 ข้อ 79)", () => {
+  test("カーอยู่บนบรรทัด fence → ไม่ replace ด้วย head widget (เห็น source ของตัวเอง)", () => {
+    const at = EDITOR_SOURCE.indexOf("new BlockHeadWidget(")
+    expect(at).toBeGreaterThan(-1)
+    // guard ต้องอยู่ก่อนสร้าง widget — สมมาตรกับ fence ปิด + marker อื่นทุกตัว
+    expect(EDITOR_SOURCE.slice(Math.max(0, at - 600), at)).toContain(
+      "!touching(openLine.from, openLine.to)",
+    )
+  })
+
+  test("หัว block ใช้ข้อความของผู้ใช้ (title → label → caption) ไม่ใช่ชื่อ block กลาง ๆ", () => {
+    expect(EDITOR_SOURCE).toContain("directiveTitle(block.attrs)")
+    // ต้องไม่กลับไปอ่าน `title` ตรง ๆ (progress ใช้ `label`, figure ใช้ `caption`)
+    expect(EDITOR_SOURCE).not.toContain("block.attrs.title ??")
+  })
+
+  test("คลิกหัว block = วางカーที่บรรทัด fence (ทางเข้าด้วยเมาส์ ไม่ต้องกด ↑/↓)", () => {
+    expect(EDITOR_SOURCE).toContain('el.setAttribute("data-from", String(this.#from))')
+    // listener บน element ของ widget เอง — `domEventHandlers` ของ mousedown ไม่ถูกเรียก
+    // เพราะ CM6 กัน mousedown ของ widget ที่ observer และหยุด handler เมื่อ defaultPrevented
+    expect(EDITOR_SOURCE).toContain('el.addEventListener("mousedown"')
+    expect(EDITOR_SOURCE).toContain("EditorSelection.cursor(this.#from)")
+    expect(EDITOR_SOURCE).toContain("event.stopPropagation()")
+  })
+})
+
 describe("katex.css — link เฉพาะเอกสารที่มีสมการ (Track B)", () => {
   test("เอกสารมี math → มี <link> katex.css", async () => {
     const { app } = setup({ "m.md": "# สมการ\n\n$$\nE = mc^2\n$$\n" })

@@ -11,7 +11,7 @@
  */
 
 import { syntaxTree } from "@codemirror/language"
-import { type EditorSelection, StateField, type Text, type Transaction } from "@codemirror/state"
+import { EditorSelection, StateField, type Text, type Transaction } from "@codemirror/state"
 import {
   Decoration,
   type DecorationSet,
@@ -28,6 +28,7 @@ import {
   DIRECTIVE_CLOSE,
   DIRECTIVE_LOOKBACK,
   DIRECTIVE_OPEN,
+  directiveTitle,
   parseAttrs,
   scanDirectives,
 } from "./blocks.ts"
@@ -192,19 +193,23 @@ class InlineDirectiveWidget extends WidgetType {
   }
 }
 
-/** หัวของ `:::` block — แทนบรรทัด fence เปิด (callout/details/tabs ตาม renderer จริง) */
+/** หัวของ `:::` block — แทนบรรทัด fence เปิด (callout/details/tabs ตาม renderer จริง)
+ * · แนบ `data-from` (offset ของบรรทัด fence) และรับ `mousedown` เอง → คลิกหัว = カーไปที่บรรทัด
+ *   fence เพื่อเปิด source ให้แก้ (docs/08 ข้อ 79) */
 class BlockHeadWidget extends WidgetType {
   #name: string
   #label: string
   #variant: string
   #title: string
+  #from: number
 
-  constructor(name: string, label: string, variant: string, title: string) {
+  constructor(name: string, label: string, variant: string, title: string, from = 0) {
     super()
     this.#name = name
     this.#label = label
     this.#variant = variant
     this.#title = title
+    this.#from = from
   }
 
   override eq(other: BlockHeadWidget): boolean {
@@ -212,14 +217,16 @@ class BlockHeadWidget extends WidgetType {
       other.#name === this.#name &&
       other.#label === this.#label &&
       other.#variant === this.#variant &&
-      other.#title === this.#title
+      other.#title === this.#title &&
+      other.#from === this.#from
     )
   }
 
-  override toDOM(): HTMLElement {
+  override toDOM(view?: EditorView): HTMLElement {
     const el = document.createElement("div")
     el.className = "cm-doku-block-head"
     el.setAttribute("data-block", this.#name)
+    el.setAttribute("data-from", String(this.#from))
     if (this.#variant) el.setAttribute("data-variant", this.#variant)
     const label = document.createElement("span")
     label.className = "cm-doku-block-head-label"
@@ -231,6 +238,19 @@ class BlockHeadWidget extends WidgetType {
       title.textContent = this.#title
       el.appendChild(title)
     }
+    // คลิกหัว block = カーไปที่บรรทัด fence → decoration เปิด source ให้แก้ด้วยเมาส์ (docs/08 ข้อ 79)
+    // ● listener บน element เอง ไม่ใช่ `domEventHandlers` — CM6 กัน `mousedown` ของ widget
+    //   ที่ observer จึงทำให้ custom handler ไม่ถูกเรียก (ยืนยันกับเบราว์เซอร์จริง)
+    // ● `stopPropagation` สำคัญ: ถ้าปล่อยให้ CM จัดการ selection ต่อ (mouseup) มันจะ
+    //   คำนวณカーจากพิกัดแล้ว **ทับ** ตำแหน่งที่เรา dispatch — และพิกัดบน widget ทั้งบรรทัด
+    //   map ไม่ตรงเสมอ → カーเด้งกลับไปที่เดิม (อ่านว่า "คลิกไม่ติด")
+    el.addEventListener("mousedown", (event) => {
+      if (!view) return
+      event.preventDefault()
+      event.stopPropagation()
+      view.dispatch({ selection: EditorSelection.cursor(this.#from), scrollIntoView: true })
+      view.focus()
+    })
     return el
   }
 }
@@ -418,7 +438,14 @@ function buildDecorations(
     const blocks = scanDirectives(doc, Math.max(1, firstLine - DIRECTIVE_LOOKBACK), lastLine)
     for (const block of blocks) {
       const openLine = doc.lineAt(block.openFrom)
-      if (openLine.from >= visible.from - 1 && openLine.to <= visible.to + 1) {
+      // カーอยู่บนบรรทัด fence = ต้องเห็น source ของตัวเอง (docs/08 ข้อ 79)
+      // สมมาตรกับ fence ปิด + marker อื่นทุกตัว (`touching` ด้านล่าง) — มิฉะนั้น `:::`
+      // ของผู้ใช้จะถูกซ่อนถาวร แม้カーจะอยู่บนบรรทัดนั้น
+      if (
+        openLine.from >= visible.from - 1 &&
+        openLine.to <= visible.to + 1 &&
+        !touching(openLine.from, openLine.to)
+      ) {
         const variant =
           options.calloutTypes.indexOf(block.name) !== -1 ? block.name : (block.attrs.type ?? "")
         ranges.push({
@@ -429,7 +456,8 @@ function buildDecorations(
               block.name,
               options.blockLabels[block.name] ?? block.name,
               variant,
-              block.attrs.title ?? "",
+              directiveTitle(block.attrs),
+              openLine.from,
             ),
           }),
         })
