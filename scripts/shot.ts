@@ -184,7 +184,16 @@ async function main(): Promise<void> {
         await page.evaluate(() => document.fonts.ready)
         await page.waitForTimeout(180)
         const file = join(outDir, `${shot.name}.${theme}.png`)
+        // one surface (docs/09 §3.1): CM6 virtualize ตามความสูง viewport — ต้องขยาย
+        // viewport ให้เห็นทั้งเอกสารก่อนถ่าย fullPage ไม่งั้นส่วนนอกจอจะว่างเปล่า
+        const docHeight = await page.evaluate(() => document.documentElement.scrollHeight)
+        const tall = Math.min(Math.max(docHeight, 900), 16_000)
+        if (tall > 900) {
+          await page.setViewportSize({ width: flags.width, height: tall })
+          await page.waitForTimeout(150)
+        }
         await page.screenshot({ path: file, fullPage: true })
+        if (tall > 900) await page.setViewportSize({ width: flags.width, height: 900 })
         console.log(`  ${relative(process.cwd(), file)}`)
 
         if (flags.a11y && theme === "light") {

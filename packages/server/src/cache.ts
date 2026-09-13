@@ -15,6 +15,8 @@ export interface CachedDoc {
   meta: Meta
   toc: TocEntry[]
   warnings: Warning[]
+  /** h1 นำหน้าถูกตัดออกจาก fragment หรือไม่ — ใช้ตั้ง `data-title-in-body` (docs/08 ข้อ 65) */
+  dedupe: boolean
 }
 
 interface Envelope extends Omit<CachedDoc, "key"> {
@@ -72,6 +74,8 @@ export class FragmentCache {
       meta: envelope.meta,
       toc: envelope.toc,
       warnings: envelope.warnings,
+      // envelope เก่า (ก่อนมี field นี้) = false — version bump ทำ cache เก่าถูกทิ้งอยู่แล้ว
+      dedupe: envelope.dedupe === true,
     }
     this.#remember(doc)
     return doc

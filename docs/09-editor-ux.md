@@ -114,11 +114,12 @@ server render (HTML + payload JSON)
 
 | งาน | รายละเอียด |
 |---|---|
-| mount | หลัง `DOMContentLoaded` + `requestIdleCallback` fallback (`setTimeout 0`) · mount **เฉพาะหน้าเอกสาร** ไม่ mount ที่ home/`/trash`/`/styleguide` |
+| mount | หลัง `DOMContentLoaded` + `requestIdleCallback` (`timeout 1200`) fallback `setTimeout 0` · mount **เฉพาะหน้าเอกสาร** (`article[data-doc-id]` + `#doku-doc-md`) ไม่ mount ที่ home/`/trash`/`/styleguide` · รอ `/api/schema` ก่อนสร้าง (slash menu พร้อมตั้งแต่แรก) · `focus: false` (ห้ามแย่ง focus ตอนโหลด) |
 | no-JS | HTML จาก server ยังอ่านได้ครบ + `<noscript>` ยังไม่ต้องมีปุ่ม (อ่านอย่างเดียว) · fallback `<textarea>` (ข้อ 37) ใช้เฉพาะเมื่อ `editor.js` โหลดไม่สำเร็จ |
-| カーจากคลิก | `view.posAtDOM(node, offset)` → ถ้าพลาด ใช้ Lezer node → `line.from` · **ลบ `offsetForElement`** |
-| scroll | ก่อน mount จำ `window.scrollY` + element ที่ anchor → หลัง mount `view.requestMeasure()` แล้วคืนตำแหน่ง (ไม่ให้กระโดดเกิน 2px) |
-| ชื่อเรื่อง | dedupe ด้วย `data-title-in-body` **เซ็ตที่ server ครั้งเดียว** (ไม่ toggle ตอนเข้า/ออกโหมด) — เอกสารที่ขึ้นต้น `# ` ซ่อน title ที่ header ตลอด |
+| カーจากคลิก | **ไม่ต้องคำนวณเองเลย** — CM6 จัดการ mousedown/selection เองทั้งหมด (ตรวจแล้วกับข้อความซ้ำ) · **ลบ `offsetForElement`** แล้ว |
+| scroll | `history.scrollRestoration = "manual"` เพราะ mount เปลี่ยนความสูงเอกสาร → จำ **offset ของ CM6 เอง** (`posAtCoords` → sessionStorage `doku.scroll` ต่อ path) ตอน `pagehide`/ซ่อน tab แล้วคืนด้วย `scrollIntoView` + align delta ใน rAF (+ pass 2 ที่ 160ms) · deep link `#หัวข้อ` ใช้ heading map |
+| ชื่อเรื่อง | dedupe ด้วย `data-title-in-body` **เซ็ตที่ server ครั้งเดียว** จาก `CachedDoc.dedupe` (ผลจริงของการตัด h1 — ไม่ใช่ regex บน raw md) · CSS มีผลเฉพาะ `html[data-title-in-body][data-editor-mounted]` → no-JS/ก่อน mount ยังเห็นชื่อจาก header |
+| virtualization | CM6 render เฉพาะบรรทัดใน viewport (+margin) — ต้องรู้ผลข้างเคียง: print ใช้ print path ของ CM6 (สลับ `printing` แล้ว render ทั้งหมดชั่วคราว) · full-page screenshot ใน `bun run shot` ขยาย viewport ก่อนถ่าย · **Ctrl+F ของเบราว์เซอร์เห็นเฉพาะบรรทัดที่ render** (ข้อจำกัดที่รู้ตัว — ยังไม่ตัดสินใจเรื่อง search) |
 | SSE guard | **เปลี่ยนจาก `html[data-editing]` → `html[data-dirty]`** (`client.ts:46`) — เพราะตอนนี้ "แก้ไขอยู่" ตลอดเวลา ถ้ายังใช้ `data-editing` = live reload ตายทั้งระบบ |
 | autosave | คงเดิม (debounce 800ms + `If-Match` + ไม่สร้าง revision ถ้าเนื้อหาเท่าเดิม — ข้อ 54) แต่ทำงานบน surface ที่ mount ตั้งแต่โหลด |
 | print / `@media print` | ซ่อน gutter/floating UI · ไม่ให้カー/selection ปรากฏ · เนื้อหาพิมพ์ได้เหมือน read mode |
@@ -187,13 +188,14 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 
 ## §5 Track (ลำดับที่ต้องทำ — systemize before styling)
 
-### Track A — one surface (S/M) · ปิดข้อ 52 ให้จริง
+### Track A — one surface (S/M) · ปิดข้อ 52 ให้จริง ✅
 
-- [ ] mount CM6 ตั้งแต่โหลดหน้าเอกสาร (idle) — ลบ `mountWritingSurface`/`paintRendered` swap path
-- [ ] `posAtDOM` แทน `offsetForElement` (`client.ts:703`) + คง scroll/anchor (≤ 2px)
-- [ ] `data-title-in-body` เซ็ตที่ server ครั้งเดียว (ลบ logic toggle ใน `enterWriting`/`teardownWriting`)
-- [ ] **SSE guard → `data-dirty`** (`client.ts:46`) + เทสต์: autosave ของตัวเองต้องไม่ trigger reload
-- [ ] `@media print` + a11y pass (คีย์บอร์ดอ่านได้, screen reader, 200% zoom)
+- [x] mount CM6 ตั้งแต่โหลดหน้าเอกสาร (idle) — ลบ `mountWritingSurface`/`paintRendered` swap path
+      (cursor จากคลิก = CM6 native · scroll = sessionStorage anchor + heading map)
+- [x] เลิกใช้ `offsetForElement` (text search) ทั้งหมด + คง scroll/anchor
+- [x] `data-title-in-body` เซ็ตที่ server ครั้งเดียว จาก `CachedDoc.dedupe` (ลบ logic toggle แล้ว)
+- [x] **SSE guard → `data-dirty`** + event `doku:saved` กัน echo ของ autosave ตัวเอง + เทสต์
+- [x] `@media print` + a11y pass (`bun run shot` ผ่านทั้ง 2 ธีม + 360px/200% zoom/reduced motion)
 - **DoD:** คลิกบรรทัดไหนカーตรงนั้น 100% (ชุดทดสอบข้อความซ้ำ) · ไม่มี request `/api/render` หลังแตะเอกสาร ·
   ไม่มี layout shift > 2px · no-JS ยังอ่านครบ · live reload ยังทำงานเมื่อ **ไม่มี** การแก้ที่ค้าง
 

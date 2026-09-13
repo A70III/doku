@@ -632,6 +632,12 @@
 .doku-inline-editor .cm-editor.cm-focused {
   outline: none;
 }
+/* a11y: focus ring สำหรับผู้ใช้คีย์บอร์ด (カーของ CM อย่างเดียวไม่พอ — WCAG 2.4.7) */
+.doku-inline-editor .cm-editor.cm-focused:focus-visible {
+  outline: 2px solid var(--d-accent);
+  outline-offset: 6px;
+  border-radius: 2px;
+}
 /* fallback เมื่อยังไม่ build editor.js (docs/08 ข้อ 37) */
 .doku-inline-textarea {
   width: 100%;
@@ -680,7 +686,7 @@
 
 /* ตอนเขียน: ถ้าชื่อเรื่องอยู่ในเนื้อหา (ไฟล์ขึ้นต้นด้วย # h1) ให้ซ่อน title ที่ header
    — ไม่งั้นเห็นชื่อเรื่องซ้ำสองที่ (header + บรรทัดแรกของ editor) */
-html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
+html[data-title-in-body][data-editor-mounted] .doku-doc-header .doku-doc-title {
   display: none;
 }
 
@@ -985,7 +991,19 @@ html[data-zen] .doku-main {
   .doku-doc-toolbar,
   .doku-meta-panel-wrap,
   .doku-toast,
-  .doku-overlay {
+  .doku-overlay,
+  .doku-block-strip,
+  .doku-mark-strip,
+  .doku-gutter,
+  .cm-cursor,
+  .cm-dropCursor,
+  .cm-selectionBackground {
     display: none !important;
+  }
+  /* เนื้อหาใน editor ต้องพิมพ์ได้เหมือนโหมดอ่าน — ไม่มี scroll/カー */
+  .doku-inline-editor .cm-scroller,
+  .doku-inline-editor .cm-editor {
+    overflow: visible !important;
+    max-height: none !important;
   }
 }

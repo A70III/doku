@@ -31,7 +31,14 @@ export interface DokuEditorHandle {
   getDoc(): string
   setDoc(text: string): void
   focus(): void
+  blur(): void
   destroy(): void
+  /** เลื่อนカーไป offset นี้ (ใช้ตอน TOC / คืน scroll หลัง mount) */
+  scrollTo(pos: number): void
+  /** ตำแหน่งบนจอของ offset (null = นอก viewport ที่วัดได้) */
+  coordsAt(pos: number): { top: number; bottom: number } | null
+  /** offset ของบรรทัดที่อยู่ ณ พิกัด y บนจอ (ใช้จำตำแหน่งอ่าน) */
+  offsetAtCoords(y: number): number | null
   /** แก้ attribute ของ directive ที่カーอยู่ (ค่าที่เขียนกลับเป็นข้อความ markdown) */
   patchDirective(patch: Record<string, string | null>): void
   /** ตั้ง/ลบสีของ `==mark==` ที่カーอยู่ในช่วง — null = ลบ `{.color}` (เขียนกลับเป็น markdown เสมอ) */
@@ -45,6 +52,8 @@ export interface DokuEditorOptions {
   placeholder?: string
   /** ตำแหน่งカーเริ่มต้น (offset ในเอกสาร) — มาจากจุดที่ผู้ใช้คลิก */
   anchor?: number | null
+  /** โฟกัส editor ตอนสร้าง (default true) — one surface mount ตอน idle ต้องไม่แย่ง focus (false) */
+  focus?: boolean
   /** แปลง path ใน markdown เป็น URL ของ asset จริง (client รู้ doc path) */
   resolveAsset?: (src: string) => string
   /** รายการของ slash menu — client ประกอบจาก /api/schema + markdown พื้นฐาน */
@@ -114,13 +123,16 @@ const DOKU_FENCE = /^(:{3,})\s*([\w-]*)\s*(\{[^}]*\})?\s*$/
 /** จับ suffix `{.color}` ด้วย — カーอยู่นอกช่วงต้องซ่อนทั้ง `==` และ suffix (docs/08 ข้อ 52) */
 const DOKU_MARK = /==([^=\n]+?)==(\{\.[\w-]+\})?/g
 
-/** ซ่อน marker + ใส่คลาสระดับบรรทัด — เฉพาะช่วงที่มองเห็น (ไม่เดินทั้งเอกสาร) */
+/** ซ่อน marker + ใส่คลาสระดับบรรทัด — เฉพาะช่วงที่มองเห็น (ไม่เดินทั้งเอกสาร)
+ *  `touching` = カーสัมผัส node — **เฉพาะเมื่อ editor มี focus** (docs/08 ข้อ 65)
+ *  ตอน mount ครั้งเดียว (one surface) カーอยู่ที่ 0 แต่ยังไม่ focus → ต้องเห็นหน้าแบบอ่าน */
 function buildDecorations(view: EditorView, resolveAsset: (src: string) => string): DecorationSet {
   const ranges: Array<{ from: number; to: number; value: Decoration }> = []
   const doc = view.state.doc
   const selection = view.state.selection
+  const focused = view.hasFocus
   const touching = (from: number, to: number): boolean =>
-    selection.ranges.some((range) => range.from <= to + 1 && range.to >= from - 1)
+    focused && selection.ranges.some((range) => range.from <= to + 1 && range.to >= from - 1)
 
   for (const visible of view.visibleRanges) {
     syntaxTree(view.state).iterate({
@@ -227,10 +239,11 @@ function buildDecorations(view: EditorView, resolveAsset: (src: string) => strin
         })
         ranges.push({ from: start, to: end, value: deco })
         if (!touching(start, end)) {
+          // ซ่อน `==` เปิด + `==` ปิด และ `{.color}` ท้ายช่วงเป็น **ชุดเดียว**
+          // (ห้ามช่วง replace ซ้อนกัน — CM6 จะทิ้งช่วงที่ทับ แล้ว marker โผล่)
+          const suffix = match[2] ? match[2].length : 0
           ranges.push({ from: start, to: start + 2, value: hide() })
-          ranges.push({ from: end - 2, to: end, value: hide() })
-          // ซ่อน `{.color}` ท้ายช่วงด้วย — ไม่งั้นผู้ใช้เห็นข้อความดิบค้าง (docs/08 ข้อ 52)
-          if (match[2]) ranges.push({ from: end - match[2].length, to: end, value: hide() })
+          ranges.push({ from: end - suffix - 2, to: end, value: hide() })
         }
         match = DOKU_MARK.exec(text)
       }
@@ -254,7 +267,12 @@ const livePreview = (resolveAsset: (src: string) => string) =>
         this.decorations = buildDecorations(view, resolveAsset)
       }
       update(update: ViewUpdate): void {
-        if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        if (
+          update.docChanged ||
+          update.viewportChanged ||
+          update.selectionSet ||
+          update.focusChanged
+        ) {
           this.decorations = buildDecorations(update.view, resolveAsset)
         }
       }
@@ -516,6 +534,10 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
     EditorView.lineWrapping,
     theme,
     livePreview(resolveAsset),
+    EditorView.contentAttributes.of({
+      "aria-label": "เนื้อหาเอกสาร (markdown)",
+      spellcheck: "false",
+    }),
     keymap.of([
       indentWithTab,
       ...defaultKeymap,
@@ -568,7 +590,7 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
         : {}),
     }),
   })
-  view.focus()
+  if (options.focus !== false) view.focus()
 
   return {
     getDoc: () => view.state.doc.toString(),
@@ -576,7 +598,21 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } })
     },
     focus: () => view.focus(),
+    blur: () => view.contentDOM.blur(),
     destroy: () => view.destroy(),
+    scrollTo: (pos) => {
+      const clamped = Math.max(0, Math.min(pos, view.state.doc.length))
+      view.dispatch({ effects: EditorView.scrollIntoView(clamped, { y: "start" }) })
+    },
+    coordsAt: (pos) => {
+      const coords = view.coordsAtPos(Math.max(0, Math.min(pos, view.state.doc.length)))
+      return coords ? { top: coords.top, bottom: coords.bottom } : null
+    },
+    offsetAtCoords: (y) => {
+      const rect = view.dom.getBoundingClientRect()
+      const pos = view.posAtCoords({ x: rect.left + 8, y })
+      return typeof pos === "number" ? pos : null
+    },
     patchDirective: (patch) => {
       const info = directiveAtCursor(view)
       if (info) writeAttrs(view, info, patch)

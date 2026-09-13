@@ -156,13 +156,14 @@
 > **เป้าที่วัดได้:** เปิดเอกสาร → คลิก/พิมพ์ได้ทันที **โดยไม่มีการแทนที่เนื้อหาทั้งบทความ** (0 request `/api/render` หลังแตะ)
 > และทุก block มี affordance ให้ย้าย/แปลง/ลบ/ซ้อน — โดยไฟล์ยังเป็น markdown ที่ `doku check` ผ่าน
 
-### Track A — one surface (ปิดข้อ 52 ให้จริง)
+### Track A — one surface (ปิดข้อ 52 ให้จริง) ✅
 
-- [ ] mount CM6 ตั้งแต่โหลดหน้าเอกสาร (idle) — ลบ swap path (`mountWritingSurface` / `paintRendered`)
-- [ ] `posAtDOM` แทน `offsetForElement` (text search) + คง scroll/anchor (≤ 2px)
-- [ ] `data-title-in-body` เซ็ตที่ server ครั้งเดียว (เลิก toggle ตอนเข้า/ออกโหมด)
-- [ ] **SSE guard เปลี่ยน `data-editing` → `data-dirty`** + เทสต์ autosave ตัวเองต้องไม่ trigger reload
-- [ ] `@media print` + a11y pass (คีย์บอร์ดอ่าน · screen reader · 200% zoom · 360px)
+- [x] mount CM6 ตั้งแต่โหลดหน้าเอกสาร (idle) — ลบ swap path (`mountWritingSurface` / `paintRendered`)
+      · カーจากคลิกเป็น native ของ CM6 (ลบ `offsetForElement` ทิ้งทั้งหมด)
+- [x] scroll/anchor — `scrollRestoration = manual` + sessionStorage anchor (posAtCoords) + heading map ของ TOC
+- [x] `data-title-in-body` เซ็ตที่ server ครั้งเดียว จาก `CachedDoc.dedupe` + CSS ผูกกับ `data-editor-mounted`
+- [x] **SSE guard เปลี่ยน `data-editing` → `data-dirty`** + event `doku:saved` กัน echo + เทสต์ autosave ตัวเอง
+- [x] `@media print` + a11y pass (คีย์บอร์ดอ่าน · screen reader · 200% zoom · 360px)
 
 ### Track B — read-parity (ไม่เห็น markdown ดิบ)
 

@@ -60,14 +60,17 @@ function formatBytes(bytes: number): string {
 export const Layout: FC<{
   title: string
   theme?: Meta["theme"]
+  /** เอกสารขึ้นต้นด้วย `# h1` — ซ่อน title ที่ header ตอน editor mount (กันชื่อซ้ำ · docs/08 ข้อ 65) */
+  titleInBody?: boolean
   children: Child
-}> = ({ title, theme, children }) => {
+}> = ({ title, theme, titleInBody, children }) => {
   const accent = theme?.accent && HEX_COLOR_PATTERN.test(theme.accent) ? theme.accent : null
   return (
     <html
       lang="th"
       data-theme={theme?.mode ?? "auto"}
       data-accent={accent ? "true" : undefined}
+      data-title-in-body={titleInBody ? "1" : undefined}
       style={accent ? ({ "--doc-accent": accent } as never) : undefined}
     >
       <head>
@@ -425,7 +428,9 @@ const Colophon: FC<{ path: string; meta: Meta; mtimeMs?: number; words?: number 
   <footer class="doku-colophon">
     <code>{path}</code>
     {words ? <span data-part="colophon-words">{words.toLocaleString("th-TH")} คำ</span> : null}
-    {words ? <span>อ่าน ~{Math.max(1, Math.round(words / 220))} นาที</span> : null}
+    {words ? (
+      <span data-part="colophon-minutes">อ่าน ~{Math.max(1, Math.round(words / 220))} นาที</span>
+    ) : null}
     {mtimeMs ? <span>แก้ไข {formatDate(mtimeMs)}</span> : null}
     {meta.authors.length > 0 ? <span>{meta.authors.map((a) => a.name).join(", ")}</span> : null}
   </footer>
@@ -492,8 +497,12 @@ export const DocPage: FC<{
     markdown === undefined
       ? null
       : JSON.stringify({ md: markdown, etag: etag ?? "" }).replaceAll("</", "<\\/")
+  // ไฟล์ขึ้นต้น `# h1` = ชื่อเรื่องอยู่ในเนื้อหาเอง — server บอกครั้งเดียว ไม่ toggle ที่ client
+  // ใช้ `dedupe` ของ renderer (คิดจาก body ที่ตัด frontmatter แล้ว + เทียบกับ meta title)
+  // ไม่ใช่ regex บน raw markdown — ไม่งั้น meta title ต่างจาก h1 จะหาย / frontmatter+h1 จะซ้ำ
+  const titleInBody = doc.dedupe
   return (
-    <Layout title={meta.title ?? "doku"} theme={meta.theme}>
+    <Layout title={meta.title ?? "doku"} theme={meta.theme} titleInBody={titleInBody}>
       <div class="doku-shell">
         <Sidebar tree={tree} activeId={path} vaultName={vaultName} trashCount={trashCount} />
         <main class="doku-main">

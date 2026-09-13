@@ -81,6 +81,7 @@ export class DocRenderer {
         meta: result.meta,
         toc: result.toc,
         warnings: result.warnings,
+        dedupe,
       },
       key,
     )

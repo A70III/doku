@@ -40,10 +40,23 @@ ${INTERACTIONS_JS}
   }
 
   // ── live reload ผ่าน SSE (docs/01: watcher → SSE) ──
-  // ระหว่างแก้ไข (data-editing) ห้าม reload — จะทับงานที่ยังไม่บันทึก
+  // one surface (docs/08 ข้อ 65): "แก้ไขอยู่" ตลอดเวลา → guard ที่ถูกคือ data-dirty
+  // (มีงานค้างจริงเท่านั้น) · echo ของ autosave ตัวเองกันด้วย event "doku:saved"
+  let suppressReloadUntil = 0;
+  window.addEventListener("doku:saved", () => {
+    suppressReloadUntil = Date.now() + 1500;
+  });
+
+  /** ควร reload ตาม SSE ไหม — pure function ให้เทสต์ได้ตรง ๆ (docs/09 §8) */
+  function shouldReloadOnChange(dirty, suppressUntil, now) {
+    if (dirty) return false;
+    return !(suppressUntil > 0 && now < suppressUntil);
+  }
+
   const source = new EventSource("/sse");
   source.addEventListener("change", () => {
-    if (document.documentElement.hasAttribute("data-editing")) return;
+    const dirty = document.documentElement.hasAttribute("data-dirty");
+    if (!shouldReloadOnChange(dirty, suppressReloadUntil, Date.now())) return;
     window.location.reload();
   });
 })();
@@ -227,92 +240,31 @@ ${INTERACTIONS_JS}
 
   document.addEventListener("click", (event) => {
     if (menuEl && !menuEl.hidden && !menuEl.contains(event.target)) closeMenu();
-    // ── การออกจากโหมดเขียน (docs/08 ข้อ 52/54) — 3 วง ──
-    // วงใน = tolerance zone รอบคอลัมน์อ่าน (~3rem): คลิกเยื้องนิดเดียวต้องไม่เด้งออก
-    //   → ส่ง focus กลับ editor แทน (จิ้มพลาด = พิมพ์ต่อได้)
-    // วงกลาง = พื้นหลังเปล่า (neutral gutter): ไม่ทำอะไร อยู่ต่อ
-    // วงนอก = chrome ที่มีความหมาย (rail / TOC คอลัมน์+แผ่น / เมนู): ออกจริง
-    //   แต่ chrome มีทั้งลิงก์และปุ่ม — แยกตามเป้าหมาย (docs/08 ข้อ 52/54):
-    //   · ลิงก์ไปหน้าอื่น (sidebar/…): preventDefault + flush แล้ว navigate เอง — ห้ามปล่อย
-    //     default action เพราะมันเริ่ม navigation ทันที ทำให้ fetch ของ paintRendered
-    //     โดนยกเลิก → catch ยิง reload หน้าเดิม (navigation race ต้องคลิกซ้ำ)
-    //   · กด ctrl/shift/alt/meta หรือ middle-click: ไม่แตะ — ปล่อยพฤติกรรมเบราว์เซอร์ (แท็บใหม่)
-    //   · ลิงก์ #… (TOC) และปุ่มอื่น: ออกอยู่ในหน้า (exitWriting) + เลื่อนไปหัวข้อหลัง paint เสร็จ
-    // วัดด้วยพิกัด event กับ rect เสมอ — กันเคส element ถูกแทนที่ระหว่างคลิก
-    // (เดิมใช้ isConnected guard + contains → คลิกหลุดกรอบคอลัมน์นิดเดียวก็ออกทันที)
-    if (!writing.editing || !articleEl || !articleEl.isConnected) return;
-    const strip = stripEl();
-    const mark = markBarEl();
-    if (strip && !strip.hidden && (strip.contains(event.target) || inRect(strip, event, 4))) {
-      return; // โต้ตอบกับแผงควบคุม block — ห้ามโฟกัสกลับ editor ทับ interaction
-    }
-    if (mark && !mark.hidden && (mark.contains(event.target) || inRect(mark, event, 4))) {
-      return; // โต้ตอบกับแถบ swatch ของ mark — ห้ามโฟกัสกลับ editor ทับ interaction
-    }
-    // ลิงก์เอกสาร active (ตัวเอง) = อยู่หน้าเดิม — ไม่ reload และไม่ถือเป็น "ออก"
-    // จากโหมดเขียน → เช็คก่อน chrome branch (ก่อน logic อื่นที่แตะลิงก์)
-    const activeLink = event.target.closest ? event.target.closest("a[data-doc-link]") : null;
-    if (activeLink) {
-      let sameDoc = false;
-      try {
-        sameDoc = new URL(activeLink.href).pathname === window.location.pathname;
-      } catch {}
-      if (sameDoc && window.location.pathname.indexOf("/d/") === 0) {
-        event.preventDefault();
-        return;
-      }
-    }
-    const rect = articleEl.getBoundingClientRect();
-    const pad = 48; // ~3rem
-    const inTolerance =
-      event.clientX >= rect.left - pad &&
-      event.clientX <= rect.right + pad &&
-      event.clientY >= rect.top - pad &&
-      event.clientY <= rect.bottom + pad;
-    if (inTolerance) {
-      const hit = event.target.closest
-        ? event.target.closest("a, button, input, select, textarea, summary")
-        : null;
-      if (!hit && writing.handle) writing.handle.focus();
-      return;
-    }
-    const chrome = event.target.closest
-      ? event.target.closest(".doku-rail, .doku-toc-col, .doku-overlay, .doku-menu")
-      : null;
-    // นอกนั้น = พื้นหลังเปล่า → อยู่ต่อ ไม่ออกจากโหมดเขียน
-    if (!chrome) return;
+    // ── flush ก่อน navigate (docs/08 ข้อ 65) ──────────────────────────────
+    // one surface: ไม่มี "โหมดเขียน" ให้ออก — เหลือแค่ "มีงานค้างไหม"
+    // ถ้ามีงานค้าง (autosave ยังไม่ยิง) แล้วผู้ใช้คลิก "ลิงก์ไปหน้าอื่น" ใน chrome
+    // ต้อง flush ให้จบก่อน — ห้ามปล่อย default navigation (fetch จะถูกยกเลิก)
+    //   · modifier/middle-click → ปล่อยเบราว์เซอร์ (แท็บใหม่) ไม่ต้อง flush
+    //   · anchor ภายในหน้า (#…) → ไม่ navigate หน้าใหม่ ไม่ต้อง flush
+    if (!writing.dirty || !writing.path) return;
     const link = event.target.closest ? event.target.closest("a[href]") : null;
-    if (link) {
-      const href = link.getAttribute("href") || "";
-      if (href.charAt(0) !== "#") {
-        // กด modifier หรือ middle-click → ปล่อยเบราว์เซอร์จัดการ (เปิดแท็บใหม่)
-        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-        // ลิงก์ไปหน้าอื่น — ยกเลิก default navigation แล้ว flush เองก่อนค่อยไป
-        event.preventDefault();
-        void (async () => {
-          await flushForNavigation();
-          window.location.href = href;
-        })();
-        return;
-      }
-      // anchor ในหน้า (TOC): ออกโหมดเขียนแล้วเลื่อนไปหัวข้อหลัง paint เสร็จ
-      // (id ใน href ถูก encode — decode ไม่ได้ก็ปล่อยผ่าน)
-      let anchorId = href.slice(1);
-      try {
-        anchorId = decodeURIComponent(anchorId);
-      } catch {}
-      void exitWriting().then(() => {
-        document.getElementById(anchorId)?.scrollIntoView();
-      });
+    if (!link || link.hasAttribute("download")) return;
+    const href = link.getAttribute("href") || "";
+    if (href.charAt(0) === "#") return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
       return;
     }
-    void exitWriting();
+    // ลิงก์ไปเอกสารอื่น ๆ ของ doku เอง — flush เองก่อนค่อยไป
+    event.preventDefault();
+    void (async () => {
+      await flushForNavigation();
+      window.location.href = link.href;
+    })();
   });
 
-  // โหมดอ่าน: คลิกลิงก์เอกสารที่กำลังเปิดอยู่ = อยู่หน้าเดิม — ไม่ต้อง reload
-  // (โหมดเขียนจัดการใน handler ด้านบนแล้ว — ไม่ preventDefault ซ้ำเพื่อไม่ชนทาง nav)
+  // คลิกลิงก์เอกสารที่กำลังเปิดอยู่ = อยู่หน้าเดิม — ไม่ reload
+  // (กรณีมีงานค้าง จัดการ flush ไปแล้วใน handler ด้านบน)
   document.addEventListener("click", (event) => {
-    if (writing.editing) return;
     const link = event.target.closest ? event.target.closest("a[data-doc-link]") : null;
     if (!link) return;
     // modifier/middle-click → ปล่อยเบราว์เซอร์ (เปิดแท็บใหม่)
@@ -650,9 +602,11 @@ ${INTERACTIONS_JS}
     }
   }
 
-  /* ── writing surface: พิมพ์ได้ทันทีในคอลัมน์เดิม (docs/08 ข้อ 52/54) ──────
-     ไม่มีปุ่ม/โหมดแก้ไข · ไม่มี overlay · ไม่มี split · ไม่มีปุ่ม Save
-     เอกสารที่ render แล้วคือ editor — คลิกที่ไหนカーไปที่นั่น · autosave ตาม debounce */
+  /* ── writing surface: one surface — mount editor ตั้งแต่โหลด (docs/08 ข้อ 63/65) ──
+     ไม่มีปุ่ม/โหมดแก้ไข · ไม่มี overlay · ไม่มี split · ไม่มี swap ตอนผู้ใช้แตะ
+     server render HTML ไว้ก่อน (no-JS + first paint) แล้ว client mount CM6 ทับ
+     **ครั้งเดียวตอน idle** — หลังจากนั้นผู้ใช้คลิก/พิมพ์/ลากได้เองโดยไม่มีการแทนที่เนื้อหา
+     ทุกอย่างยังเขียนกลับเป็น markdown เสมอ */
 
   const writing = {
     path: null,
@@ -660,11 +614,19 @@ ${INTERACTIONS_JS}
     handle: null,
     textarea: null,
     mounted: null,
+    fallback: false,
     dirty: false,
-    editing: false,
+    /** promise ของ PUT ที่กำลังวิ่ง — guard ไม่ให้ยิงซ้อน + ให้ nav/keepalive รอจนจบ */
+    saving: null,
     timer: 0,
     schema: null,
   };
+
+  /** codepoint ของ backtick — ห้ามเขียนตรง ๆ โค้ดนี้อยู่ใน template literal */
+  const TICK = String.fromCharCode(96);
+
+  /** id หัวข้อ → offset ใน markdown (TOC เลื่อนカー · สร้างจาก md + TOC ของ server) */
+  let headingPositions = null;
 
   function readEmbedded() {
     if (!embeddedEl) return null;
@@ -687,6 +649,20 @@ ${INTERACTIONS_JS}
     return writing.textarea ? writing.textarea.value : "";
   }
 
+  /** มีงานค้าง = data-dirty (SSE guard อ่านค่านี้ — docs/08 ข้อ 65) */
+  function markDirty() {
+    writing.dirty = true;
+    docEl.setAttribute("data-dirty", "1");
+    setDocStatus("dirty", "กำลังบันทึก…");
+    scheduleSave();
+  }
+
+  function markClean() {
+    writing.dirty = false;
+    docEl.removeAttribute("data-dirty");
+    setDocStatus("clean", "");
+  }
+
   /** แปลง path ใน markdown ให้เป็น URL ของ asset (relative จากโฟลเดอร์ของเอกสาร) */
   function makeAssetResolver(docPath) {
     const dir = dirname(docPath);
@@ -699,181 +675,294 @@ ${INTERACTIONS_JS}
     };
   }
 
-  /** หา offset ใน markdown จาก element ที่ผู้ใช้คลิก (จับข้อความต้น block แล้วค้นหา) */
-  function offsetForElement(md, target) {
-    if (!target || !target.closest) return null;
-    const block = target.closest("p, li, h1, h2, h3, h4, h5, h6, pre, aside, figure, blockquote, td");
-    const text = (block ? block.textContent : "").trim().slice(0, 32);
-    if (!text) return null;
-    const index = md.indexOf(text);
-    return index >= 0 ? index : null;
+  /* ── heading map: TOC → offset (CM6 ไม่มี id ใน DOM — ต้องแมพจาก markdown เอง) ── */
+
+  /** เทียบข้อความหัวข้อแบบหลวม ๆ — ตัด marker ที่ render ออกแล้ว
+   *  หมายเหตุ: normalize ถูกใช้ทั้งกับข้อความจาก markdown และ text ของ TOC (server)
+   *  การตัดอักขระจึงสมมาตร · ยกเว้นลิงก์/รูปที่เป็นโครงสร้างของ markdown เท่านั้น */
+  function normalizeHeading(text) {
+    const linked = String(text).replace(/!?\\[([^\\]]*)\\]\\([^)]*\\)/g, "$1");
+    let out = "";
+    for (const ch of linked) {
+      if ("*_~[](){}=".indexOf(ch) !== -1 || ch === TICK) continue;
+      out += ch;
+    }
+    return out.replace(/ +/g, " ").trim().toLowerCase();
   }
 
-  function isInteractiveTarget(target) {
-    return Boolean(
-      target.closest &&
-        target.closest(
-          "a, button, summary, input, select, textarea, [data-part='copy-code'], [data-part='tab-button'], [data-block='figure'][data-zoom], .doku-doc-meta",
-        ),
-    );
+  /** fence marker ของ CommonMark: {char,len,rest} หรือ null — ปิดต้องเทียบ char+len
+   *  (fence backtick 4 ตัวครอบ fence 3 ตัว ไม่ควร toggle กลางบล็อก) */
+  function fenceMarker(line) {
+    const match = new RegExp("^ {0,3}([" + TICK + "]{3,}|~{3,})(.*)$").exec(line);
+    if (!match) return null;
+    const marker = match[1];
+    // info string ของ backtick fence ห้ามมี backtick (CommonMark)
+    if (marker.charAt(0) === TICK && match[2].indexOf(TICK) !== -1) return null;
+    return { char: marker.charAt(0), len: marker.length, rest: match[2] };
   }
 
-  function mountWritingSurface(md, anchor, slashItems) {
+  /** ความยาว frontmatter ของ markdown ดิบ — offset ของ heading ต้องนับจากเอกสาร
+   *  ที่ editor เห็น (มี frontmatter) · ใช้สูตร md.length − body.length เท่านั้น
+   *  (body ตัด newline หลัง block ออกหนึ่งตัว เหมือน core/frontmatter.ts) */
+  function frontmatterLength(md) {
+    const match = /^(?:\\ufeff)?---[ \\t]*\\r?\\n[\\s\\S]*?\\r?\\n(?:---|\\.\\.\\.)[ \\t]*(?:\\r?\\n|$)/.exec(md);
+    if (!match) return 0;
+    return md.length - md.slice(match[0].length).replace(/^\\r?\\n/, "").length;
+  }
+
+  /** หัวข้อระดับ h2/h3 ตามลำดับในเอกสาร + offset (ข้าม code fence · รู้จัก setext)
+   *  renderer (mdast) นับ setext (Title ตามด้วยขีด) เป็น h2 ด้วย — ถ้าไม่นับ จำนวน heading
+   *  จะไม่ตรงกับ TOC แล้วการจับคู่ด้วย index จะ drift ทั้งชุด */
+  function headingsInMarkdown(md) {
+    const found = [];
+    const start = frontmatterLength(md);
+    let fence = null;
+    let offset = 0;
+    let prevText = null;
+    let prevOffset = 0;
+    let prevIsParagraph = false;
+    for (const line of md.slice(start).split("\\n")) {
+      const marker = fenceMarker(line);
+      if (fence) {
+        if (
+          marker &&
+          marker.char === fence.char &&
+          marker.len >= fence.len &&
+          marker.rest.trim() === ""
+        ) {
+          fence = null;
+        }
+        prevIsParagraph = false;
+      } else if (marker) {
+        fence = marker;
+        prevIsParagraph = false;
+      } else {
+        const atx = /^(#{1,6}) +(.*)$/.exec(line);
+        if (atx) {
+          const depth = atx[1].length;
+          if (depth === 2 || depth === 3) {
+            found.push({ depth, text: normalizeHeading(atx[2]), pos: start + offset });
+          }
+          prevIsParagraph = false;
+        } else {
+          // setext underline: ขีด = h2 · เท่ากับ = h1 · ต้องตามหลังย่อหน้าจริง (ไม่ใช่บรรทัดว่าง)
+          const setext = /^ {0,3}(-+|=+)[ \\t]*$/.exec(line);
+          if (setext && prevIsParagraph) {
+            const depth = setext[1].charAt(0) === "=" ? 1 : 2;
+            if (depth === 2) {
+              found.push({ depth, text: normalizeHeading(prevText), pos: start + prevOffset });
+            }
+            prevIsParagraph = false;
+          } else {
+            prevIsParagraph = line.trim() !== "";
+          }
+        }
+      }
+      prevText = line;
+      prevOffset = offset;
+      offset += line.length + 1;
+    }
+    return found;
+  }
+
+  /** จับคู่ TOC entry (server) กับบรรทัดจริง — ลำดับ + ข้อความ + ถอยหลังได้ไม่เกิน 4 */
+  function buildHeadingMap(md) {
+    const found = headingsInMarkdown(md);
+    const map = new Map();
+    const seen = new Set();
+    let index = 0;
+    for (const link of $$("[data-toc-link]")) {
+      const id = link.getAttribute("data-toc-link");
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const text = normalizeHeading(link.textContent || "");
+      let pick = found[index];
+      if (pick && text && pick.text !== text) {
+        for (let i = index; i < found.length && i < index + 4; i += 1) {
+          if (found[i].text === text) {
+            index = i;
+            pick = found[i];
+            break;
+          }
+        }
+      }
+      if (pick) map.set(id, pick.pos);
+      index += 1;
+    }
+    headingPositions = map;
+  }
+
+  /* ── scroll: การจำตำแหน่งอ่านเป็นของเรา (ไม่พึ่ง scroll restoration ของเบราว์เซอร์) ──
+     mount เปลี่ยนความสูงของเอกสาร → ถ้าปล่อยให้เบราว์เซอร์ restore เอง ตำแหน่งจะเพี้ยน
+     ใช้ offset ของ CM6 เอง (posAtCoords) + จำใน sessionStorage ต่อ path (docs/09 §3.1) */
+
+  const SCROLL_KEY = "doku.scroll";
+  try {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+  } catch {}
+
+  function anchorY() {
+    if (!articleEl) return 8;
+    const rect = articleEl.getBoundingClientRect();
+    return Math.max(Math.min(rect.top, window.innerHeight - 1), 0) + 4;
+  }
+
+  /** จำ "บรรทัดบนสุดที่มองเห็น" ตอนออกจากหน้า — ใช้ตอนกลับมา/โหลดใหม่ */
+  function saveScrollAnchor() {
+    if (!writing.handle || !writing.path) return;
+    try {
+      const top = anchorY();
+      const offset = writing.handle.offsetAtCoords(top);
+      if (typeof offset !== "number") return;
+      sessionStorage.setItem(SCROLL_KEY, JSON.stringify({ path: writing.path, offset, top }));
+    } catch {}
+  }
+
+  /** คืนตำแหน่ง scroll หลัง swap ครั้งเดียว (≤ 2px — วัดจาก coords จริงของบรรทัด)
+   *  ขั้นแรกใช้ scrollIntoView ของ CM6 (บรรทัดที่ยังไม่ render ก็ใช้ได้) แล้วแก้ delta
+   *  จริงในเฟรมถัดไป (หลัง render บรรทัดนั้นแล้วจึงวัด coords ได้) */
+  function restoreScroll(anchor) {
+    if (!anchor || !writing.handle) return;
+    writing.handle.scrollTo(anchor.offset);
+    const align = () => {
+      if (!writing.handle) return;
+      const coords = writing.handle.coordsAt(anchor.offset);
+      if (!coords) return;
+      const delta = Math.round(coords.top - anchor.top);
+      if (Math.abs(delta) > 2 && Math.abs(delta) < window.innerHeight * 2) {
+        window.scrollBy(0, delta);
+      }
+    };
+    window.requestAnimationFrame(align);
+    // pass ที่สอง — ให้ height map ของ CM6 นิ่งก่อน (บรรทัดบนสุดอาจยังเป็นค่าประมาณ)
+    window.setTimeout(align, 160);
+  }
+
+  function savedScrollAnchor() {
+    try {
+      const raw = sessionStorage.getItem(SCROLL_KEY);
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (!entry || entry.path !== writing.path) return null;
+      sessionStorage.removeItem(SCROLL_KEY);
+      return { offset: entry.offset, top: entry.top };
+    } catch {
+      return null;
+    }
+  }
+
+  /** hash ปัจจุบัน (#หัวข้อ) → เลื่อนカーไปหัวข้อนั้น (docs/09 §3.1) */
+  function scrollToHash() {
+    const raw = window.location.hash;
+    if (!raw || raw.length < 2) return false;
+    let id = raw.slice(1);
+    try {
+      id = decodeURIComponent(id);
+    } catch {}
+    return scrollToHeading(id);
+  }
+
+  /** เลื่อนカーไปหัวข้อจาก TOC (ใช้เมื่อ editor mounted) */
+  function scrollToHeading(id) {
+    if (!writing.handle || !headingPositions) return false;
+    const pos = headingPositions.get(id);
+    if (typeof pos !== "number") return false;
+    writing.handle.scrollTo(pos);
+    return true;
+  }
+
+  function syncColophonWords(md) {
+    const colophon = $(".doku-colophon");
+    if (!colophon) return;
+    const words = md.trim().split(/\\s+/u).filter(Boolean).length;
+    const node = colophon.querySelector("[data-part='colophon-words']");
+    if (node) node.textContent = words.toLocaleString("th-TH") + " คำ";
+    const minutes = colophon.querySelector("[data-part='colophon-minutes']");
+    if (minutes) minutes.textContent = "อ่าน ~" + Math.max(1, Math.round(words / 220)) + " นาที";
+  }
+
+  function surfaceOptions(md, schema) {
+    return {
+      doc: md,
+      focus: false,
+      placeholder: "พิมพ์ / เพื่อแทรก block",
+      resolveAsset: makeAssetResolver(writing.path),
+      slashItems: buildSlashItems(schema),
+      onDirective: (info) => renderDirectiveStrip(info),
+      onMark: (info) => renderMarkStrip(info),
+      onChange: markDirty,
+      onSave: () => flushSave(true),
+    };
+  }
+
+  /** swap ครั้งที่ 1 และครั้งเดียว: HTML จาก server → CM6 (docs/08 ข้อ 65) */
+  async function mountSurface() {
+    if (writing.handle || writing.fallback || !articleEl || !bodyEl) return;
+    const payload = readEmbedded();
+    if (!payload || typeof payload.md !== "string") return;
+    writing.path = articleEl.getAttribute("data-doc-id");
+    writing.etag = payload.etag || null;
+    if (!window.DokuEditor) {
+      installFallbackEntry();
+      return;
+    }
+    const anchor = savedScrollAnchor();
+    const schema = await loadSchema();
+    if (writing.handle || writing.fallback) return; // mount ไปแล้วระหว่างรอ schema
+    writing.schema = schema;
     const host = document.createElement("div");
     host.className = "doku-inline-editor";
     bodyEl.textContent = "";
     bodyEl.appendChild(host);
     writing.mounted = host;
-
-    if (window.DokuEditor) {
-      writing.handle = window.DokuEditor.create(host, {
-        doc: md,
-        anchor,
-        placeholder: "เริ่มเขียน… (พิมพ์ / เพื่อแทรก block)",
-        resolveAsset: makeAssetResolver(writing.path),
-        slashItems,
-        onDirective: (info) => renderDirectiveStrip(info),
-        onMark: (info) => renderMarkStrip(info),
-        onChange: () => {
-          writing.dirty = true;
-          setDocStatus("dirty", "กำลังบันทึก…");
-          scheduleSave();
-        },
-        onSave: () => flushSave(true),
-      });
-      // ให้カーอยู่ในเอกสารจริง ๆ หลัง click default action ของเบราว์เซอร์ทำงานจบ
-      // (ไม่ผูกการออกกับ blur: คลิกนอกเอกสาร/Esc ดูแล — เหมือน Notion, autosave ทำงานตลอด)
-      window.setTimeout(() => writing.handle && writing.handle.focus(), 0);
-      return;
-    }
-
-    // fallback: ยังไม่ build editor.js — textarea ธรรมดา (docs/08 ข้อ 37)
-    const textarea = document.createElement("textarea");
-    textarea.className = "doku-inline-textarea";
-    textarea.value = md;
-    textarea.setAttribute("aria-label", "markdown");
-    textarea.addEventListener("input", () => {
-      writing.dirty = true;
-      setDocStatus("dirty", "กำลังบันทึก…");
-      scheduleSave();
-    });
-    host.appendChild(textarea);
-    writing.textarea = textarea;
-    window.setTimeout(() => textarea.focus(), 0);
-  }
-
-  async function enterWriting(anchor) {
-    if (writing.editing || !articleEl || !bodyEl) return;
-    const payload = readEmbedded();
-    if (!payload) return;
-    const schema = await loadSchema();
-    writing.schema = schema;
-    writing.path = articleEl.getAttribute("data-doc-id");
-    writing.etag = payload.etag || null;
-    writing.editing = true;
-    writing.dirty = false;
-    articleEl.setAttribute("data-editing", "1");
-    // ไฟล์ที่ขึ้นต้นด้วย # h1 = ชื่อเรื่องอยู่ในเนื้อหา → editor จะโชว์บรรทัดนั้นเป็นชื่อเรื่อง
-    // ซ่อนชื่อเรื่องที่ header ระหว่างเขียน ไม่งั้นเห็นชื่อซ้ำสองที่ (dedupe ตอน render อยู่นอกไฟล์)
-    if (/^\\s*#\\s+\\S/.test(payload.md)) docEl.setAttribute("data-title-in-body", "1");
-    else docEl.removeAttribute("data-title-in-body");
-    // SSE guard อ่านจาก <html> (ดู listener ด้านบน) — ต้องตั้งทั้งสองที่
-    // ไม่งั้น autosave ที่เราเขียนเองจะ trigger watcher → SSE → reload กลางการพิมพ์
-    docEl.setAttribute("data-editing", "1");
-    setDocStatus("clean", "พร้อมแก้ไข");
-    mountWritingSurface(payload.md, offsetForElement(payload.md, anchor), buildSlashItems(schema));
-  }
-
-  function writeSnapshot() {
-    const text = currentText();
-    if (writing.handle) {
-      writing.handle.destroy();
-      writing.handle = null;
-    }
-    if (writing.textarea) writing.textarea = null;
-    if (writing.mounted) writing.mounted.remove();
-    writing.mounted = null;
-    return text;
-  }
-
-  function teardownWriting() {
-    hideStrip(); // ตัดสินที่ hideStrip ตรง ๆ — ไม่ผ่าน renderDirectiveStrip (pin ไม่รอดออกจากโหมดเขียน)
-    hideMarkBar(); // เช่นเดียวกับ mark swatch strip
-    writing.editing = false;
-    writing.path = null;
-    writing.dirty = false;
-    clearTimeout(writing.timer);
-    if (articleEl) articleEl.removeAttribute("data-editing");
-    docEl.removeAttribute("data-editing");
-    docEl.removeAttribute("data-title-in-body");
+    writing.handle = window.DokuEditor.create(host, surfaceOptions(payload.md, schema));
+    docEl.setAttribute("data-editor-mounted", "1");
+    buildHeadingMap(payload.md);
+    // deep link: /d/x#หัวข้อ — หลัง mount ไม่มี id ใน DOM แล้ว ต้องใช้ heading map
+    if (!scrollToHash()) restoreScroll(anchor);
+    syncColophonWords(payload.md);
     setDocStatus("clean", "");
   }
 
-  async function renderFragment(md) {
-    const result = await jsonRequest("POST", "/api/render", { md, path: writing.path });
-    return result;
+  /** ไม่มี bundle (docs/08 ข้อ 37): degraded path — คลิกเอกสารแล้วได้ textarea
+   *  (one surface ใช้ไม่ได้ถ้าไม่มี editor bundle · หน้าอ่านยังอ่านได้ปกติ) */
+  function installFallbackEntry() {
+    writing.fallback = true;
+    articleEl.addEventListener("click", (event) => {
+      if (writing.textarea) return;
+      const payload = readEmbedded();
+      if (!payload || typeof payload.md !== "string") return;
+      if (
+        event.target.closest &&
+        event.target.closest("a, button, summary, input, select, textarea, .doku-doc-meta")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      mountTextarea(payload.md);
+    });
   }
 
-  /** ชื่อเรื่อง/สรุป อยู่ที่ header นอกส่วนที่แก้ — อัปเดตจาก meta ที่ server คืนมา */
-  function syncHeader(meta) {
-    if (!meta) return;
-    const title = document.querySelector(".doku-doc-title");
-    if (title && meta.title) title.textContent = meta.title;
-    const lede = document.querySelector(".doku-doc-lede");
-    const summary = meta.summary || "";
-    if (lede) {
-      if (summary) lede.textContent = summary;
-      else lede.remove();
-    } else if (summary) {
-      const header = document.querySelector(".doku-doc-header");
-      const paragraph = document.createElement("p");
-      paragraph.className = "doku-doc-lede";
-      paragraph.textContent = summary;
-      title?.insertAdjacentElement("afterend", paragraph);
-      void header;
-    }
-    const colophon = document.querySelector(".doku-colophon");
-    if (colophon && meta.title) colophon.setAttribute("data-title", meta.title);
+  function mountTextarea(md) {
+    const host = document.createElement("div");
+    host.className = "doku-inline-editor";
+    bodyEl.textContent = "";
+    bodyEl.appendChild(host);
+    const textarea = document.createElement("textarea");
+    textarea.className = "doku-inline-textarea";
+    textarea.value = md;
+    textarea.setAttribute("aria-label", "เนื้อหาเอกสาร (markdown)");
+    textarea.addEventListener("input", markDirty);
+    host.appendChild(textarea);
+    writing.mounted = host;
+    writing.textarea = textarea;
+    docEl.setAttribute("data-editor-mounted", "1");
+    textarea.focus();
   }
 
-  /** วาด HTML กลับเข้าที่เดิม + sync TOC/colophon ให้ตรงกับเนื้อหาใหม่ */
-  async function paintRendered(md) {
-    const result = await renderFragment(md);
-    bodyEl.innerHTML = result.html;
-    syncHeader(result.meta);
-    syncTocFromBody();
-    const colophon = $(".doku-colophon");
-    if (colophon) {
-      const words = md.trim().split(/\\s+/u).filter(Boolean).length;
-      const node = colophon.querySelector("[data-part='colophon-words']");
-      if (node) node.textContent = words.toLocaleString("th-TH") + " คำ";
-    }
-    return result.html;
-  }
-
-  function syncTocFromBody() {
-    const links = $$("[data-toc-link]");
-    if (!links.length) return;
-    const headings = $$("article .doku-prose :is(h2, h3, h4)").filter((el) => el.id);
-    const list = links[0].closest("ul");
-    if (!list) return;
-    list.textContent = "";
-    for (const heading of headings) {
-      const li = document.createElement("li");
-      li.className = "doku-toc-h" + heading.tagName.slice(1);
-      const link = document.createElement("a");
-      link.href = "#" + heading.id;
-      link.setAttribute("data-toc-link", heading.id);
-      // ข้อความหัวข้อต้องไม่รวม decorative anchor — pipeline ใส่ a.doku-anchor
-      // append เข้าไปใน heading เอง (rehype-autolink-headings behavior "append")
-      // textContent เลยมี "#" ติดมา; server TOC ไม่พังเพราะ rehypeCollectToc
-      // ถูกเรียกก่อน autolink (core/render.ts) — client rebuild ต้องตัดเอง
-      const clone = heading.cloneNode(true);
-      for (const anchor of $$("a.doku-anchor", clone)) anchor.remove();
-      link.textContent = clone.textContent || "";
-      li.appendChild(link);
-      list.appendChild(li);
-    }
+  function focusSurface() {
+    if (writing.handle) writing.handle.focus();
+    else if (writing.textarea) writing.textarea.focus();
   }
 
   function scheduleSave() {
@@ -881,80 +970,103 @@ ${INTERACTIONS_JS}
     writing.timer = setTimeout(() => flushSave(false), 800);
   }
 
-  /** autosave · If-Match · 409 = ให้คนเลือก (ไม่ทับเงียบ — docs/08 ข้อ 54) */
+  /** autosave · If-Match · 409 = ให้คนเลือก (ไม่ทับเงียบ — docs/08 ข้อ 54)
+   *  **ห้าม markClean ก่อน PUT ตอบกลับ** — ระหว่าง round-trip data-dirty ต้องยังอยู่
+   *  (nav guard + keepalive อาศัยค่านี้ — docs/08 ข้อ 65) · ยิงซ้อนไม่ได้
+   *  (คืน promise เดิม) · ถ้าพิมพ์เพิ่มระหว่าง flight loop จะ save ต่อให้เอง */
   async function flushSave(explicit) {
-    if (!writing.editing || !writing.dirty) {
+    if (writing.saving) return writing.saving;
+    if (!writing.dirty || (!writing.handle && !writing.textarea)) {
       if (explicit) setDocStatus("clean", "");
       return;
     }
-    const md = currentText();
-    writing.dirty = false;
-    try {
-      const result = await jsonRequest(
-        "PUT",
-        "/api/docs/" + encodePath(writing.path),
-        { md },
-        writing.etag ? { "if-match": '"' + writing.etag + '"' } : undefined,
-      );
-      if (result && result.etag) writing.etag = result.etag;
-      setDocStatus("clean", "");
-    } catch (error) {
-      writing.dirty = true;
-      if (error.status === 409) {
-        const force = window.confirm(
-          "เอกสารถูกแก้จากที่อื่นหลังคุณเปิดหน้านี้\\n\\nเขียนทับด้วยเวอร์ชันของคุณหรือไม่?" +
-            "\\n(ยกเลิก = เก็บงานของคุณไว้ก่อน ยังไม่เขียนทับ)",
-        );
-        if (error.etag) writing.etag = error.etag;
-        if (force) {
-          setDocStatus("dirty", "กำลังบันทึก…");
-          await flushSave(true);
-          return;
+    writing.saving = (async () => {
+      try {
+        while (writing.dirty) {
+          const md = currentText();
+          let result;
+          try {
+            result = await jsonRequest(
+              "PUT",
+              "/api/docs/" + encodePath(writing.path),
+              { md },
+              writing.etag ? { "if-match": '"' + writing.etag + '"' } : undefined,
+            );
+          } catch (error) {
+            writing.dirty = true;
+            docEl.setAttribute("data-dirty", "1");
+            if (error.status === 409) {
+              const force = window.confirm(
+                "เอกสารถูกแก้จากที่อื่นหลังคุณเปิดหน้านี้" +
+                  LF +
+                  LF +
+                  "เขียนทับด้วยเวอร์ชันของคุณหรือไม่?" +
+                  LF +
+                  "(ยกเลิก = เก็บงานของคุณไว้ก่อน ยังไม่เขียนทับ)",
+              );
+              if (error.etag) writing.etag = error.etag;
+              if (force) {
+                setDocStatus("dirty", "กำลังบันทึก…");
+                continue; // ลองใหม่ด้วย etag ที่ server เพิ่งส่งกลับ
+              }
+              setDocStatus("error", "ถูกแก้จากที่อื่น");
+              return;
+            }
+            setDocStatus("error", "บันทึกไม่สำเร็จ");
+            fail(error);
+            return;
+          }
+          if (result && result.etag) writing.etag = result.etag;
+          // กัน SSE echo ของการเขียนของตัวเอง (watcher + debounce ~250–330ms)
+          window.dispatchEvent(new Event("doku:saved"));
+          // ล้าง dirty หลัง PUT สำเร็จ และเฉพาะเมื่อไม่มีงานใหม่ระหว่าง round-trip
+          if (currentText() === md) markClean();
+          syncColophonWords(md);
         }
-        setDocStatus("error", "ถูกแก้จากที่อื่น");
-        return;
+      } finally {
+        writing.saving = null;
       }
-      setDocStatus("error", "บันทึกไม่สำเร็จ");
-      fail(error);
-    }
+    })();
+    return writing.saving;
   }
 
-  /** flush + snapshot + teardown โดยไม่วาดผล — ใช้เป็นแกนของการออกโหมดเขียน */
-  async function flushAndTeardown() {
-    clearTimeout(writing.timer);
-    await flushSave(true);
-    const md = writeSnapshot();
-    teardownWriting();
-    return md;
-  }
-
-  /** flush ก่อน navigate ไปหน้าอื่น — flush + ทำลาย CM handle/timer (กัน onChange ยิงซ้ำ
-   *  ระหว่าง flush) แต่ “คง data-editing” ไว้จนหน้า unload: flush ที่สร้าง file change
-   *  จะยิง SSE "change" กลับมา และ listener ต้นไฟล์ guard ด้วย attribute นี้ — ถ้าลบก่อน
-   *  navigate จะโดน reload ยกเลิก navigation ที่กำลัง pending (navigation race) */
+  /** flush ก่อน navigate ไปหน้าอื่น — ต้อง await จนจบจริงก่อนปล่อยไป (กันงานหาย) */
   async function flushForNavigation() {
     clearTimeout(writing.timer);
     try {
-      // ต้อง await จน flush จบจริงก่อน navigate — flushSave ตั้ง dirty=false ตั้งแต่ก่อน await
       await flushSave(true);
     } catch (error) {
-      // flush พัง → toast error แล้ว navigate ต่ออยู่ดี (autosave รอบก่อนครอบงานส่วนใหญ่
-      // แล้ว + revision มีอยู่) — อย่าค้างอยู่หน้าเดิมเงียบ ๆ
       fail(error);
     }
-    writeSnapshot();
   }
 
-  async function exitWriting() {
-    if (!writing.editing) return;
-    const md = await flushAndTeardown();
+  /** best-effort ตอนปิด/ซ่อนหน้า — keepalive (เบราว์เซอร์จำกัด body ~64KB) */
+  function flushKeepalive() {
+    if (!writing.dirty || !writing.path) return;
     try {
-      await paintRendered(md);
-    } catch (error) {
-      fail(error);
-      reload();
-    }
+      const md = currentText();
+      writing.dirty = false;
+      docEl.removeAttribute("data-dirty");
+      fetch("/api/docs/" + encodePath(writing.path), {
+        method: "PUT",
+        keepalive: true,
+        headers: Object.assign(
+          { "content-type": "application/json" },
+          writing.etag ? { "if-match": '"' + writing.etag + '"' } : {},
+        ),
+        body: JSON.stringify({ md }),
+      }).catch(() => {});
+    } catch {}
   }
+  window.addEventListener("pagehide", () => {
+    saveScrollAnchor();
+    flushKeepalive();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "hidden") return;
+    saveScrollAnchor();
+    void flushSave(false);
+  });
 
   /* ── slash menu + block control strip (docs/08 ข้อ 55) ─────────────────── */
 
@@ -1240,7 +1352,7 @@ ${INTERACTIONS_JS}
   }
 
   function renderDirectiveStrip(info) {
-    if (!writing.editing) {
+    if (!writing.handle) {
       hideStrip();
       return;
     }
@@ -1273,7 +1385,7 @@ ${INTERACTIONS_JS}
 
   // pin/unpin ด้วย pointer — คลิกในแผง (แม้ target ถูกแทนที่ระหว่างคลิก) = ยัง pin อยู่
   document.addEventListener("pointerdown", (event) => {
-    if (!writing.editing) return;
+    if (!writing.handle) return;
     const mark = markBarEl();
     if (mark && !mark.hidden && (mark.contains(event.target) || inRect(mark, event, 4))) {
       markPin = true; // แผง mark คนละ state กับ block strip — ห้ามไปแตะ pin ของอีกฝั่ง
@@ -1317,25 +1429,15 @@ ${INTERACTIONS_JS}
   window.addEventListener("scroll", onViewportMove, true);
   window.addEventListener("resize", onViewportMove);
 
-  /* ── เข้าโหมดเขียนด้วยการคลิกที่เอกสาร (Notion-like — docs/08 ข้อ 52) ──── */
+  /* ── คลิกบรรทัด meta = เปิด panel คุณสมบัติ (カーเข้า editor จัดการโดย CM6 เอง — docs/08 ข้อ 65) ── */
 
   if (articleEl && bodyEl) {
     articleEl.addEventListener("click", (event) => {
-      if (writing.editing) return;
       const metaLine = event.target.closest ? event.target.closest(".doku-doc-meta") : null;
-      if (metaLine) {
-        event.preventDefault();
-        openMeta(currentDocPath());
-        return;
-      }
-      if (isInteractiveTarget(event.target)) return;
-      const selection = window.getSelection ? window.getSelection().toString() : "";
-      if (selection) return; // กําลังเลือกข้อความอยู่ ไม่ต้องเข้าโหมดเขียน
+      if (!metaLine) return;
       event.preventDefault();
-      void enterWriting(event.target);
+      openMeta(currentDocPath());
     });
-    // a11y: เข้าโหมดเขียนด้วยคีย์บอร์ด (โฟกัสที่เอกสาร + Enter/Space)
-    articleEl.setAttribute("tabindex", "-1");
   }
 
   /* ── mark swatch strip (docs/08 ข้อ 6/55) — แถบสีของ ==mark== เมื่อカーอยู่ในช่วง ──
@@ -1427,7 +1529,7 @@ ${INTERACTIONS_JS}
   }
 
   function renderMarkStrip(info) {
-    if (!writing.editing) {
+    if (!writing.handle) {
       hideMarkBar();
       return;
     }
@@ -1470,7 +1572,7 @@ ${INTERACTIONS_JS}
     ];
     const current = currentDocPath();
     if (current) {
-      commands.unshift({ label: "แก้เอกสารนี้", hint: "edit", run: () => enterWriting(null) });
+      commands.unshift({ label: "カーในเอกสารนี้", hint: "edit", run: focusSurface });
       commands.push({ label: "คุณสมบัติเอกสารนี้", hint: "meta", run: () => openMeta(current) });
     }
     return commands;
@@ -1660,8 +1762,8 @@ ${INTERACTIONS_JS}
   /* ── dblclick เปลี่ยนชื่อในแถว (inline — ไม่ใช้ prompt) ───────────────── */
 
   document.addEventListener("dblclick", (event) => {
-    // ขณะโหมดเขียน การคลิก rail กำลังถูกจัดการ (flush/ออกโหมด) — ห้าม rename ซ้อน
-    if (writing.editing) return;
+    // คลิกใน editor = CM6 จัดการ — ห้าม rename ซ้อนกับカー/selection
+    if (writing.mounted && writing.mounted.contains(event.target)) return;
     const target = event.target;
     if (!target.closest) return;
     // โฟลเดอร์: dblclick เฉพาะช่วงข้อความ label — ไม่รวม caret/menu (ปุ่ม)
@@ -1719,36 +1821,72 @@ ${INTERACTIONS_JS}
 
   const tocLinks = $$("[data-toc-link]");
   const tocTargets = $$("article .doku-prose :is(h2, h3, h4)").filter((el) => el.id);
-  if (tocLinks.length && tocTargets.length && "IntersectionObserver" in window) {
-    const linksById = new Map();
-    for (const link of tocLinks) {
-      const id = link.getAttribute("data-toc-link");
-      if (!linksById.has(id)) linksById.set(id, []);
-      linksById.get(id).push(link);
+  const tocLinksById = new Map();
+  for (const link of tocLinks) {
+    const id = link.getAttribute("data-toc-link");
+    if (!id) continue;
+    if (!tocLinksById.has(id)) tocLinksById.set(id, []);
+    tocLinksById.get(id).push(link);
+  }
+
+  function setActiveToc(id) {
+    for (const link of tocLinks) link.removeAttribute("aria-current");
+    for (const link of tocLinksById.get(id) || []) link.setAttribute("aria-current", "true");
+  }
+
+  /** カーไปหัวข้อ — โหมดอ่านใช้ anchor เดิม · โหมด editor ใช้ heading map (ไม่มี id ใน CM6 DOM) */
+  function goToHeading(id) {
+    if (writing.handle && scrollToHeading(id)) {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, "", "#" + encodeURI(id));
+      }
+      setActiveToc(id);
+      return;
     }
-    const visible = new Set();
-    const setActive = (id) => {
-      for (const link of tocLinks) link.removeAttribute("aria-current");
-      for (const link of linksById.get(id) || []) link.setAttribute("aria-current", "true");
-    };
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) visible.add(entry.target.id);
-          else visible.delete(entry.target.id);
-        }
-        const current = tocTargets.find((heading) => visible.has(heading.id));
-        if (current) setActive(current.id);
-      },
-      { rootMargin: "-10% 0px -80% 0px" },
-    );
-    for (const heading of tocTargets) observer.observe(heading);
-    if (tocSheetEl) {
-      tocSheetEl.addEventListener("click", (event) => {
-        if (event.target.closest("[data-toc-link]")) tocSheetEl.hidden = true;
-      });
+    const target = document.getElementById(id);
+    if (target) target.scrollIntoView();
+  }
+
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest ? event.target.closest("[data-toc-link]") : null;
+    if (!link) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
     }
-    setActive(tocTargets[0].id);
+    event.preventDefault();
+    goToHeading(link.getAttribute("data-toc-link"));
+    if (tocSheetEl) tocSheetEl.hidden = true;
+  });
+
+  /** active = หัวข้อสุดท้ายที่อยู่เหนือเส้น 96px — ใช้ได้ทั้งโหมดอ่านและโหมด editor
+   *  (โหมด editor หัวข้อเป็น .cm-line ไม่มี id → ใช้ offset จาก heading map) */
+  let tocActiveFrame = 0;
+  function updateActiveToc() {
+    tocActiveFrame = 0;
+    if (!tocLinks.length) return;
+    let current = null;
+    if (writing.handle && headingPositions) {
+      for (const [id, pos] of headingPositions) {
+        const coords = writing.handle.coordsAt(pos);
+        if (coords && coords.top <= 96) current = id;
+      }
+    } else {
+      for (const heading of tocTargets) {
+        if (!heading.isConnected) continue;
+        if (heading.getBoundingClientRect().top <= 96) current = heading.id;
+        else break;
+      }
+    }
+    if (current) setActiveToc(current);
+  }
+  function scheduleActiveToc() {
+    if (tocActiveFrame) return;
+    tocActiveFrame = window.requestAnimationFrame(updateActiveToc);
+  }
+  if (tocLinks.length && tocTargets.length) {
+    window.addEventListener("scroll", scheduleActiveToc, true);
+    window.addEventListener("resize", scheduleActiveToc);
+    scheduleActiveToc();
   }
 
   /* ── action router ───────────────────────────────────────────────────── */
@@ -1763,7 +1901,7 @@ ${INTERACTIONS_JS}
         {
           label: "แก้ไข",
           run: () => {
-            if (currentDocPath() === path) enterWriting(null);
+            if (currentDocPath() === path) focusSurface();
             else window.location.href = "/d/" + encodePath(path);
           },
         },
@@ -1830,7 +1968,7 @@ ${INTERACTIONS_JS}
         toggleZen();
         break;
       case "edit":
-        enterWriting(null);
+        focusSurface();
         break;
       case "meta":
         if (path) openMeta(path);
@@ -1887,14 +2025,14 @@ ${INTERACTIONS_JS}
       return;
     }
     if (meta && event.key.toLowerCase() === "e") {
-      if (currentDocPath() && !writing.editing) {
+      if (currentDocPath()) {
         event.preventDefault();
-        enterWriting(null);
+        focusSurface();
       }
       return;
     }
     if (meta && event.key.toLowerCase() === "s") {
-      if (writing.editing) {
+      if (writing.handle || writing.textarea) {
         event.preventDefault();
         flushSave(true);
       }
@@ -1906,8 +2044,27 @@ ${INTERACTIONS_JS}
       else if (!paletteEl.hidden) closePalette();
       else if (metaPanel && !metaPanel.hidden) metaPanel.hidden = true;
       else if (!folderOverlay.hidden) folderOverlay.hidden = true;
-      else if (writing.editing) exitWriting();
+      else if (writing.mounted && writing.mounted.contains(document.activeElement)) {
+        // カーออกจากเอกสาร → คีย์ลัดของ chrome กลับมาทำงาน (docs/08 ข้อ 54)
+        if (writing.handle) writing.handle.blur();
+        else document.activeElement.blur();
+      }
     }
   });
+
+  /* ── boot: mount editor ทับคอลัมน์อ่านครั้งเดียวตอน idle (docs/08 ข้อ 65) ───
+     mount เฉพาะหน้าเอกสาร (home/trash/styleguide ไม่มี payload) — ก่อน mount
+     ผู้ใช้ยังอ่าน HTML จาก server ได้ครบ (no-JS parity) */
+
+  if (articleEl && bodyEl && embeddedEl) {
+    const boot = () => {
+      void mountSurface();
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(boot, { timeout: 1200 });
+    } else {
+      window.setTimeout(boot, 0);
+    }
+  }
 })();
 `

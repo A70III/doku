@@ -347,9 +347,10 @@ describe("client.js", () => {
     expect(() => new Function(CLIENT_JS)).not.toThrow()
     for (const marker of [
       "openPalette",
-      "enterWriting",
-      "exitWriting",
+      "mountSurface",
       "flushSave",
+      "data-dirty",
+      "data-editor-mounted",
       "doku-inline-textarea",
       "openMeta",
       "openFolderSettings",
@@ -379,21 +380,6 @@ describe("client.js", () => {
       "schedulePatch", // text input แก้แบบ live (debounce ~300ms)
       "pointerdown", // คลิกนอกทั้ง CM และแผง → ซ่อน (วัดด้วยพิกัด)
       "inRect", // วัดด้วย getBoundingClientRect ไม่ใช่ contains อย่างเดียว
-    ]) {
-      expect(CLIENT_JS).toContain(marker)
-    }
-  })
-
-  test("คลิกเยื้องออกจากคอลัมน์เล็กน้อยไม่เด้งออกโหมดเขียน — tolerance zone + neutral gutter + chrome (regression: เด้งกลับโหมดอ่าน)", () => {
-    // เดิม: !articleEl.contains(event.target) → คลิกหลุดกรอบคอลัมน์นิดเดียว = ออกทันที
-    expect(CLIENT_JS).not.toContain("!articleEl.contains(event.target)) void exitWriting()")
-    expect(CLIENT_JS).not.toContain("event.target.isConnected && !articleEl.contains(event.target)")
-    for (const marker of [
-      "inTolerance", // วงใน: rect ของ article ขยาย ~3rem
-      "doku-rail", // วงนอก: sidebar/rail = ออกจริง
-      "doku-toc-col", // วงนอก: TOC คอลัมน์
-      "doku-overlay", // วงนอก: TOC แผ่น / palette / overlay อื่น
-      "doku-menu", // วงนอก: เมนูบริบท
     ]) {
       expect(CLIENT_JS).toContain(marker)
     }
@@ -437,45 +423,36 @@ describe("client.js", () => {
     }
   })
 
-  test("คลิกลิงก์ใน chrome ขณะเขียน → flush แล้ว navigate ทันที (regression: navigation race — reload กลับโหมดอ่านของเอกสารเดิม ต้องคลิกซ้ำ)", () => {
-    // เดิม: คลิกลิงก์ใน sidebar ขณะ editing → void exitWriting() โดยไม่ preventDefault
-    // → เบราว์เซอร์เริ่ม navigation ตาม default action · fetch ของ paintRendered
-    //   โดนยกเลิกเพราะหน้ากำลัง unload → catch ของ exitWriting ยิง reload() ขณะ
-    //   navigation ยัง pending → ยกเลิกไปหน้าใหม่ + reload หน้าเดิมกลับโหมดอ่าน
+  test("one surface: ไม่มีการ swap/ออกโหมด — มีงานค้างต้อง flush ก่อน navigate (docs/08 ข้อ 65)", () => {
+    // swap path ของ M3.1 ถูกถอดทั้งหมด: ไม่มี enterWriting/exitWriting/paintRendered
+    expect(CLIENT_JS).not.toContain("enterWriting")
+    expect(CLIENT_JS).not.toContain("exitWriting")
+    expect(CLIENT_JS).not.toContain("paintRendered")
+    expect(CLIENT_JS).not.toContain("offsetForElement")
+    expect(CLIENT_JS).not.toContain("data-editing")
+    expect(CLIENT_JS).not.toContain("/api/render") // หลัง mount ไม่มี re-render request อีก
 
-    // 1) flushAndTeardown แยกออกจาก exitWriting — ออกอยู่ในหน้า (Esc/ปุ่มธีม) ใช้ exitWriting
-    //    ส่วน navigate ไปหน้าอื่นใช้ flushForNavigation (flush แต่คง data-editing)
-    expect(CLIENT_JS).toContain("async function flushAndTeardown")
-    expect(CLIENT_JS).toContain("async function flushForNavigation")
+    // mount ครั้งเดียวตอน idle (progressive enhancement) + guard ด้วย data-dirty
+    expect(CLIENT_JS).toContain("requestIdleCallback")
+    expect(CLIENT_JS).toContain("function shouldReloadOnChange")
+    expect(CLIENT_JS).toContain('hasAttribute("data-dirty")')
 
-    // 2) ทาง chrome-ลิงก์: preventDefault + flush (await) ก่อน navigate ด้วย location.href
-    //    (string-scan ให้แคบที่สุด: มี async fn ทาง nav จุดเดียว)
+    // ทาง chrome-ลิงก์: preventDefault + flush (await) ก่อน navigate
     const navFnAt = CLIENT_JS.indexOf("void (async () => {")
     expect(navFnAt).toBeGreaterThan(-1)
-    expect(CLIENT_JS.indexOf("void (async () => {", navFnAt + 1)).toBe(-1)
-    const preventAt = CLIENT_JS.lastIndexOf("event.preventDefault();", navFnAt)
-    expect(preventAt).toBeGreaterThan(-1)
-    expect(navFnAt - preventAt).toBeLessThan(120) // preventDefault ติดกับ async fn ทาง nav
     const navFnEnd = CLIENT_JS.indexOf("})();", navFnAt)
     const navBlock = CLIENT_JS.slice(navFnAt, navFnEnd)
-    expect(navBlock).toContain("await flushForNavigation();") // flush ต้องถูกรอก่อน navigate
-    expect(navBlock).toContain("window.location.href = href;")
+    expect(navBlock).toContain("await flushForNavigation();")
+    expect(navBlock).toContain("window.location.href = link.href;")
 
-    // 3) ทาง nav ห้ามอ้าง teardownWriting/ลบ data-editing ก่อน navigate — flush ที่สร้าง
-    //    file change จะยิง SSE "change" กลับมา และ listener ต้นไฟล์ guard ด้วย data-editing
-    //    (ลบก่อน navigate = reload กลาง navigation pending → ต้องคลิกซ้ำ)
-    expect(navBlock).not.toContain("teardownWriting")
-    expect(navBlock).not.toContain("data-editing")
-
-    // 4) guard คีย์: ctrl/shift/alt/meta หรือ middle-click → ไม่ preventDefault ไม่แตะ
-    //    (ปล่อยพฤติกรรมเปิดแท็บใหม่ของเบราว์เซอร์ — autosave รอบก่อนครอบงานส่วนใหญ่)
+    // guard คีย์: ctrl/shift/alt/meta หรือ middle-click → ปล่อยเบราว์เซอร์ (เปิดแท็บใหม่)
     expect(CLIENT_JS).toContain(
       "event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey",
     )
 
-    // 5) ลิงก์ #… (TOC) → ออกอยู่ในหน้า (exitWriting) + หลัง paint เสร็จเลื่อนไปหัวข้อ
-    expect(CLIENT_JS).toContain('charAt(0) !== "#"')
-    expect(CLIENT_JS).toContain("document.getElementById(anchorId)")
+    // TOC: ลิงก์ #… ต้องเลื่อนカーใน editor ได้ (CM6 ไม่มี id ใน DOM → heading map)
+    expect(CLIENT_JS).toContain("function scrollToHeading")
+    expect(CLIENT_JS).toContain("function buildHeadingMap")
   })
 
   test("slash menu กรองตามที่พิมพ์ได้ทุกคีย์ + รวมสระ/วรรณยุกต์ไทย + จัดอันดับ (regression: พิมพ์ /vi ไม่กรอง / พิมพ์ /วิ เมนูหาย — docs/08 ข้อ 55)", () => {
