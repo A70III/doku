@@ -98,13 +98,57 @@ describe("หัว block + การ reveal source ของ `:::` (docs/08 ข
     expect(EDITOR_SOURCE).not.toContain("block.attrs.title ??")
   })
 
-  test("คลิกหัว block = วางカーที่บรรทัด fence (ทางเข้าด้วยเมาส์ ไม่ต้องกด ↑/↓)", () => {
+  test("คลิกหัว block/widget = วางカーที่บรรทัด fence (ทางเข้าด้วยเมาส์ ไม่ต้องกด ↑/↓)", () => {
     expect(EDITOR_SOURCE).toContain('el.setAttribute("data-from", String(this.#from))')
     // listener บน element ของ widget เอง — `domEventHandlers` ของ mousedown ไม่ถูกเรียก
     // เพราะ CM6 กัน mousedown ของ widget ที่ observer และหยุด handler เมื่อ defaultPrevented
-    expect(EDITOR_SOURCE).toContain('el.addEventListener("mousedown"')
-    expect(EDITOR_SOURCE).toContain("EditorSelection.cursor(this.#from)")
+    expect(EDITOR_SOURCE).toContain('el.addEventListener("mousedown", (event) => jumpToSource(')
+    expect(EDITOR_SOURCE).toContain("function jumpToSource(")
+    expect(EDITOR_SOURCE).toContain("EditorSelection.cursor(from)")
     expect(EDITOR_SOURCE).toContain("event.stopPropagation()")
+  })
+})
+
+/**
+ * Regression — editor แสดง custom block ของ Doku ไม่ครบ (docs/08 ข้อ 81)
+ *
+ * อาการ: เปิดเอกสารที่มี `:::progress`/`:::figure`/`:::video`/`:::stats` แล้วหน้าอ่านของ server
+ * (ที่ render block จริง) ถูก CM6 mount ทับด้วย decoration ที่เหลือแค่ "หัว block" → block ที่
+ * เนื้อหาอยู่ใน attribute ล้วนหายทั้งก้อน (อ่านว่า "custom block ของ doku พัง")
+ */
+describe("read-parity ของ block ที่เนื้อหาอยู่ใน attribute (docs/08 ข้อ 81)", () => {
+  test("preview widget ประกอบ markup ชุดเดียวกับ renderer จริง (progress/figure/video/stats)", () => {
+    expect(EDITOR_SOURCE).toContain("class BlockPreviewWidget")
+    expect(EDITOR_SOURCE).toContain(
+      'const PREVIEW_BLOCKS = new Set(["progress", "figure", "video", "stats"])',
+    )
+    for (const marker of [
+      'setAttribute("data-block", "progress")',
+      'setAttribute("data-part", "progress-label")',
+      'setAttribute("data-part", "figure-caption")',
+      'setAttribute("data-block", "stats")',
+      'setAttribute("data-block", "stat")',
+      'setAttribute("data-block", "video")',
+      "percentAttr(",
+      "statTiles(",
+    ]) {
+      expect(EDITOR_SOURCE).toContain(marker)
+    }
+  })
+
+  test("preview ใช้เมื่อカーอยู่นอก block และ block ปิด fence แล้วเท่านั้น", () => {
+    // カーใน block = เห็น source ทั้งก้อน (ไม่งั้นカーเข้าไปแก้ attribute ไม่ได้)
+    expect(EDITOR_SOURCE).toContain("!insideBlock &&")
+    // block ที่ยังไม่ปิด = กำลังเขียน — ห้ามซ่อนเนื้อที่เหลือทั้งเอกสาร
+    expect(EDITOR_SOURCE).toContain("block.closeFrom !== null &&")
+    // block ที่ประกอบ preview ไม่ได้ (progress ไม่มี value/เกินช่วง · stats ไม่มี tile) → ถอยไปใช้หัว block
+    expect(EDITOR_SOURCE).toContain(
+      'block.name !== "progress" || percentAttr(block.attrs.value) !== null',
+    )
+  })
+
+  test("inline directive รับทั้ง `:stat[…]` และ `::stat[…]` (leaf form ที่ design.md ใช้)", () => {
+    expect(EDITOR_SOURCE).toMatch(/const INLINE_DIRECTIVE = \/:\{1,2\}\(\[\\w-\]/)
   })
 })
 

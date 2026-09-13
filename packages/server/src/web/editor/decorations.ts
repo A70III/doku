@@ -30,7 +30,9 @@ import {
   DIRECTIVE_OPEN,
   directiveTitle,
   parseAttrs,
+  percentAttr,
   scanDirectives,
+  statTiles,
 } from "./blocks.ts"
 
 /* ── perf: ต้นทุน decoration ต่อ update (M3.2 Track E) ───────────────────────
@@ -193,6 +195,22 @@ class InlineDirectiveWidget extends WidgetType {
   }
 }
 
+/* ── widget: หัว block + preview ของ block ที่เนื้อหาอยู่ใน attribute ── */
+
+/** คลิก overlay/widget แล้วพาカーไปที่ offset นั้น (docs/08 ข้อ 79)
+ *
+ * ต้องผูก listener ที่ element ของ widget เอง (ไม่ใช่ `domEventHandlers`):
+ * ● CM6 กัน `mousedown` ของ widget ที่ observer → custom handler ไม่ถูกเรียก (หยุดเมื่อ `defaultPrevented`)
+ * ● และถ้าปล่อยให้ CM คำนวณ selection จากพิกัดต่อ (mouseup) มันจะ **ทับ** ตำแหน่งที่เรา
+ *   dispatch — พิกัดบน widget ทั้งบรรทัด map ไม่ตรงเสมอ → カーเด้งกลับ (อ่านว่า "คลิกไม่ติด") */
+function jumpToSource(view: EditorView | undefined, from: number, event: Event): void {
+  if (!view) return
+  event.preventDefault()
+  event.stopPropagation()
+  view.dispatch({ selection: EditorSelection.cursor(from), scrollIntoView: true })
+  view.focus()
+}
+
 /** หัวของ `:::` block — แทนบรรทัด fence เปิด (callout/details/tabs ตาม renderer จริง)
  * · แนบ `data-from` (offset ของบรรทัด fence) และรับ `mousedown` เอง → คลิกหัว = カーไปที่บรรทัด
  *   fence เพื่อเปิด source ให้แก้ (docs/08 ข้อ 79) */
@@ -239,19 +257,167 @@ class BlockHeadWidget extends WidgetType {
       el.appendChild(title)
     }
     // คลิกหัว block = カーไปที่บรรทัด fence → decoration เปิด source ให้แก้ด้วยเมาส์ (docs/08 ข้อ 79)
-    // ● listener บน element เอง ไม่ใช่ `domEventHandlers` — CM6 กัน `mousedown` ของ widget
-    //   ที่ observer จึงทำให้ custom handler ไม่ถูกเรียก (ยืนยันกับเบราว์เซอร์จริง)
-    // ● `stopPropagation` สำคัญ: ถ้าปล่อยให้ CM จัดการ selection ต่อ (mouseup) มันจะ
-    //   คำนวณカーจากพิกัดแล้ว **ทับ** ตำแหน่งที่เรา dispatch — และพิกัดบน widget ทั้งบรรทัด
-    //   map ไม่ตรงเสมอ → カーเด้งกลับไปที่เดิม (อ่านว่า "คลิกไม่ติด")
-    el.addEventListener("mousedown", (event) => {
-      if (!view) return
-      event.preventDefault()
-      event.stopPropagation()
-      view.dispatch({ selection: EditorSelection.cursor(this.#from), scrollIntoView: true })
-      view.focus()
-    })
+    el.addEventListener("mousedown", (event) => jumpToSource(view, this.#from, event))
     return el
+  }
+}
+
+/** block ที่ **เนื้อหาทั้งหมดอยู่ใน attribute** — editor ต้อง render ให้เหมือนหน้าอ่าน
+ * ไม่ใช่เหลือแค่หัว block (เคยเป็นอย่างนั้น = "custom block ของ doku พังในหน้าอ่าน")
+ * · `stat` เป็น inline directive (kind = text) → ใช้ `InlineDirectiveWidget` อยู่แล้ว */
+const PREVIEW_BLOCKS = new Set(["progress", "figure", "video", "stats"])
+
+/** preview ของ `:::` block — element/attribute ชุดเดียวกับ renderer จริง
+ * (`core/src/blocks/{progress,figure,video,stats}.ts`) เพราะ CSS ของเนื้อหา scope ที่
+ * `.doku-prose [data-block=…]` → ได้สไตล์ครบโดยไม่ต้องมี CSS ชุดที่สอง
+ * (แนวเดียวกับ `InlineDirectiveWidget` ที่ reuse element/attribute ของ renderer) */
+class BlockPreviewWidget extends WidgetType {
+  #name: string
+  #attrs: Record<string, string>
+  /** บรรทัดเนื้อใน (ใช้กับ `stats` ที่ tile อยู่ในบรรทัด) */
+  #body: string
+  #from: number
+  #resolveAsset: ((src: string) => string) | undefined
+
+  constructor(
+    name: string,
+    attrs: Record<string, string>,
+    body: string,
+    from: number,
+    resolveAsset?: (src: string) => string,
+  ) {
+    super()
+    this.#name = name
+    this.#attrs = attrs
+    this.#body = body
+    this.#from = from
+    this.#resolveAsset = resolveAsset
+  }
+
+  override eq(other: BlockPreviewWidget): boolean {
+    return (
+      other.#name === this.#name &&
+      other.#body === this.#body &&
+      other.#from === this.#from &&
+      JSON.stringify(other.#attrs) === JSON.stringify(this.#attrs)
+    )
+  }
+
+  override toDOM(view?: EditorView): HTMLElement {
+    const el = this.#build()
+    el.setAttribute("data-from", String(this.#from))
+    el.classList.add("cm-doku-block-preview")
+    el.addEventListener("mousedown", (event) => jumpToSource(view, this.#from, event))
+    return el
+  }
+
+  #src(value: string | undefined): string {
+    if (!value) return ""
+    return this.#resolveAsset ? this.#resolveAsset(value) : value
+  }
+
+  #build(): HTMLElement {
+    const attrs = this.#attrs
+    if (this.#name === "progress") {
+      const el = document.createElement("div")
+      el.setAttribute("data-block", "progress")
+      const bar = document.createElement("progress")
+      bar.max = 100
+      bar.value = percentAttr(attrs.value) ?? 0
+      el.appendChild(bar)
+      if (attrs.label) {
+        const label = document.createElement("span")
+        label.setAttribute("data-part", "progress-label")
+        label.textContent = attrs.label
+        el.appendChild(label)
+      }
+      return el
+    }
+    if (this.#name === "figure") return this.#figure()
+    if (this.#name === "video") return this.#video()
+    const stats = document.createElement("div")
+    stats.setAttribute("data-block", "stats")
+    for (const tile of statTiles(this.#body)) {
+      const item = document.createElement("div")
+      item.setAttribute("data-block", "stat")
+      item.setAttribute("data-variant", "tile")
+      if (tile.color) item.setAttribute("data-color", tile.color)
+      const value = document.createElement("span")
+      value.setAttribute("data-part", "stat-value")
+      value.textContent = tile.value
+      item.appendChild(value)
+      if (tile.label) {
+        const label = document.createElement("span")
+        label.setAttribute("data-part", "stat-label")
+        label.textContent = tile.label
+        item.appendChild(label)
+      }
+      stats.appendChild(item)
+    }
+    return stats
+  }
+
+  /** ไม่มี src = placeholder (ไม่ใช่รูปแตก) — ตรงกับ renderer ของ `:::figure` */
+  #figure(): HTMLElement {
+    const src = this.#src(this.#attrs.src)
+    if (!src) {
+      const missing = document.createElement("figure")
+      missing.setAttribute("data-block", "figure")
+      missing.setAttribute("data-align", "center")
+      missing.setAttribute("data-missing", "true")
+      const caption = document.createElement("figcaption")
+      caption.setAttribute("data-part", "figure-caption")
+      caption.textContent = "asset not found: (ไม่มี src)"
+      missing.appendChild(caption)
+      return missing
+    }
+    const figure = document.createElement("figure")
+    figure.setAttribute("data-block", "figure")
+    figure.setAttribute("data-align", this.#attrs.align ?? "center")
+    const width = percentAttr(this.#attrs.width)
+    if (width !== null && width % 5 === 0) figure.setAttribute("data-width", String(width))
+    if (this.#attrs.zoom) figure.setAttribute("data-zoom", "true")
+    const image = document.createElement("img")
+    image.src = src
+    image.alt = this.#attrs.alt ?? this.#attrs.caption ?? ""
+    image.loading = "lazy"
+    image.decoding = "async"
+    figure.appendChild(image)
+    if (this.#attrs.caption) {
+      const caption = document.createElement("figcaption")
+      caption.setAttribute("data-part", "figure-caption")
+      caption.textContent = this.#attrs.caption
+      figure.appendChild(caption)
+    }
+    // zoom ใน widget: `installInteractions()` ของ core ผูกกับ DOM ตอนโหลดอ่านเท่านั้น
+    // (widget เกิดทีหลัง) → ผูก zoom ที่นี่แทน เพื่อให้พฤติกรรมเท่าหน้าอ่าน
+    if (this.#attrs.zoom) {
+      image.addEventListener("click", () => figure.toggleAttribute("data-zoomed"))
+      figure.addEventListener("click", (event) => {
+        if (event.target === figure) figure.removeAttribute("data-zoomed")
+      })
+    }
+    return figure
+  }
+
+  #video(): HTMLElement {
+    const src = this.#src(this.#attrs.src)
+    if (!src) {
+      const missing = document.createElement("figure")
+      missing.setAttribute("data-block", "figure")
+      missing.setAttribute("data-missing", "true")
+      return missing
+    }
+    const isAudio = /\.(mp3|m4a|wav|ogg|opus|flac)$/i.test(this.#attrs.src ?? "")
+    const media = document.createElement(isAudio ? "audio" : "video")
+    media.setAttribute("data-block", "video")
+    media.setAttribute("controls", "")
+    media.setAttribute("preload", "metadata")
+    if (this.#attrs.loop !== undefined) media.setAttribute("loop", "")
+    if (this.#attrs.muted !== undefined) media.setAttribute("muted", "")
+    if (!isAudio && this.#attrs.poster) media.setAttribute("poster", this.#src(this.#attrs.poster))
+    media.setAttribute("src", src)
+    return media
   }
 }
 
@@ -268,7 +434,7 @@ const hide = () => Decoration.replace({})
 /** จับ suffix `{.color}` ด้วย — カーอยู่นอกช่วงต้องซ่อนทั้ง `==` และ suffix (docs/08 ข้อ 52) */
 export const DOKU_MARK = /==([^=\n]+?)==(\{\.[\w-]+\})?/g
 /** inline directive `:badge[…]` / `:mark[…]` (registry kind = text) */
-const INLINE_DIRECTIVE = /:([\w-]+)\[([^\]]*)\](\{[^}]*\})?/g
+const INLINE_DIRECTIVE = /:{1,2}([\w-]+)\[([^\]]*)\](\{[^}]*\})?/g
 /** inline math `$…$` — ไม่รับช่องว่างหัว/ท้าย (ตาม remark-math) */
 const INLINE_MATH = /(?<![\\$])\$([^\s$][^$\n]*?[^\s$]|[^\s$])\$(?!\$)/g
 
@@ -330,6 +496,10 @@ function buildDecorations(
       value: Decoration.line(attributes ? { class: cls, attributes } : { class: cls }),
     })
   }
+
+  /** เนื้อในของ `:::` block (ระหว่าง fence เปิดกับ fence ปิด) — ใช้สร้าง preview */
+  const bodyOf = (block: { openFrom: number; closeFrom: number | null }): string =>
+    doc.sliceString(doc.lineAt(block.openFrom).to, block.closeFrom ?? doc.length)
 
   for (const visible of view.visibleRanges) {
     syntaxTree(view.state).iterate({
@@ -434,18 +604,57 @@ function buildDecorations(
     const firstLine = doc.lineAt(visible.from).number
     const lastLine = doc.lineAt(Math.min(visible.to, doc.length)).number
 
-    // ── `:::` blocks: หัว block แทน fence เปิด · พื้น block ตามชนิด · ซ่อน fence ปิด ──
+    // ── `:::` blocks: preview/หัว block แทน fence เปิด · พื้น block ตามชนิด · ซ่อน fence ปิด ──
     const blocks = scanDirectives(doc, Math.max(1, firstLine - DIRECTIVE_LOOKBACK), lastLine)
     for (const block of blocks) {
       const openLine = doc.lineAt(block.openFrom)
+      const endPos = block.closeFrom ?? doc.length
+      const lastBlockLine = doc.lineAt(endPos).number
+      // カーอยู่ใน block = เห็น source ทั้งก้อน (fence + เนื้อใน) — docs/08 ข้อ 79/81
+      const boxFrom = openLine.from
+      const boxTo = block.closeTo ?? endPos
+      const insideBlock =
+        focused &&
+        selection.ranges.some((range) => range.from <= boxTo + 1 && range.to >= boxFrom - 1)
+      const inView = openLine.from >= visible.from - 1 && openLine.to <= visible.to + 1
+      // preview ได้เฉพาะ block ที่เนื้อหาอยู่ใน attribute ล้วน + ปิด fence แล้ว
+      // (block ที่ยังไม่ปิด = กำลังเขียน → ต้องเห็น source ห้ามซ่อนเนื้อที่เหลือทั้งเอกสาร)
+      const preview =
+        block.closeFrom !== null &&
+        !insideBlock &&
+        inView &&
+        PREVIEW_BLOCKS.has(block.name) &&
+        (block.name !== "stats" || statTiles(bodyOf(block)).length > 0) &&
+        (block.name !== "progress" || percentAttr(block.attrs.value) !== null)
+      if (preview) {
+        ranges.push({
+          from: openLine.from,
+          to: openLine.to,
+          value: Decoration.replace({
+            widget: new BlockPreviewWidget(
+              block.name,
+              block.attrs,
+              bodyOf(block),
+              openLine.from,
+              options.resolveAsset,
+            ),
+          }),
+        })
+        // ซ่อนบรรทัดเนื้อใน + fence ปิด (widget แสดงผลแทนแล้ว)
+        // แยก replace ทีละบรรทัด — CM6 ห้าม plugin สร้าง decoration ที่ replaces line break
+        // (docs/08 ข้อ 69) · block ในชุดนี้มีแต่บรรทัดข้อความ ไม่มี child block
+        for (let n = openLine.number + 1; n <= lastBlockLine; n += 1) {
+          const line = doc.line(n)
+          if (line.from >= visible.from - 1 && line.to <= visible.to + 1) {
+            ranges.push({ from: line.from, to: line.to, value: hide() })
+          }
+        }
+        continue
+      }
       // カーอยู่บนบรรทัด fence = ต้องเห็น source ของตัวเอง (docs/08 ข้อ 79)
       // สมมาตรกับ fence ปิด + marker อื่นทุกตัว (`touching` ด้านล่าง) — มิฉะนั้น `:::`
       // ของผู้ใช้จะถูกซ่อนถาวร แม้カーจะอยู่บนบรรทัดนั้น
-      if (
-        openLine.from >= visible.from - 1 &&
-        openLine.to <= visible.to + 1 &&
-        !touching(openLine.from, openLine.to)
-      ) {
+      if (inView && !touching(openLine.from, openLine.to)) {
         const variant =
           options.calloutTypes.indexOf(block.name) !== -1 ? block.name : (block.attrs.type ?? "")
         ranges.push({
@@ -462,8 +671,6 @@ function buildDecorations(
           }),
         })
       }
-      const endPos = block.closeFrom ?? doc.length
-      const lastBlockLine = doc.lineAt(endPos).number
       const attrs: Record<string, string> = { "data-block": block.name }
       const variant =
         options.calloutTypes.indexOf(block.name) !== -1 ? block.name : (block.attrs.type ?? "")

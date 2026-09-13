@@ -81,6 +81,43 @@ export function directiveTitle(attrs: Record<string, string> | undefined): strin
   return ""
 }
 
+/** ค่าตัวเลข 0–100 จาก attribute — ค่าว่าง/ไม่ใช่เลข/เกินช่วง = null
+ *  (ใช้กับ `:::progress` — กติกาเดียวกับ `intAttr()` ของ renderer) */
+export function percentAttr(raw: string | undefined): number | null {
+  if (raw === undefined) return null
+  const value = Number.parseInt(raw.trim().replace(/%$/, ""), 10)
+  if (!Number.isFinite(value) || value < 0 || value > 100) return null
+  return value
+}
+
+/** tile ของ `:::stats` — คู่กับ `collectStats()` ใน `core/src/blocks/stats.ts` */
+export interface StatTile {
+  value: string
+  label?: string
+  color?: string
+}
+
+/** บรรทัด inline directive ของ `:::stats` — `:stat[42]{label="…"}` (text) หรือ `::stat[42]{…}` (leaf) */
+const STAT_LINE = /^:{1,2}stat\[([^\]]*)\]\s*(\{[^}]*\})?\s*$/
+
+/** อ่าน tile จาก "บรรทัดเนื้อใน" ของ `:::stats` — ตรงกับ attribute set ของ renderer จริง */
+export function statTiles(body: string): StatTile[] {
+  const tiles: StatTile[] = []
+  for (const line of body.split("\n")) {
+    const match = STAT_LINE.exec(line.trim())
+    if (!match) continue
+    const value = (match[1] ?? "").trim()
+    if (!value) continue
+    const attrs = parseAttrs(match[2])
+    tiles.push({
+      value,
+      ...(attrs.label ? { label: attrs.label } : {}),
+      ...(attrs.color ? { color: attrs.color } : {}),
+    })
+  }
+  return tiles
+}
+
 /** สแกน `:::` ในช่วงบรรทัด — stack ตามความยาว fence (ชั้นนอกต้องยาวกว่าชั้นใน — docs/08 ข้อ 24) */
 export function scanDirectives(
   doc: EditorState["doc"],

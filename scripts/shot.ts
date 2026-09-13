@@ -361,6 +361,58 @@ async function runEditorScenarios(
   }
   add("คลิกหัว `:::` → เห็น source ของ fence", revealed)
 
+  // 9) read-parity ของ block ที่เนื้อหาอยู่ใน attribute (docs/08 ข้อ 81)
+  //    CM6 virtualize → ต้องเลื่อนผ่านเอกสารจริง (widget เกิดเฉพาะบรรทัดใน viewport)
+  const previews = await page.evaluate(async () => {
+    const total = document.documentElement.scrollHeight
+    let boxes = 0
+    let progressValue: number | null = null
+    let progressY: number | null = null
+    // `html { scroll-behavior: smooth }` (docs/03) → ต้องปิดชั่วคราว ไม่งั้น scrollTo
+    // ยังไม่ถึงตำแหน่งในเฟรมเดียวกัน แล้วจะไม่เจอ widget เลย
+    document.documentElement.style.scrollBehavior = "auto"
+    for (let y = 0; y < total; y += 300) {
+      window.scrollTo(0, y)
+      await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 40)))
+      boxes = Math.max(boxes, document.querySelectorAll(".cm-doku-block-preview").length)
+      const bar = document.querySelector<HTMLProgressElement>(
+        ".cm-content [data-block='progress'] progress",
+      )
+      if (bar && progressValue === null) {
+        progressValue = bar.value
+        progressY = y
+      }
+    }
+    document.documentElement.style.scrollBehavior = ""
+    return { boxes, progressValue, progressY }
+  })
+  add(
+    "custom block แสดงผลใน editor (ไม่เหลือแค่หัว block)",
+    previews.boxes > 0 && previews.progressValue !== null,
+    `blocks=${previews.boxes} progress=${previews.progressValue}`,
+  )
+  const previewClick = await page.evaluate(async (y) => {
+    document.documentElement.style.scrollBehavior = "auto"
+    if (y !== null) window.scrollTo(0, y)
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    document.documentElement.style.scrollBehavior = ""
+    const el = document.querySelector(".cm-doku-block-preview") as HTMLElement | null
+    if (!el) return null
+    const rect = el.getBoundingClientRect()
+    return { x: rect.left + 20, y: rect.top + rect.height / 2 }
+  }, previews.progressY)
+  if (previews.boxes > 0) await shot("scenario-block-preview")
+  if (previewClick) {
+    await page.mouse.click(previewClick.x, previewClick.y)
+    await page.waitForTimeout(250)
+  }
+  const previewSource = await page.evaluate(() =>
+    [...document.querySelectorAll(".cm-line")].some((line) =>
+      /^:{3,}\s*[\w-]/.test((line.textContent ?? "").trim()),
+    ),
+  )
+  add("คลิก preview → เห็น source ของ block", Boolean(previewClick) && previewSource)
+
   add("ไม่มี JS error ระหว่าง scenario", jsErrors.length === 0, jsErrors.slice(0, 2).join(" | "))
   return results
 }

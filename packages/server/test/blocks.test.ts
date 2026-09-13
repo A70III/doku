@@ -13,6 +13,8 @@ import {
   moveBlock,
   moveBlockTo,
   outdentBlock,
+  percentAttr,
+  statTiles,
   turnIntoBlock,
 } from "../src/web/editor/blocks.ts"
 
@@ -244,5 +246,46 @@ describe("directiveTitle — หัว block ต้องสื่อข้อ�
     expect(directiveTitle(undefined)).toBe("")
     expect(directiveTitle({ value: "70" })).toBe("")
     expect(directiveTitle({ label: "   " })).toBe("")
+  })
+})
+
+/**
+ * Regression — editor แสดง custom block ของ Doku ไม่ครบ (อ่านว่า "block พังในหน้าอ่าน")
+ *
+ * อาการ: เปิดเอกสารที่มี `:::progress`/`:::figure`/`:::video`/`:::stats` → server render
+ * หน้าอ่านให้เห็น block จริงชั่วขณะ แล้ว CM6 mount ทับด้วย decoration ที่เหลือแค่ "หัว block"
+ * (ชื่อชนิด + tint) → block ที่มีเนื้อหาอยู่ใน attribute ล้วนหายไปทั้งก้อน
+ *
+ * root cause: Track B ทำ read-parity แค่ "หัว block + tint" ไม่ได้ render เนื้อของ block
+ * ที่ข้อมูลอยู่ใน attribute (`progress` value/label · `figure` src/caption · `video` src ·
+ * `stats` tile ในบรรทัด) → `BlockPreviewWidget` ต้องประกอบ markup ชุดเดียวกับ renderer จริง
+ *
+ * อ้างอิง: docs/08 ข้อ 81 · docs/09 §5 Track B
+ */
+describe("ค่า attribute ของ block preview — ตรงกับ renderer จริง", () => {
+  test("percentAttr — 0–100, รับ `70%`, ปัดเศษทิ้ง, นอกช่วง = null", () => {
+    expect(percentAttr("70")).toBe(70)
+    expect(percentAttr("70%")).toBe(70)
+    expect(percentAttr(" 5 ")).toBe(5)
+    expect(percentAttr("0")).toBe(0)
+    expect(percentAttr("100")).toBe(100)
+    expect(percentAttr("101")).toBeNull()
+    expect(percentAttr("-1")).toBeNull()
+    expect(percentAttr("abc")).toBeNull()
+    expect(percentAttr(undefined)).toBeNull()
+  })
+
+  test("statTiles — รับทั้ง `:stat[…]` (text) และ `::stat[…]` (leaf) ที่ใช้ใน design.md", () => {
+    const body = ':stat[42]{label="เอกสาร"}\n::stat[18]{label="แท็ก" color=blue}\n\nข้อความอื่น\n'
+    expect(statTiles(body)).toEqual([
+      { value: "42", label: "เอกสาร" },
+      { value: "18", label: "แท็ก", color: "blue" },
+    ])
+  })
+
+  test("statTiles — บรรทัดที่ไม่ใช่ tile / ค่าว่าง = ไม่สร้าง tile", () => {
+    expect(statTiles("ไม่มี tile เลย\n")).toEqual([])
+    expect(statTiles(":stat[]")).toEqual([])
+    expect(statTiles(':stat[9]{label="x"}')).toEqual([{ value: "9", label: "x" }])
   })
 })
