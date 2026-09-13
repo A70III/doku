@@ -864,7 +864,13 @@ ${INTERACTIONS_JS}
       const link = document.createElement("a");
       link.href = "#" + heading.id;
       link.setAttribute("data-toc-link", heading.id);
-      link.textContent = heading.textContent || "";
+      // ข้อความหัวข้อต้องไม่รวม decorative anchor — pipeline ใส่ a.doku-anchor
+      // append เข้าไปใน heading เอง (rehype-autolink-headings behavior "append")
+      // textContent เลยมี "#" ติดมา; server TOC ไม่พังเพราะ rehypeCollectToc
+      // ถูกเรียกก่อน autolink (core/render.ts) — client rebuild ต้องตัดเอง
+      const clone = heading.cloneNode(true);
+      for (const anchor of $$("a.doku-anchor", clone)) anchor.remove();
+      link.textContent = clone.textContent || "";
       li.appendChild(link);
       list.appendChild(li);
     }

@@ -20,5 +20,8 @@
     "chokidar": "^4.0.0",
     "hono": "^4.6.0",
     "katex": "^0.16.0"
+  },
+  "devDependencies": {
+    "linkedom": "^0.18.13"
   }
 }

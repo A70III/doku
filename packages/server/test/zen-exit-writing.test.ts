@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test"
+import { renderMarkdown } from "@doku/core"
+import { parseHTML } from "linkedom"
 import { CLIENT_JS } from "../src/web/client.ts"
 
 /**
@@ -35,6 +37,51 @@ function extractFunction(source: string, signature: string): string {
   }
   throw new Error("function ไม่ปิด block: " + signature)
 }
+
+/**
+ * Regression test — TOC ติด "#" ต่อท้ายทุก entry หลังออกโหมดเขียน
+ *
+ * อาการ: ออกโหมดแก้ไข (Esc → exitWriting → paintRendered) โดยยังอยู่หน้าเดิม
+ * แล้วทุก `[data-toc-link]` กลายเป็น "หัวข้อ#" ทั้งที่ก่อนเข้าโหมดเขียนสะอาด
+ *
+ * root cause: `syncTocFromBody` สมมติว่า `heading.textContent` = ข้อความหัวข้อ
+ * ล้วน ๆ แต่ render pipeline ใส่ anchor append เข้าไปใน heading เอง
+ * (rehype-autolink-headings behavior "append" → `<a class="doku-anchor" …>#</a>`)
+ * — textContent เลยรวม "#" ติดมาด้วย ฝั่ง server TOC ไม่พังเพราะ
+ * `rehypeCollectToc` ถูกเรียกก่อน autolink (render.ts) แต่ client rebuild
+ * จาก DOM แล้วอ่าน textContent ตรง ๆ
+ *
+ * ทดสอบ: ไม่ stub `syncTocFromBody` — feed HTML จริงจาก renderMarkdown
+ * เข้า DOM (linkedom) แล้ว assert ข้อความ TOC ไม่มี "#" ต่อท้าย
+ */
+describe("syncTocFromBody — TOC จาก DOM ต้องไม่รวม decorative anchor", () => {
+  test("อ่านหัวข้อจาก HTML ของ pipeline จริง ต้องไม่ติด '#' ต่อท้าย", async () => {
+    const { html } = await renderMarkdown("## หัวข้อ", { highlight: false })
+
+    const src = extractFunction(CLIENT_JS, "function syncTocFromBody")
+    const { document } = parseHTML(
+      `<!DOCTYPE html><html><body>` +
+        `<article><div class="doku-prose">${html}</div></article>` +
+        `<nav><ul><li><a data-toc-link="placeholder" href="#">placeholder</a></li></ul></nav>` +
+        `</body></html>`,
+    )
+    const $$ = (selector: string, root?: ParentNode) =>
+      Array.from((root ?? document).querySelectorAll(selector))
+
+    const syncTocFromBody = new Function("$$", "document", `return ${src};`)(
+      $$,
+      document,
+    ) as () => void
+    syncTocFromBody()
+
+    const links = [...document.querySelectorAll("[data-toc-link]")]
+    expect(links.length).toBe(1)
+    const link = links.at(0)
+    expect(link?.getAttribute("data-toc-link")).toBe("หัวข้อ")
+    // ตอนนี้: textContent = "หัวข้อ#" (RED) — anchor ของ autolink ติดมาด้วย
+    expect(link?.textContent).toBe("หัวข้อ")
+  })
+})
 
 describe("ออกจากโหมดเขียน (Esc / คลิก chrome) — paintRendered", () => {
   test("paintRendered ต้อง resolve + วาด HTML ลง body แล้วคืนค่า HTML เดิม (ไม่ throw)", async () => {
