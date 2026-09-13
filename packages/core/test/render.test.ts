@@ -466,6 +466,29 @@ describe("M3 fixes: asset attrs / tabs / fences / figure", () => {
     expect(warnings.some((item) => item.code === "block_unclosed")).toBe(false)
   })
 
+  test("soft line break → <br> (บรรทัดที่พิมพ์ ต้องอ่านเห็นเป็นบรรทัด · docs/08 ข้อ 71)", async () => {
+    const { html } = await render("กินอะไรดีครับ\nควรจะนอนเลยมั้ย หรือว่าอาบน้ำสั่งข้าวดีวะ\n")
+    expect(html).toContain("กินอะไรดีครับ<br>")
+    expect((html.match(/<br>/g) ?? []).length).toBe(1)
+    // hard break (เว้นวรรค 2 ตัว) ยังทำงานเหมือนเดิม
+    const hard = await render("หนึ่ง  \nสอง\n")
+    expect(hard.html).toContain("หนึ่ง<br>")
+  })
+
+  test("soft break ไม่แตะ code block · inline code (ข้อความในนั้นเป็น value ไม่ใช่ text)", async () => {
+    const { html } = await render("```\nอ่า\n\nข\n```\n\nก่อน `a\u0041` หลัง\n")
+    expect(html).toContain("<pre>")
+    expect(html).not.toContain("<code>อ่า<br>")
+    expect((html.match(/<br>/g) ?? []).length).toBe(0)
+  })
+
+  test("block ที่อ่านข้อความทีละบรรทัด (kv) ยังแยกแถวถูกหลังมี break node", async () => {
+    const { html } = await render(":::kv\nruntime: Bun\nhttp: Hono\n:::\n")
+    expect((html.match(/data-part="kv-row"/g) ?? []).length).toBe(2)
+    expect(html).toContain(">http<")
+    expect(html).toContain(">Hono<")
+  })
+
   test("figure: width=70% ใช้ได้ (docs/03 เขียนแบบมี %)", async () => {
     const { html, warnings } = await render(':::figure{src="a.png" width=70%}\n:::\n')
     expect(html).toContain('data-width="70"')

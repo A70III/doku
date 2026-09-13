@@ -28,6 +28,7 @@ import { createDokuHandlers, remarkDokuDirectives } from "./blocks/directive.ts"
 import { analyzeDirectiveFences, describeFenceProblem, type FenceProblem } from "./blocks/fences.ts"
 import { splitFrontmatter } from "./frontmatter.ts"
 import type { VaultFs } from "./fs.ts"
+import { remarkBreaks } from "./plugins/breaks.ts"
 import { remarkMark } from "./plugins/mark.ts"
 import { rehypeCollectToc, type TocEntry } from "./plugins/toc.ts"
 import { remarkWikilinks } from "./plugins/wikilink.ts"
@@ -123,6 +124,9 @@ export async function renderMarkdown(
     .use(remarkMark, { docId, onWarning: collect })
     .use(remarkDokuDirectives, { source: body, onWarning: collect, docId })
     .use(remarkWikilinks, { docId, index: options.vault?.index, onWarning: collect })
+    // soft break → `<br>` ต้องมาหลัง mark/wikilink เพื่อให้ syntax ที่พาดบรรทัดยังจับคู่ได้
+    // (docs/08 ข้อ 71 — คนพิมพ์บรรทัดเดียว ต้องอ่านเห็นบรรทัดนั้น)
+    .use(remarkBreaks)
     .use(remarkRehype, { handlers: createDokuHandlers({ docId, onWarning: collect }) })
     .use(rehypeSlug)
     // TOC ก่อน autolink เพื่อไม่ให้ข้อความ "#" ของ anchor ติดเข้าไปในสารบัญ

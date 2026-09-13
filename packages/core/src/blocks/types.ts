@@ -126,6 +126,9 @@ export function intAttr(value: string | undefined, min: number, max: number): nu
 /** อ่านข้อความล้วนจาก mdast node (kv/steps/timeline ต้องใช้ก่อน remark-rehype) */
 export function mdastText(node: unknown): string {
   const candidate = node as { value?: string; children?: unknown[]; type?: string }
+  // `break` (soft line break ที่ `remarkBreaks` แยกออกมา) ไม่มี value — ต้องคืน "\n"
+  // ไม่งั้นข้อความจาก block ที่อ่านเป็นบรรทัด (kv · steps · tabs) จะยุบติดกัน
+  if (candidate?.type === "break") return "\n"
   if (typeof candidate?.value === "string") return candidate.value
   if (!Array.isArray(candidate?.children)) return ""
   const separator = candidate.type === "paragraph" || candidate.type === "heading" ? "" : "\n"
