@@ -36,7 +36,7 @@ describe("Track D — keymap (docs/09 §2.3 · docs/08 ข้อ 70)", () => {
 
   test("chrome ของ client คืน Mod+K ให้เอกสาร ไม่ใช่ command palette", () => {
     expect(CLIENT_SOURCE).toContain("const inEditor =")
-    expect(CLIENT_SOURCE).toContain("if (inEditor) return;")
+    expect(CLIENT_SOURCE).toContain("if (inEditor) return")
   })
 })
 

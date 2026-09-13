@@ -454,8 +454,8 @@ describe("client.js", () => {
     expect(navFnAt).toBeGreaterThan(-1)
     const navFnEnd = CLIENT_SOURCE.indexOf("})();", navFnAt)
     const navBlock = CLIENT_SOURCE.slice(navFnAt, navFnEnd)
-    expect(navBlock).toContain("await flushForNavigation();")
-    expect(navBlock).toContain("window.location.href = link.href;")
+    expect(navBlock).toContain("await flushForNavigation()")
+    expect(navBlock).toContain("window.location.href = link.href")
 
     // guard คีย์: ctrl/shift/alt/meta หรือ middle-click → ปล่อยเบราว์เซอร์ (เปิดแท็บใหม่)
     expect(CLIENT_SOURCE).toContain(
