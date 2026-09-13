@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { buildDocIndex, defaultMeta, memoryVaultFs } from "../src/index.ts"
+import { buildDocIndex, defaultMeta, memoryVaultFs, rehypeRewrite } from "../src/index.ts"
 import { renderMarkdown } from "../src/render.ts"
 import type { Warning } from "../src/types.ts"
 
@@ -332,29 +332,124 @@ describe("render: ไม่มี vault (stateless)", () => {
 })
 
 describe("M3 fixes: asset attrs / tabs / fences / figure", () => {
-  test("video: relative poster ถูก rewrite เป็น /assets/<path>?h=<hash>", async () => {
+  test("video: poster มาจาก src — ไฟล์รูปชื่อเดียวกันข้าง ๆ วิดีโอ (docs/08 ข้อ 65)", async () => {
     const fs = memoryVaultFs({
       "a/design.md": "# d\n",
       "a/assets/clip.mp4": "v",
-      "a/assets/cover.png": "p",
+      "a/assets/clip.png": "p",
     })
-    const { html, warnings } = await render(
-      ':::video{src="assets/clip.mp4" poster="assets/cover.png"}\n:::\n',
-      { docId: "a/design", vault: { fs } },
-    )
+    const { html, warnings } = await render(':::video{src="assets/clip.mp4"}\n:::\n', {
+      docId: "a/design",
+      vault: { fs },
+    })
     expect(html).toMatch(/src="\/assets\/a\/assets\/clip\.mp4\?h=[0-9a-f]+"/)
-    expect(html).toMatch(/poster="\/assets\/a\/assets\/cover\.png\?h=[0-9a-f]+"/)
+    expect(html).toMatch(/poster="\/assets\/a\/assets\/clip\.png\?h=[0-9a-f]+"/)
     expect(warnings.some((item) => item.code === "asset_missing")).toBe(false)
   })
 
-  test("video: poster หาย → warning asset_missing (ไม่ใช่ 500)", async () => {
+  test("video: ไม่มีไฟล์ poster ข้าง ๆ → ไม่มี poster + ไม่เตือน (probe เงียบ)", async () => {
+    const fs = memoryVaultFs({ "a/design.md": "# d\n", "a/assets/clip.mp4": "v" })
+    const { html, warnings } = await render(':::video{src="assets/clip.mp4"}\n:::\n', {
+      docId: "a/design",
+      vault: { fs },
+    })
+    expect(html).not.toContain("poster=")
+    expect(warnings.filter((item) => item.code === "asset_missing")).toEqual([])
+  })
+
+  test("audio: ไม่มี poster แม้มีรูปชื่อเดียวกัน", async () => {
+    const fs = memoryVaultFs({
+      "a/design.md": "# d\n",
+      "a/assets/track.mp3": "v",
+      "a/assets/track.png": "p",
+    })
+    const { html } = await render(':::video{src="assets/track.mp3"}\n:::\n', {
+      docId: "a/design",
+      vault: { fs },
+    })
+    expect(html).toContain("<audio")
+    expect(html).not.toContain("poster=")
+  })
+
+  test("poster=/loop/muted/controls ถอดออกจาก block แล้ว — เขียนมาก็ไม่ถูกใช้", async () => {
     const fs = memoryVaultFs({ "a/design.md": "# d\n", "a/assets/clip.mp4": "v" })
     const { html, warnings } = await render(
-      ':::video{src="assets/clip.mp4" poster="assets/nope.png"}\n:::\n',
+      ':::video{src="assets/clip.mp4" poster="assets/cover.png" loop muted controls}\n:::\n',
       { docId: "a/design", vault: { fs } },
     )
-    expect(html).toContain('poster="/assets/a/assets/nope.png?h=missing"')
-    expect(warnings.some((item) => item.code === "asset_missing")).toBe(true)
+    expect(html).not.toContain("loop")
+    expect(html).not.toContain("muted")
+    expect(html).toContain("controls")
+    for (const attr of ["poster", "loop", "muted", "controls"]) {
+      expect(warnings.some((item) => item.message.includes(attr))).toBe(true)
+    }
+  })
+
+  test("video: YouTube ทุกรูปแบบ → iframe ของ youtube-nocookie", async () => {
+    const forms = [
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://youtu.be/dQw4w9WgXcQ",
+      "https://www.youtube.com/shorts/dQw4w9WgXcQ",
+      "https://www.youtube.com/embed/dQw4w9WgXcQ?t=30",
+      "https://m.youtube.com/watch?v=dQw4w9WgXcQ&list=PLx",
+    ]
+    for (const src of forms) {
+      const { html, warnings } = await render(`:::video{src="${src}"}\n:::\n`)
+      expect(html).toContain('src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"')
+      expect(html).toContain('data-provider="youtube"')
+      expect(html).toContain('title="วิดีโอจาก YouTube"')
+      expect(warnings.some((item) => item.code === "asset_missing")).toBe(false)
+    }
+  })
+
+  test("video: ลิงก์ภายนอกที่ไม่ใช่ YouTube → placeholder + เตือน (ยังไม่รองรับ)", async () => {
+    const { html, warnings } = await render(':::video{src="https://evil.test/clip.mp4"}\n:::\n')
+    expect(html).not.toContain("iframe")
+    expect(html).not.toContain("evil.test")
+    expect(warnings.some((item) => item.code === "block_attribute_unknown")).toBe(true)
+  })
+
+  test("rehypeRewrite ถอด iframe ทุกตัวที่ไม่ใช่ embed ที่อนุญาต (ด่านสุดท้าย)", async () => {
+    const tree = {
+      type: "root" as const,
+      children: [
+        {
+          type: "element" as const,
+          tagName: "iframe",
+          properties: { src: "https://evil.test/x" },
+          children: [],
+        },
+        {
+          type: "element" as const,
+          tagName: "iframe",
+          properties: { src: "javascript:alert(1)" },
+          children: [],
+        },
+        {
+          type: "element" as const,
+          tagName: "iframe",
+          properties: { src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0" },
+          children: [],
+        },
+      ],
+    }
+    await rehypeRewrite({ docId: "x", onWarning: () => {} })(tree as never)
+    expect(tree.children.length).toBe(1)
+    expect(tree.children[0]?.properties?.src).toBe(
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0",
+    )
+  })
+
+  test("ยูทูบปลอม (โดเมนคล้าย) ไม่ถูกฝัง", async () => {
+    for (const src of [
+      "https://evilyoutube.com/watch?v=dQw4w9WgXcQ",
+      "https://youtube.evil.test/watch?v=dQw4w9WgXcQ",
+      "https://www.youtube.com.evil.test/watch?v=dQw4w9WgXcQ",
+      "javascript:alert(1)",
+    ]) {
+      const { html } = await render(`:::video{src="${src}"}\n:::\n`)
+      expect(html).not.toContain("iframe")
+    }
   })
 
   test("tabs: มี HTML/definition ก่อน tab → เนื้อหาไม่หาย", async () => {

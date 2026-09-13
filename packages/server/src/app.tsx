@@ -35,7 +35,9 @@ import { buildPalette, buildStyleguide } from "./web/styleguide.ts"
 /** docs/06 CSP — คลาดเคลื่อนเดียว: `font-src 'self' data:` สำหรับ woff2 ที่ KaTeX ฝัง (docs/08 ข้อ 23) */
 export const CSP =
   "default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'self' 'unsafe-inline'; " +
-  "script-src 'self'; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'none'"
+  "script-src 'self'; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; " +
+  // embed เดียวที่อนุญาต = YouTube (renderer สร้าง URL เอง · rehypeRewrite ถอด iframe อื่นทิ้ง) — docs/08 ข้อ 65
+  "frame-src https://www.youtube-nocookie.com"
 
 export interface DokuAppDeps {
   fs: VaultFs

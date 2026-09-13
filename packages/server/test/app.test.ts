@@ -77,6 +77,10 @@ describe("routes", () => {
     expect(html).toContain("--doc-accent:#7c3aed") // per-doc accent (docs/03 §1.2)
     expect(html).toContain('data-doc-id="projects/design"')
     expect(res.headers.get("content-security-policy")).toContain("script-src 'self'")
+    // embed เดียวที่อนุญาต = YouTube (docs/08 ข้อ 65) — นอกเหนือจากนั้น default-src 'none' บล็อกไว้
+    expect(res.headers.get("content-security-policy")).toContain(
+      "frame-src https://www.youtube-nocookie.com",
+    )
   })
 
   test("GET /d/*path — cache hit ครั้งที่สอง", async () => {

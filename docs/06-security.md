@@ -22,7 +22,9 @@
 1. **remark-rehype ไม่เปิด `allowDangerousHtml`** — raw HTML ไม่ผ่านตั้งแต่ต้น
 2. **rehype-sanitize allowlist** — เผื่อ block เราเองมี bug
 
-- tag: `p div span h1-h6 ul ol li blockquote pre code table thead tbody tr th td a img figure figcaption mark strong em del hr br aside details summary video source audio button input label kbd sup sub`
+- tag: `p div span h1-h6 ul ol li blockquote pre code table thead tbody tr th td a img figure figcaption mark strong em del hr br aside details summary video source audio iframe button input label kbd sup sub`
+  → `iframe` อยู่ใน allowlist **เพราะ block เราสร้างเอง** และถูกตรวจซ้ำด้วย `rehypeRewrite` (หลัง sanitize):
+  `src` ต้องตรง `https://www.youtube-nocookie.com/embed/<id>` เท่านั้น — iframe อื่นถูกถอดทิ้ง
 - attr: `href src alt title class id width height colspan rowspan type checked disabled start`
   → **ไม่ให้ `style`** ใช้ class เท่านั้น (`style` ของ AI-risk สูง)
 - `href` อนุญาต `http(s)`, `/`, `#`, relative; ตัด `javascript:`
@@ -42,6 +44,7 @@ library: **rehype-sanitize** (schema typed) เท่านั้น — ไม�
 default-src 'none';
 img-src 'self' data:;
 media-src 'self';
+frame-src https://www.youtube-nocookie.com;
 style-src 'self' 'unsafe-inline';
 script-src 'self' 'nonce-<random>';
 connect-src 'self';
@@ -51,6 +54,8 @@ base-uri 'none'
 ```
 
 - ไม่มี CDN ภายนอก (vendor ไฟล์เอง) → offline ได้
+- `frame-src` เปิดเฉพาะ YouTube (embed เดียวที่รองรับ — [08 ข้อ 65](08-decisions.md)) · `media-src 'self'`
+  ยังปิด → ไฟล์วิดีโอ/เสียงอ้างจากภายนอกยังไม่รองรับ
 - `'unsafe-inline'` เฉพาะ style (CSS var ต่อเอกสาร) ยอมรับได้ถ้า script ปลอด
 - เข้มกว่านี้: ย้าย theme override เป็น `<style nonce>` ที่ server สร้าง
 

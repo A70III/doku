@@ -702,7 +702,14 @@ html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
   z-index: 30;
   display: flex;
   align-items: center;
-  gap: var(--d-space-3);
+  /* block ที่มี attribute เยอะ (figure 6 ตัว) กว้างกว่าคอลัมน์อ่านได้ → ต้องขึ้นบรรทัดใหม่
+     "ใน" กรอบ ไม่ใช่ดันชื่อง block จนถูกบีบและล้นออกนอกกรอบ (docs/08 ข้อ 65) */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--d-space-1) var(--d-space-3);
+  /* width: max-content + max-width 100% = กว้างเท่าที่จำเป็นแต่ไม่เกินคอลัมน์อ่าน
+     แล้วค่อยขึ้นบรรทัดใหม่ (ถ้าปล่อยให้ auto/shrink-to-fit แผงจะแคบเท่าช่องที่กว้างสุด) */
+  width: max-content;
   max-width: 100%;
   padding: var(--d-space-1) var(--d-space-2);
   border: 1px solid var(--d-border);
@@ -716,12 +723,15 @@ html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
   display: none;
 }
 .doku-block-strip-name {
+  flex: none;
+  white-space: nowrap;
   font-weight: 600;
   color: var(--k-text);
 }
 .doku-block-strip-field {
   display: inline-flex;
   align-items: center;
+  flex: none;
   gap: var(--d-space-1);
   color: var(--d-text-subtle);
 }

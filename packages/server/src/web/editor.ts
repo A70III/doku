@@ -364,16 +364,25 @@ export interface DirectiveInfo {
 }
 
 const FENCE_LINE = /^(:{3,})\s*([\w-]+)\s*(\{[^}]*\})?\s*$/
-const ATTR_PAIR = /([\w-]+)\s*=\s*"([^"]*)"/g
+/**
+ * attribute บน fence — ต้องรับทุกรูปแบบที่ markdown/directive ยอมรับ ไม่งั้นค่าที่ไม่เข้า
+ * รูปจะถูกมองข้าม และหายจากไฟล์ตอนเขียน fence กลับ (docs/08 ข้อ 66):
+ * `key="value"` · `key='value'` · `key=value` · `key` (flag เปล่า)
+ */
+const ATTR_PAIR = /([\w-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'}]+)))?/g
 
-function parseAttrs(raw: string | undefined): Record<string, string> {
+export function parseAttrs(raw: string | undefined): Record<string, string> {
   const attrs: Record<string, string> = {}
   if (!raw) return attrs
+  const body = raw.replace(/^\{|\}$/g, "")
   ATTR_PAIR.lastIndex = 0
-  let match = ATTR_PAIR.exec(raw)
+  let match = ATTR_PAIR.exec(body)
   while (match) {
-    attrs[match[1] as string] = match[2] as string
-    match = ATTR_PAIR.exec(raw)
+    const key = match[1] as string
+    const value = match[2] ?? match[3] ?? match[4] ?? ""
+    attrs[key] = value
+    if (match.index === ATTR_PAIR.lastIndex) ATTR_PAIR.lastIndex += 1 // กัน infinite loop
+    match = ATTR_PAIR.exec(body)
   }
   return attrs
 }
@@ -414,7 +423,7 @@ function directiveAtCursor(view: EditorView): DirectiveInfo | null {
 
 /** เขียน attribute กลับเป็นข้อความ directive (ไม่แตะอย่างอื่นในบรรทัด)
  *  `patch.name` = เปลี่ยนชื่อ block (เช่น note → warning) */
-function writeAttrs(
+export function writeAttrs(
   view: EditorView,
   info: DirectiveInfo,
   patch: Record<string, string | null>,
@@ -425,12 +434,16 @@ function writeAttrs(
   const attrs: Record<string, string> = { ...info.attrs }
   for (const [key, value] of Object.entries(patch)) {
     if (key === "name") continue
-    if (value === null || value === "") delete attrs[key]
+    if (value === null) delete attrs[key]
     else attrs[key] = value
   }
   const name = patch.name ?? match[2]
   const pairs = Object.entries(attrs)
-  const body = pairs.map(([key, value]) => `${key}="${value.replace(/"/g, "")}"`).join(" ")
+  // flag เปล่า (`zoom` / `open`) คงรูปเดิมไว้ — เขียน `=""` ก็ได้ความหมายเดิม แต่รกไฟล์
+  // และห้ามลบ attribute ที่ผู้ใช้ไม่ได้แก้ (docs/08 ข้อ 66)
+  const body = pairs
+    .map(([key, value]) => (value === "" ? key : `${key}="${value.replace(/"/g, "")}"`))
+    .join(" ")
   const next = `${info.fence}${name}${body ? `{${body}}` : ""}`
   view.dispatch({ changes: { from: line.from, to: line.to, insert: next } })
 }
@@ -634,4 +647,5 @@ declare global {
   }
 }
 
-window.DokuEditor = { create }
+// ผูกกับ window เฉพาะในเบราว์เซอร์ — ทำให้ module นี้ import ได้ในเทส (bun)
+if (typeof window !== "undefined") window.DokuEditor = { create }

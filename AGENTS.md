@@ -150,6 +150,8 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · ออกโหมดเขียนแบบ 3 วง: tolerance ~3rem รอบคอลัมน์ + neutral gutter + คลิก chrome/`Esc` (ปรับข้อ 54)
   · block interaction ต้องติดตั้งซ้ำได้หลัง `innerHTML` ถูกวาดใหม่ — delegation + `window.DokuInteractions` (ข้อ 63)
   · สลับ read ↔ write แล้ว rail/layout ต้องอยู่นิ่ง + ยึด "บรรทัดเดิม" ไม่ใช่ scrollY — height lock + instant scroll + `scrollbar-gutter: stable` + `offsetForElement` แก้ caret (ข้อ 64)
+  · `:::video` เหลือ `src` เดียว (asset หรือ YouTube) + poster derive จากไฟล์ข้าง src + CSP `frame-src` เฉพาะ youtube-nocookie (ข้อ 65)
+  · แผงควบคุม block: `flex-wrap` + กันชื่อง block ถูกบีบ (ข้อ 65) · เขียน fence กลับต้องคง attribute เดิมทั้งหมด — รับ attr ทุกรูปแบบ, `null` = สั่งลบเท่านั้น (ข้อ 66)
   · **ยังรอเคาะ**: Q7 asset filename charset (รอ upload API M4)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)

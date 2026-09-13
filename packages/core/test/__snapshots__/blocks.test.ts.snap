@@ -26,7 +26,8 @@ exports[`blocks registry (M2) golden snapshot: HTML ของ block ทั้ง
 <h2 id="gallery">gallery<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#gallery"><span class="doku-anchor-icon">#</span></a></h2>
 <div data-cols="3" data-block="gallery"><figure data-align="center" data-block="figure"><img src="/assets/a.png" alt="A" loading="lazy" decoding="async"><figcaption data-part="figure-caption">A</figcaption></figure><figure data-align="center" data-block="figure"><img src="/assets/b.png" alt="B" loading="lazy" decoding="async"><figcaption data-part="figure-caption">B</figcaption></figure></div>
 <h2 id="video">video<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#video"><span class="doku-anchor-icon">#</span></a></h2>
-<video src="/assets/demo.mp4" controls preload="metadata" loop muted poster="/assets/cover.png" data-block="video"></video>
+<video src="/assets/demo.mp4" controls preload="metadata" data-block="video"></video>
+<figure data-provider="youtube" data-id="dQw4w9WgXcQ" data-block="video"><iframe class="doku-embed" src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0" title="วิดีโอจาก YouTube" loading="lazy" allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" frameborder="0"></iframe></figure>
 <h2 id="card">card<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#card"><span class="doku-anchor-icon">#</span></a></h2>
 <a href="/d/projects/doku/design" data-block="card"><div data-part="card-head"><span data-block="badge" data-part="card-badge" data-color="blue">BETA</span><span data-part="card-title">Doku Design</span></div><div data-part="card-body"><p>สรุปสั้นของเอกสาร</p></div></a>
 <h2 id="section">section<a class="doku-anchor" aria-hidden="true" tabindex="-1" href="#section"><span class="doku-anchor-icon">#</span></a></h2>

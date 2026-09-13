@@ -196,6 +196,19 @@ ${FIGURE_WIDTH_CSS}
   background: var(--d-bg-subtle);
 }
 
+/* YouTube embed (docs/08 ข้อ 65) — figure ครอบ iframe 16:9 · ไม่มีเงา/สีเพิ่ม
+   ปล่อยให้ iframe แบนในกรอบเดียวกับ player อื่น */
+.doku-prose [data-block='video'][data-provider='youtube'] {
+  margin: 0;
+  overflow: hidden;
+}
+.doku-prose [data-block='video'][data-provider='youtube'] iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
 /* ── card / section / grid / col ──────────────────────────────────────────
    card = object จริงที่มีการกระทำ → คงกรอบไว้ แต่ **ตัด shadow/hover-lift**
    (depth มาจาก hairline + พื้น ไม่ใช่เงา — docs/08 ข้อ 33) */

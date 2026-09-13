@@ -22,7 +22,17 @@ export interface RewriteOptions {
 /** URL ที่ไม่ต้องแตะ: scheme (`http:`), protocol-relative (`//`), absolute (`/d/...`, `/assets/...`), anchor */
 const URL_LIKE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/|#)/i
 
-/** asset tag → URL attribute ที่ต้อง rewrite (video มี poster, source อาจมี src) — docs/03 */
+/** embed เดียวที่ยอมให้อยู่ในเนื้อหา — ต้องเป็น URL ที่ renderer สร้างเองเท่านั้น (docs/08 ข้อ 65) */
+const ALLOWED_EMBED =
+  /^https:\/\/www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]{6,20}(?:\?[\w=&.-]*)?$/
+
+/** ไฟล์เสียง — ไม่มี poster */
+const AUDIO = /\.(mp3|m4a|wav|ogg|opus|flac)$/i
+
+/** นามสกุลของ poster ที่หาเองข้างไฟล์วิดีโอ (basename เดียวกัน) — docs/08 ข้อ 65 */
+const POSTER_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "avif"] as const
+
+/** asset tag → URL attribute ที่ต้อง rewrite (source อาจมี src) — docs/03 */
 const ASSET_ATTRS: Record<string, readonly string[]> = {
   img: ["src"],
   video: ["src", "poster"],
@@ -33,6 +43,10 @@ const ASSET_ATTRS: Record<string, readonly string[]> = {
 export function rehypeRewrite(options: RewriteOptions) {
   return async (tree: Root): Promise<void> => {
     const jobs: Array<Promise<void>> = []
+
+    // iframe/embed ที่ไม่ใช่ของ renderer → ถอดทิ้ง (ทำงานหลัง sanitize: เป็นด่านสุดท้าย
+    // ของ iframe ทุกตัวที่หลุด allowlist มาได้ — docs/08 ข้อ 65)
+    dropUnsafeEmbeds(tree)
 
     visit(tree, "element", (node: Element) => {
       const isAsset = node.tagName !== "a"
@@ -59,7 +73,60 @@ export function rehypeRewrite(options: RewriteOptions) {
       }
     })
 
+    // ต้องรอ rewrite ของ `src` จบก่อน — poster อ่าน path ของวิดีโอจาก src
     await Promise.all(jobs)
+    await applyPosters(tree, options)
+  }
+}
+
+/** ถอด `<iframe>` ทุกตัวที่ src ไม่ตรงรูปแบบ embed ที่อนุญาต */
+function dropUnsafeEmbeds(tree: Root): void {
+  visit(tree, "element", (node: Element, index, parent) => {
+    if (node.tagName !== "iframe") return
+    const src = typeof node.properties?.src === "string" ? node.properties.src : ""
+    if (ALLOWED_EMBED.test(src)) return
+    if (parent && typeof index === "number") parent.children.splice(index, 1)
+    return index
+  })
+}
+
+/** เดินทุก `<video>` แล้วเติม poster จากไฟล์ข้าง ๆ `src` */
+async function applyPosters(tree: Root, options: RewriteOptions): Promise<void> {
+  if (!options.assets) return
+  const videos: Element[] = []
+  visit(tree, "element", (node: Element) => {
+    if (node.tagName === "video") videos.push(node)
+  })
+  for (const node of videos) await applyPosterFromSrc(node, options)
+}
+
+/**
+ * poster ของวิดีโอ “มาจาก src”: หาไฟล์รูปชื่อเดียวกับวิดีโอในโฟลเดอร์เดียวกัน
+ * (`assets/clip.mp4` → `assets/clip.png`/`.jpg`/`.jpeg`/`.webp`/`.avif`) — เจอตัวแรกที่มีจริง
+ * แล้วใส่ `poster` · ที่นี่เท่านั้นที่รู้จัก vault (block renderer ไม่มี fs — docs/08 ข้อ 65)
+ */
+async function applyPosterFromSrc(node: Element, options: RewriteOptions): Promise<void> {
+  const assets = options.assets
+  if (!assets) return
+  const current = node.properties?.poster
+  if (typeof current === "string" && current.length > 0) return
+  const src = typeof node.properties?.src === "string" ? node.properties.src : ""
+  const [target = ""] = splitFragment((src.split("?")[0] ?? "").trim())
+  if (!target) return
+  const assetPath = target.startsWith("/assets/")
+    ? target.slice("/assets/".length)
+    : URL_LIKE.test(target)
+      ? ""
+      : resolveRelativePath(dirnameOf(options.docId), target)
+  if (!assetPath || AUDIO.test(assetPath)) return
+
+  const base = assetPath.replace(/\.[a-z0-9]+$/i, "")
+  for (const extension of POSTER_EXTENSIONS) {
+    const asset = await assets.resolve(`${base}.${extension}`)
+    if (asset.exists) {
+      node.properties.poster = asset.url
+      return
+    }
   }
 }
 

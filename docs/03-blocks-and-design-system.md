@@ -295,13 +295,22 @@ fenced ```` ```d2 ```` → เรียก binary → SVG → cache `var/diagram
 ## Video / Audio
 
 ```md
-:::video{src=assets/demo.mp4 poster=assets/cover.png loop muted}
+:::video{src=assets/demo.mp4}
+:::
+
+:::video{src=https://youtu.be/dQw4w9WgXcQ}
 :::
 ```
 
-- รองรับ `.mp4 .webm` และ audio `.mp3`
-- ใช้ native `<video>` ไม่มี player library
-- ไม่รองรับ iframe/embed ภายนอก (allowlist ปิด)
+- `src` มี attribute เดียว: path ของ asset ใน vault (relative จากโฟลเดอร์เอกสาร หรือ `/assets/…`)
+  หรือ URL ของ YouTube (`youtube.com/watch?v=…` · `youtu.be/…` · `youtube.com/shorts/…` · `embed/…`)
+- ไฟล์วิดีโอ → native `<video>` (controls เปิดเสมอ, `preload="metadata"`) · ไฟล์เสียง
+  (`.mp3 .m4a .wav .ogg .opus .flac`) → `<audio>` · ไม่มี player library
+- **poster มาจาก `src`** — ถ้ามีไฟล์รูปชื่อเดียวกันในโฟลเดอร์เดียวกัน (`clip.mp4` → `clip.png`) ระบบใส่
+  `poster` ให้เอง ไม่มี attribute ให้ตั้ง · ไม่มีก็ไม่เป็นไร เบราว์เซอร์จะโชว์เฟรมแรกเอง
+- YouTube → `<iframe>` จาก `youtube-nocookie.com` (CSP `frame-src` เปิดเฉพาะโดเมนนี้)
+- **ไม่รองรับ** embed/ไฟล์จากภายนอกอื่น (allowlist ปิด) — เขียนมาจะได้ placeholder + warning
+- `loop` / `muted` / `controls` / `poster` **ไม่ใช่ attribute ของ block นี้อีกแล้ว** (docs/08 ข้อ 65)
 
 ## Links & Backlinks
 

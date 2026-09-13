@@ -1395,7 +1395,8 @@ ${INTERACTIONS_JS}
           control = document.createElement("input");
           control.type = "text";
           control.value = current;
-          control.size = attr === "title" || attr === "caption" ? 14 : 7;
+          // ช่องที่ค่ามักยาว (path/ชื่อเรื่อง) ให้กว้างขึ้น — ที่เหลือ 7 ตัวพอ
+          control.size = ["title", "caption", "src", "href", "alt"].includes(attr) ? 18 : 7;
         }
         control.setAttribute("aria-label", attr);
         control.setAttribute("data-attr", attr);

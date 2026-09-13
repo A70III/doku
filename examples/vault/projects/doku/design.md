@@ -61,7 +61,7 @@ vault/ ──▶ resolve ──▶ render ──▶ sanitize ──▶ /d/<path>
 
 ## Video
 
-:::video{src=assets/demo.mp4 poster=assets/cover.png muted loop}
+:::video{src=assets/demo.mp4}
 :::
 
 ## Card
