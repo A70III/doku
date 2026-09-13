@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { CLIENT_JS } from "../src/web/client.ts"
+import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 
 /**
  * M3.2 Track C — block layer (docs/09 §3.2–3.3 · docs/08 ข้อ 64/66/67/70/71)
@@ -9,7 +10,7 @@ import { CLIENT_JS } from "../src/web/client.ts"
  * ของ client · ทุก operation ผ่าน editor/blocks.ts (md → md) · touch = long-press
  */
 
-const EDITOR_SOURCE = readFileSync(new URL("../src/web/editor.ts", import.meta.url), "utf8")
+const EDITOR_SOURCE = EDITOR_LAYER_SOURCE
 const APP_CSS = readFileSync(new URL("../src/web/styles/app.css", import.meta.url), "utf8")
 
 describe("Track C — keymap (docs/08 ข้อ 70)", () => {

@@ -1188,7 +1188,8 @@ html[data-zen] .doku-main {
 .cm-doku-block-active {
   position: relative;
 }
-.cm-doku-block-active::before {
+/* block ที่ถูกเลือกมีพื้นของตัวเองแล้ว → ไม่ต้องมีขีดซ้ำ */
+.cm-doku-block-active:not(.cm-doku-block-selected)::before {
   content: "";
   position: absolute;
   inset-block: 0;

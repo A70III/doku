@@ -7,6 +7,7 @@ import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
 import { CLIENT_JS } from "../src/web/client.ts"
+import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 import { parseAttrs } from "../src/web/editor/blocks.ts"
 
 /**
@@ -16,7 +17,7 @@ import { parseAttrs } from "../src/web/editor/blocks.ts"
  * และเช็กผลลัพธ์จริงที่ server ผลิต (katex.css link เฉพาะเอกสารที่มีสมการ)
  */
 
-const EDITOR_SOURCE = readFileSync(new URL("../src/web/editor.ts", import.meta.url), "utf8")
+const EDITOR_SOURCE = EDITOR_LAYER_SOURCE
 
 function setup(files: Record<string, string | Uint8Array>) {
   const fs = memoryVaultFs(files)

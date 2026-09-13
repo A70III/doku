@@ -13,6 +13,7 @@ import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
 import { CLIENT_JS } from "../src/web/client.ts"
+import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 
 function setup(files: Record<string, string | Uint8Array>) {
   const fs = memoryVaultFs(files)
@@ -395,8 +396,8 @@ describe("client.js", () => {
     expect(proseSource).toContain("box-decoration-break: clone")
     expect(proseSource).not.toContain("background-image")
 
-    // editor.ts: regex จับ suffix {.color} + ซ่อน suffix เมื่อカーอยู่นอกช่วง + patchMark
-    const editorSource = readFileSync(new URL("../src/web/editor.ts", import.meta.url), "utf8")
+    // ชั้น editor (editor.ts + editor/decorations.ts): regex จับ suffix {.color} + patchMark
+    const editorSource = EDITOR_LAYER_SOURCE
     expect(editorSource).toContain("DOKU_MARK = /==([^=\\n]+?)==(\\{\\.[\\w-]+\\})?/g")
     expect(editorSource).toContain("patchMark(color: string | null)")
     expect(editorSource).toContain('"data-color": color')

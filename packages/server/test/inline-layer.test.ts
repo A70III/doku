@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { CLIENT_JS } from "../src/web/client.ts"
+import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 
 /**
  * M3.2 Track D — inline layer (docs/09 §5 Track D · §2.3 · docs/08 ข้อ 69/70)
@@ -12,7 +13,7 @@ import { CLIENT_JS } from "../src/web/client.ts"
  * editor.ts แตะ `window` ตอน import → อ่านซอร์สเหมือน test เดิมของ editor
  */
 
-const EDITOR_SOURCE = readFileSync(new URL("../src/web/editor.ts", import.meta.url), "utf8")
+const EDITOR_SOURCE = EDITOR_LAYER_SOURCE
 const APP_CSS = readFileSync(new URL("../src/web/styles/app.css", import.meta.url), "utf8")
 
 describe("Track D — keymap (docs/09 §2.3 · docs/08 ข้อ 70)", () => {
