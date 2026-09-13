@@ -27,12 +27,26 @@ export const tabsDefinition: BlockDefinition = {
     // ⚠️ ห้ามจับคู่ด้วย index ของ mdast กับ ctx.children: remark-rehype ทิ้ง html/definition node
     // → index เลื่อน → tab หายเงียบ. จับคู่ "เฉพาะ tab" เรียงตามลำดับทั้งสองฝั่งแทน
     const tabNodes = mdast.filter((child) => child?.type === "dokuBlock" && child.name === "tab")
-    const tabElements = ctx.children.filter((child): child is Element => child.type === "element")
+    const elements = ctx.children.filter((child): child is Element => child.type === "element")
+    // และต้องกรองฝั่ง hast ด้วย `data-block="tab"` เท่านั้น — element อื่น (ย่อหน้า/block อื่น)
+    // ไม่ใช่ panel ถ้าเอามาเข้าคิว จับคู่จะเลื่อนทั้งแถว: tab หาย + panel ติด label ผิด
+    const isTab = (child: Element): boolean => child.properties?.dataBlock === "tab"
+    const tabElements = elements.filter(isTab)
     const pairs = tabNodes
       .map((child, index) => ({ child, hast: tabElements[index] }))
       .filter((pair): pair is { child: TabLike; hast: Element } => Boolean(pair.hast))
 
     if (pairs.length === 0) return blockElement("div", "tabs", {}, ctx.children)
+
+    // เนื้อหาที่ไม่ใช่ :::tab — ย้ายไปท้ายบล็อก (ห้ามทิ้ง: "ไฟล์คือความจริง" · docs/08 ข้อ 60/61)
+    const stray = elements.filter((child) => !isTab(child))
+    if (stray.length > 0) {
+      ctx.warn(
+        "block_stray_child",
+        `เนื้อหาใน ::::tabs ที่ไม่ใช่ :::tab ถูกย้ายไปท้ายบล็อก (${stray.length} ก้อน)`,
+        "warning",
+      )
+    }
 
     const buttons = pairs.map(({ child }, index) =>
       h(
@@ -67,6 +81,7 @@ export const tabsDefinition: BlockDefinition = {
     return blockElement("div", "tabs", {}, [
       h("div", { dataPart: "tablist", role: "tablist" }, buttons),
       ...panels,
+      ...stray,
     ])
   },
 }

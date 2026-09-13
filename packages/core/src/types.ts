@@ -19,6 +19,7 @@ export type WarningCode =
   | "block_stray_fence"
   | "block_nesting_ambiguous"
   | "block_attribute_unknown"
+  | "block_stray_child"
   | "icon_unknown"
   // math
   | "math_disabled"

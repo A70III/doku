@@ -11,7 +11,9 @@ const URL_LIKE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/|#)/i
 function normalizeHref(href: string | undefined): string | undefined {
   if (!href) return undefined
   if (URL_LIKE.test(href)) return href
-  if (href.endsWith(".md")) return href // ให้ rewrite แปลงเป็น /d/<path>
+  // ต้องเช็คเฉพาะส่วน path — `design.md#top` / `design.md?q=1` ก็ยังเป็นไฟล์ .md
+  // (ถ้าเช็คทั้งสตริง เงื่อนไขพลาด → ตกไป branch path id → `/d/design.md#top` = ผิดเอกสาร)
+  if (href.replace(/[#?].*$/, "").endsWith(".md")) return href // ให้ rewrite แปลงเป็น /d/<path>
   return `/d/${href.replace(/^\.?\//, "")}`
 }
 

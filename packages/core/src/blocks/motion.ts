@@ -6,7 +6,7 @@
  * - `prefers-reduced-motion` + `render.motion=false` → ปิด (CSS + JS)
  */
 
-import { type BlockDefinition, blockElement } from "./types.ts"
+import { type BlockDefinition, blockElement, flag } from "./types.ts"
 
 const EFFECTS = [
   "fade",
@@ -46,6 +46,9 @@ export const motionDefinition: BlockDefinition = {
     if (ctx.attrs.duration && ms(ctx.attrs.duration) === null) {
       ctx.warn("block_attribute_unknown", `motion duration ต้องเป็น ms: ${ctx.attrs.duration}`)
     }
+    // `once` ไม่ระบุ = true (default ของ block) · ถ้าระบุต้องใช้ semantics กลาง (`{once}` `once=1` `once=yes`)
+    // — เดิมเทียบ `=== "false"` จึงกลับด้าน: `once=0` / `once=no` กลายเป็น true
+    const once = "once" in ctx.attrs ? flag(ctx.attrs, "once") : true
     return blockElement(
       "div",
       "motion",
@@ -53,7 +56,7 @@ export const motionDefinition: BlockDefinition = {
         dataEffect: effect,
         dataDelay: String(quantize(ms(ctx.attrs.delay), 0, 2000)),
         dataDuration: String(quantize(ms(ctx.attrs.duration), 400, 3000)),
-        dataOnce: ctx.attrs.once === "false" ? "false" : "true",
+        dataOnce: once ? "true" : "false",
       },
       ctx.children,
     )

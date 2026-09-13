@@ -237,6 +237,9 @@ effect allowlist: `fade` `fade-up` `fade-down` `slide-left` `slide-right` `scale
 
 JS ตัวเล็ก toggle class; ไม่มี JS → แสดงทุก tab ซ้อนกัน (อ่านได้)
 
+- เนื้อหาใน `::::tabs` ที่ **ไม่ใช่** `:::tab` (ย่อหน้าคั่นกลาง · block อื่น) ไม่ใช่ panel — ระบบ
+  **ย้ายไปท้ายบล็อกให้ + warning `block_stray_child`** ไม่ทิ้ง (docs/08 ข้อ 67)
+
 ## Grid / Col
 
 ```md
