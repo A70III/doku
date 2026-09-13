@@ -213,7 +213,8 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 ### Track B — read-parity (M) · "ไม่เห็น markdown ดิบ" ✅
 
 - [x] GFM parser (`markdownLanguage`) + `markdownKeymap` (Enter สืบ list · Backspace ลบ marker) — Tab nest ตาม block model = C3
-- [x] widget: `:::` (หัว block จาก `BLOCK_LABELS` + ข้อความของผู้ใช้ `title` → `label` → `caption` + พื้น tint ตาม variant) · **fence เปิด reveal เมื่อカーแตะ** (สมมาตรกับ fence ปิด — [08 ข้อ 79](08-decisions.md)) · math (`$…$` inline · `$$…$$` หลายบรรทัดผ่าน `blockMathField` เพราะ CM6 ห้าม plugin ทำ block decoration) · **checkbox คลิกได้** (เขียนกลับ `[x]`/`[ ]`) · `hr` · image · inline `:badge[…]` (attribute ชุดเดียวกับ renderer → CSS เดิมครอบ) · placeholder ต่อ block = E
+- [x] widget: `:::` (หัว block จาก `BLOCK_LABELS` + ข้อความของผู้ใช้ `title` → `label` → `caption` + พื้น tint ตาม variant)
+  · **block ที่เนื้อหาอยู่ใน attribute → `BlockPreviewWidget` render ของจริง** (`progress`/`figure`/`video`/`stats` — markup ชุดเดียวกับ renderer, カーเข้าไป = เห็น source) — [08 ข้อ 81](08-decisions.md) · **fence เปิด reveal เมื่อカーแตะ** (สมมาตรกับ fence ปิด — [08 ข้อ 79](08-decisions.md)) · math (`$…$` inline · `$$…$$` หลายบรรทัดผ่าน `blockMathField` เพราะ CM6 ห้าม plugin ทำ block decoration) · **checkbox คลิกได้** (เขียนกลับ `[x]`/`[ ]`) · `hr` · image · inline `:badge[…]` (attribute ชุดเดียวกับ renderer → CSS เดิมครอบ) · placeholder ต่อ block = E
 - [x] code block: chrome (พื้น/ระยะ) + token mapping กับ Shiki github-light/dark ผ่าน `--k-code-*` — per-language ยังไม่ทำ (ไม่มี dependency ภาษาในบันเดิล)
 - [x] marker policy: atomic **เฉพาะ delimiter** · ซ่อนเมื่อカーไม่สัมผัส · **composition guard** ([08 ข้อ 69](08-decisions.md)) · เพิ่มแล้ว: `<link /static/katex.css>` เมื่อเอกสารมีสมการ (เดิม route มีแต่ไม่เคย link → math ไม่มีสไตล์)
 - **DoD:** screenshot read ↔ edit ต่างกันเฉพาะที่จำเป็น · พิมพ์ไทยต่อเนื่อง (สระ/วรรณยุกต์/คำผสม) ไม่มีカーเพี้ยน ·

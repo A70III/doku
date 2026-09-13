@@ -180,6 +180,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - ล็อกเพิ่มตอนแก้บั๊ก UI editor หลัง M3.2: **`:::` fence เปิด reveal เมื่อカーแตะ** (เดิมซ่อนถาวร — `touching()` ต้องสมมาตรกับ fence ปิด)
   + **หัว block ใช้ข้อความของผู้ใช้** `title` → `label` → `caption` แล้วค่อยตกไปที่ `BLOCK_LABELS` (ข้อ 79)
   · **gutter เยื้องออกนอกคอลัมน์อ่านแบบ clamp viewport** + **เมนูลอย clamp/flip และเลื่อนในกล่องเอง** (ข้อ 80)
+- ล็อกเพิ่มตอนแก้ read-parity ของ custom block: **`:::` ที่เนื้อหาอยู่ใน attribute ต้อง render ของจริงใน editor** (`progress`/`figure`/`video`/`stats` = `BlockPreviewWidget` markup ชุดเดียวกับ renderer + content CSS) · preview เฉพาะカーอยู่นอก block และปิด fence แล้ว · ซ่อนบรรทัดเนื้อในทีละบรรทัด (ห้าม replace ข้ามบรรทัด) · inline directive รับทั้ง `:stat[…]` และ `::stat[…]` (ข้อ 81)
 - **รอเคาะ**: ไม่มี (Q7 เคาะแล้วเป็นข้อ 72)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
