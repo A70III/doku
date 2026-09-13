@@ -249,6 +249,19 @@ ${INTERACTIONS_JS}
     if (mark && !mark.hidden && (mark.contains(event.target) || inRect(mark, event, 4))) {
       return; // โต้ตอบกับแถบ swatch ของ mark — ห้ามโฟกัสกลับ editor ทับ interaction
     }
+    // ลิงก์เอกสาร active (ตัวเอง) = อยู่หน้าเดิม — ไม่ reload และไม่ถือเป็น "ออก"
+    // จากโหมดเขียน → เช็คก่อน chrome branch (ก่อน logic อื่นที่แตะลิงก์)
+    const activeLink = event.target.closest ? event.target.closest("a[data-doc-link]") : null;
+    if (activeLink) {
+      let sameDoc = false;
+      try {
+        sameDoc = new URL(activeLink.href).pathname === window.location.pathname;
+      } catch {}
+      if (sameDoc && window.location.pathname.indexOf("/d/") === 0) {
+        event.preventDefault();
+        return;
+      }
+    }
     const rect = articleEl.getBoundingClientRect();
     const pad = 48; // ~3rem
     const inTolerance =
@@ -295,6 +308,21 @@ ${INTERACTIONS_JS}
     }
     void exitWriting();
   });
+
+  // โหมดอ่าน: คลิกลิงก์เอกสารที่กำลังเปิดอยู่ = อยู่หน้าเดิม — ไม่ต้อง reload
+  // (โหมดเขียนจัดการใน handler ด้านบนแล้ว — ไม่ preventDefault ซ้ำเพื่อไม่ชนทาง nav)
+  document.addEventListener("click", (event) => {
+    if (writing.editing) return;
+    const link = event.target.closest ? event.target.closest("a[data-doc-link]") : null;
+    if (!link) return;
+    // modifier/middle-click → ปล่อยเบราว์เซอร์ (เปิดแท็บใหม่)
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    let sameDoc = false;
+    try {
+      sameDoc = new URL(link.href).pathname === window.location.pathname;
+    } catch {}
+    if (sameDoc && window.location.pathname.indexOf("/d/") === 0) event.preventDefault();
+  });
   window.addEventListener("resize", closeMenu);
 
   /* ── doc / folder actions ────────────────────────────────────────────── */
@@ -340,10 +368,81 @@ ${INTERACTIONS_JS}
   }
 
   async function renameDoc(id) {
-    const name = window.prompt("ชื่อใหม่ (ไม่ต้องมี .md)", basename(id));
-    if (!name || name === basename(id)) return;
-    const target = joinPath(dirname(id), name.trim());
-    await moveDoc(id, target);
+    // เปลี่ยนชื่อ = inline editor ใน sidebar (แทน prompt — UX อยู่ในแถวเดิม)
+    const row = $('[data-doc-id="' + CSS.escape(id) + '"]');
+    const label = row ? row.querySelector("a[data-doc-link]") : null;
+    if (label) startInlineRename("doc", id, label);
+  }
+
+  /** inline rename ในแถว sidebar — คอร์เดียวทั้งเอกสาร/โฟลเดอร์ (แทนการ prompt)
+   *  · doc: แทนที่ <a> ทั้งก้อนด้วย wrapper ที่คง class เดิม (doku-row-link is-active)
+   *    เพราะ input ในลิงก์โดน default action ของ <a> — และ layout ของ <li> ไม่เลื่อน
+   *  · folder: แทนที่ข้อความ label ใน summary (เก็บ icon/ปุ่มอื่น) — ป้องกัน summary
+   *    toggle ตอนคลิก/พิมพ์ด้วย preventDefault+stopPropagation ระหว่างโหมดแก้
+   *  Enter/blur = commit · Esc = คืน DOM เดิม · ว่าง/ชื่อเดิม = ยกเลิกเฉย ๆ
+   *  มี # = ห้าม (ข้อ 56) toast + ค้างโหมดแก้ · API error = fail() + ค้างโหมดแก้ */
+  function startInlineRename(kind, path, labelEl) {
+    if (!labelEl || labelEl.getAttribute("data-renaming") === "1") return;
+    const initial = basename(path);
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "doku-rename-input";
+    input.value = initial;
+    input.draggable = false; // อยู่ใน <li draggable> — เลือกข้อความได้ปกติ ไม่ลากแถว
+    input.setAttribute("aria-label", kind === "doc" ? "เปลี่ยนชื่อเอกสาร" : "เปลี่ยนชื่อโฟลเดอร์");
+
+    // wrapper คง class เดิมของ label + ตัวระบุโหมดแก้ — input กว้างเต็มช่อง label เหมือนเดิม
+    const wrapper = document.createElement("span");
+    wrapper.className = labelEl.className + " doku-rename-label";
+    wrapper.setAttribute("data-renaming", "1");
+    wrapper.appendChild(input);
+    labelEl.replaceWith(wrapper);
+    input.select();
+
+    let done = false;
+    let committing = false;
+    const restore = () => {
+      done = true;
+      wrapper.replaceWith(labelEl); // Esc/cancel — คืน DOM เดิมทั้งก้อน
+    };
+    const commit = () => {
+      if (done || committing) return;
+      const name = input.value.trim();
+      if (!name || name === initial) {
+        restore(); // ว่าง/ตรงชื่อเดิม = ยกเลิกเฉย ๆ
+        return;
+      }
+      if (name.indexOf("#") !== -1) {
+        // ห้าม # ในชื่อไฟล์ (docs/08 ข้อ 56) — ค้างโหมดแก้ให้แก้ต่อ
+        toast("ห้ามใช้ # ในชื่อไฟล์", "error");
+        input.select();
+        return;
+      }
+      // เรียก move (มัน reload หน้าเองเมื่อสำเร็จ — tree order/active เปลี่ยน)
+      // error จาก API (เช่น 409 ชื่อซ้ำ) = moveDoc/moveFolder fail() เอง → คงโหมดแก้
+      committing = true;
+      const target = joinPath(dirname(path), name);
+      const moved = kind === "doc" ? moveDoc(path, target) : moveFolder(path, target);
+      moved.then(() => {}, () => {}).then(() => {
+        committing = false;
+      });
+    };
+    input.addEventListener("keydown", (event) => {
+      event.stopPropagation(); // กัน global keydown (palette/Esc ปิดอย่างอื่น) ขณะแก้
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commit();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        restore();
+      }
+    });
+    input.addEventListener("blur", () => commit());
+    // input อยู่ใน <summary> — คลิกต้องไม่ toggle ระหว่างโหมดแก้
+    input.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
   }
 
   async function deleteDoc(id) {
@@ -1488,6 +1587,11 @@ ${INTERACTIONS_JS}
   }
 
   document.addEventListener("dragstart", (event) => {
+    // โหมดแก้ชื่อ (inline rename): ห้ามลากแถวจากช่อง input — เลือกข้อความได้ปกติ
+    if (event.target.closest && event.target.closest("[data-renaming]")) {
+      event.preventDefault();
+      return;
+    }
     const row = event.target.closest ? event.target.closest("[data-doc-id], [data-folder-path]") : null;
     if (!row) return;
     const docId = row.getAttribute("data-doc-id");
@@ -1544,6 +1648,40 @@ ${INTERACTIONS_JS}
       reload();
     } catch (error) {
       fail(error);
+    }
+  });
+
+  /* ── dblclick เปลี่ยนชื่อในแถว (inline — ไม่ใช้ prompt) ───────────────── */
+
+  document.addEventListener("dblclick", (event) => {
+    // ขณะโหมดเขียน การคลิก rail กำลังถูกจัดการ (flush/ออกโหมด) — ห้าม rename ซ้อน
+    if (writing.editing) return;
+    const target = event.target;
+    if (!target.closest) return;
+    // โฟลเดอร์: dblclick เฉพาะช่วงข้อความ label — ไม่รวม caret/menu (ปุ่ม)
+    const summary = target.closest(".doku-folder-summary");
+    if (summary) {
+      if (target.closest("button, .tree-caret")) return;
+      const label = target.closest(".truncate") || summary.querySelector(".truncate");
+      startInlineRename("folder", summary.getAttribute("data-drop-folder") || "", label);
+      return;
+    }
+    // เอกสาร: dblclick เฉพาะลิงก์ active — แถวอื่นคลิกเดียวไปหน้านั้นตามเดิม
+    const link = target.closest("a[data-doc-link]");
+    if (link && link.classList.contains("is-active")) {
+      startInlineRename("doc", link.getAttribute("data-doc-link") || "", link);
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    // dblclick = คลิกครั้งที่สองต้องไม่ toggle summary (กันโฟลเดอร์สั่นก่อนเข้าโหมดแก้)
+    const summary = event.target.closest ? event.target.closest(".doku-folder-summary") : null;
+    if (
+      summary &&
+      event.detail === 2 &&
+      !(event.target.closest && event.target.closest("button, .tree-caret"))
+    ) {
+      event.preventDefault();
     }
   });
 
@@ -1641,8 +1779,10 @@ ${INTERACTIONS_JS}
       {
         label: "เปลี่ยนชื่อ",
         run: () => {
-          const name = window.prompt("ชื่อใหม่", basename(path));
-          if (name && name.trim()) moveFolder(path, joinPath(dirname(path), name.trim()));
+          // inline editor ใน summary (แทน prompt) — แก้เฉพาะข้อความ label
+          const row = $('[data-folder-path="' + CSS.escape(path) + '"]');
+          const label = row ? row.querySelector(".doku-folder-summary .truncate") : null;
+          if (label) startInlineRename("folder", path, label);
         },
       },
       { label: "ย้าย…", run: () => moveFolder(path) },

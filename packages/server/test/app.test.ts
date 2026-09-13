@@ -513,6 +513,58 @@ describe("client.js", () => {
     // พิมพ์ตัวอักษรที่ไม่อยู่คลาส (เช่น ปิดท้ายด้วยช่องว่าง) → ไม่ trigger
     expect(trigger.exec("/วิ ")).toBeNull()
   })
+
+  test("rename doc/folder = inline editor ใน sidebar ไม่ใช้ window.prompt + dblclick + กัน # (docs/08 ข้อ 56)", () => {
+    // เดิม: renameDoc และ folder "เปลี่ยนชื่อ" ใช้ window.prompt — UX หลุดจากหน้า
+    // สแกนเฉพาะช่วง renameDoc กับ folder rename ใน rowMenu (newDoc/newFolder/move
+    // ยังใช้ prompt ได้ — เกินขอบเขตของการแก้นี้)
+    const renameAt = CLIENT_JS.indexOf("async function renameDoc")
+    expect(renameAt).toBeGreaterThan(-1)
+    const renameBlock = CLIENT_JS.slice(renameAt, CLIENT_JS.indexOf("\n  }", renameAt))
+    expect(renameBlock).not.toContain("window.prompt")
+    expect(renameBlock).toContain("startInlineRename(") // doc rename = inline
+
+    const rowMenuAt = CLIENT_JS.indexOf("function rowMenu")
+    expect(rowMenuAt).toBeGreaterThan(-1)
+    const folderMenuBlock = CLIENT_JS.slice(rowMenuAt, CLIENT_JS.indexOf("\n  }", rowMenuAt))
+    expect(folderMenuBlock).not.toContain("window.prompt")
+    expect(folderMenuBlock).toContain("startInlineRename(") // folder rename = inline
+
+    // คอร์ inline editor ต้องมี: ค่าเริ่ม basename · select · Enter/Esc/blur · a11y
+    for (const marker of [
+      "function startInlineRename",
+      "aria-label", // input rename ต้องมี aria-label (เปลี่ยนชื่อเอกสาร/โฟลเดอร์)
+      "เปลี่ยนชื่อเอกสาร",
+      "เปลี่ยนชื่อโฟลเดอร์",
+      ".select()",
+    ]) {
+      expect(CLIENT_JS).toContain(marker)
+    }
+
+    // กัน # ในชื่อไฟล์ (ข้อ 56) — ต้องเช็คก่อนเรียก move แล้วค้างโหมดแก้
+    const inlineAt = CLIENT_JS.indexOf("function startInlineRename")
+    const inlineBlock = CLIENT_JS.slice(inlineAt, CLIENT_JS.indexOf("\n  }", inlineAt))
+    const hashAt = inlineBlock.indexOf("#")
+    expect(hashAt).toBeGreaterThan(-1)
+    const moveCallAt = inlineBlock.indexOf("moveDoc(path")
+    expect(moveCallAt).toBeGreaterThan(hashAt) // เช็ค # ก่อนเรียก move
+
+    // dblclick rename: เอกสาร active + โฟลเดอร์ (กัน toggle รอบที่สองด้วย event.detail)
+    expect(CLIENT_JS).toContain('addEventListener("dblclick"')
+    expect(CLIENT_JS).toContain("event.detail === 2")
+    expect(CLIENT_JS).toContain(".doku-folder-summary")
+
+    // คลิกลิงก์เอกสาร active = ไม่ reload (เทียบ pathname + เมื่อหน้าปัจจุบันคือ /d/*)
+    expect(CLIENT_JS).toContain("new URL(link.href).pathname === window.location.pathname")
+    expect(CLIENT_JS).toContain("a[data-doc-link]")
+
+    // CSS ของ inline input — border ตาม token (docs/03 §1.1)
+    const appCss = readFileSync(new URL("../src/web/styles/app.css", import.meta.url), "utf8")
+    expect(appCss).toContain(".doku-rename-input")
+    const cssAt = appCss.indexOf(".doku-rename-input")
+    const cssBlock = appCss.slice(cssAt, appCss.indexOf("}", cssAt))
+    expect(cssBlock).toContain("var(--d-border-control)")
+  })
 })
 
 describe("cache key ต้องผูกกับ path id (regression: cache collision)", () => {
