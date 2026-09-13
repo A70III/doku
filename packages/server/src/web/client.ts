@@ -844,11 +844,11 @@ ${INTERACTIONS_JS}
     syncTocFromBody();
     const colophon = $(".doku-colophon");
     if (colophon) {
-      const words = md.trim().split(/s+/u).filter(Boolean).length;
+      const words = md.trim().split(/\\s+/u).filter(Boolean).length;
       const node = colophon.querySelector("[data-part='colophon-words']");
       if (node) node.textContent = words.toLocaleString("th-TH") + " คำ";
     }
-    return html;
+    return result.html;
   }
 
   function syncTocFromBody() {
