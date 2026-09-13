@@ -55,7 +55,7 @@ vault/ ──▶ resolve ──▶ render ──▶ sanitize ──▶ /d/<path>
 ::::gallery{cols=2}
 :::figure{src=assets/diagram.svg caption="A — pipeline"}
 :::
-:::figure{src=assets/cover.png caption="B — poster"}
+:::figure{src=assets/demo.png caption="B — poster"}
 :::
 ::::
 
