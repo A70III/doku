@@ -57,6 +57,15 @@ describe("tokens — สัญญาที่ต้องถือ", () => {
     expect(missing).toEqual([])
   })
 
+  test("reduced-motion ปิด animation/transition ทั้งหมดของ block (docs/03 §1.5)", () => {
+    // quality lock ของ M3.2 Track E: ผู้ใช้ที่ขอ reduced motion ต้องไม่เห็น animation ใด ๆ
+    // (shot.ts ตรวจ DOM จริงซ้ำอีกชั้นในโหมด reduce)
+    expect(TOKENS_CSS).toContain("@media (prefers-reduced-motion: reduce)")
+    expect(TOKENS_CSS).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\*,\s*\*::before,\s*\*::after\s*\{[^}]*animation: none !important;[^}]*transition: none !important;/,
+    )
+  })
+
   test("สเกลระยะมี step ที่ใช้จริงครบ (1–24) ไม่ขาดตัว", () => {
     const defined = definitions()
     const expected = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24]

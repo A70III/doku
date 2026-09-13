@@ -885,7 +885,7 @@ ${INTERACTIONS_JS}
     return {
       doc: md,
       focus: false,
-      placeholder: "พิมพ์ / เพื่อแทรก block",
+      placeholder: "พิมพ์ / เพื่อสั่ง",
       resolveAsset: makeAssetResolver(writing.path),
       slashItems: buildSlashItems(schema),
       blockLabels: BLOCK_LABELS,

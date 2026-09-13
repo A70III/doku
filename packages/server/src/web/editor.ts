@@ -22,6 +22,7 @@ import {
   StateEffect,
   StateField,
   type Text,
+  type Transaction,
 } from "@codemirror/state"
 import {
   Decoration,
@@ -171,6 +172,24 @@ export interface DokuEditorOptions {
   onSave?: (value: string) => void
   /** カーออกจาก editor (คลิกนอกกล่อง) — ให้ client ปิดโหมดเขียน */
   onBlur?: () => void
+}
+
+/* ── perf: ต้นทุน decoration ต่อ update (M3.2 Track E) ───────────────────────
+   วัด 2 ส่วนที่โตตามเอกสาร: plugin `buildDecorations` (visible-only) และ state field
+   block math (incremental) — เก็บเป็นตัวอย่างตัวเลขเท่านั้น ไม่ log ไม่ throw
+   ใช้โดย `bun run shot --perf` และเทสต์ perf (docs/09 §5 Track E: budget ≤ 8ms/keystroke) */
+const rebuildPerf = {
+  samples: [] as number[],
+  /** ต้นทุนของ state field ที่เพิ่งอัปเดต — field อัปเดต "ก่อน" plugin ทุกครั้ง */
+  fieldMs: 0,
+  record(ms: number): void {
+    if (this.samples.length >= 300) this.samples.splice(0, this.samples.length - 300)
+    this.samples.push(ms)
+  },
+  reset(): void {
+    this.samples.length = 0
+    this.fieldMs = 0
+  },
 }
 
 /* ── widget ─────────────────────────────────────────────────────────────── */
@@ -382,6 +401,8 @@ export interface DecorationOptions {
   /** ชื่อ callout variant (schema.variants) — เลือกสีพื้นตามชนิด */
   calloutTypes: readonly string[]
   inlineBlocks: readonly string[]
+  /** ข้อความ hint เมื่อเอกสาร/บรรทัดว่าง (Track E) — ไม่ส่ง = ไม่โชว์ hint */
+  placeholder?: string
 }
 
 /** ตำแหน่งนี้อยู่ในโค้ดหรือไม่ (ห้าม decorate `:badge[…]` ใน code span/fence) */
@@ -675,6 +696,45 @@ function buildDecorations(
     }
   }
 
+  // ── focus line / active block (Track E — docs/09 §5) ───────────────────
+  // cue เดียวว่า “カーอยู่ block ไหน” — ขีด accent บางๆ ด้านซ้ายของ block ที่カーอยู่
+  // (block selection มีพื้นของตัวเองอยู่แล้ว → ไม่วาดซ้ำ) · ใช้ block model ตรงกับ
+  // gutter/keymap (docs/08 ข้อ 64) — คำนวณเฉพาะ visible range
+  if (focused && !view.state.field(blockSelectionField, false)) {
+    const visFrom = view.visibleRanges[0]?.from ?? 0
+    const lastVisible = view.visibleRanges[view.visibleRanges.length - 1]
+    const visTo = lastVisible?.to ?? doc.length
+    const active = blockAtCursor(
+      view.state,
+      computeBlocks(view.state, Math.max(0, visFrom - DIRECTIVE_LOOKBACK), visTo),
+    )
+    if (active) {
+      let pos = doc.lineAt(active.from).from
+      const end = doc.lineAt(Math.min(active.to, doc.length)).from
+      while (pos <= end) {
+        const line = doc.lineAt(pos)
+        lineClass(line, "cm-doku-block-active")
+        pos = line.to + 1
+        if (pos > doc.length) break
+      }
+    }
+  }
+
+  // บรรทัดว่างตรงカー → hint ว่าพิมพ์ `/` ได้ (ไม่ทับ placeholder ของเอกสารว่าง)
+  if (focused && selection.main.empty && doc.length > 0 && options.placeholder) {
+    const line = doc.lineAt(selection.main.head)
+    if (line.text.trim() === "" && !insideCode(view, line.from, line.to)) {
+      ranges.push({
+        from: line.from,
+        to: line.from,
+        value: Decoration.widget({
+          widget: new EmptyLineWidget(options.placeholder),
+          side: -1,
+        }),
+      })
+    }
+  }
+
   return {
     decorations: Decoration.set(
       ranges.map((range) => range.value.range(range.from, range.to)),
@@ -690,8 +750,21 @@ function buildDecorations(
 /** block math `$$` หลายบรรทัด — **ต้องเป็น StateField** เพราะ CM6 ห้าม plugin สร้าง block decoration
  *  (สแกนเฉพาะบรรทัดที่ขึ้นต้นด้วย `$$` · ครอบทั้งบรรทัดตามข้อกำหนดของ block replace)
  *  カーแตะ block → ปล่อย raw (แก้ LaTeX ได้) */
-function blockMathDecorations(doc: Text, selection: EditorSelection): DecorationSet {
-  const ranges: Array<{ from: number; to: number; value: Decoration }> = []
+/** ช่วงของ `$$…$$` (block math) — เก็บไว้ใน field เพื่อไม่ต้องสแกนทั้งเอกสารทุก keystroke */
+interface MathBlock {
+  /** ต้น `$$` เปิด */
+  from: number
+  /** จบ `$$` ปิด */
+  to: number
+  /** ช่วง LaTeX ระหว่าง delimiter */
+  latexFrom: number
+  latexTo: number
+}
+
+/** สแกน `$$` fence ทั้งเอกสาร — เรียกเฉพาะตอนที่การแก้ "อาจ" เปลี่ยนคู่ fence (Track E: incremental)
+ *  ต้องเป็น StateField (ไม่ใช่ plugin) เพราะ CM6 ห้าม plugin สร้าง block decoration */
+function scanBlockMath(doc: Text): MathBlock[] {
+  const blocks: MathBlock[] = []
   let open: { from: number; latexFrom: number } | null = null
   for (let n = 1; n <= doc.lines; n += 1) {
     const line = doc.line(n)
@@ -705,23 +778,41 @@ function blockMathDecorations(doc: Text, selection: EditorSelection): Decoration
     }
     if (!trimmed.endsWith("$$")) continue
     const index = line.text.lastIndexOf("$$")
-    const to = line.from + index + 2
-    const touched = selection.ranges.some(
-      (range) => range.from <= to + 1 && range.to >= (open as { from: number }).from - 1,
-    )
-    if (!touched) {
-      const latex = doc.sliceString(
-        (open as { from: number; latexFrom: number }).latexFrom,
-        line.from + index,
-      )
-      const startLine = doc.lineAt((open as { from: number }).from)
-      ranges.push({
-        from: startLine.from,
-        to: line.to,
-        value: Decoration.replace({ widget: new MathWidget(latex.trim(), true), block: true }),
-      })
-    }
+    blocks.push({
+      from: open.from,
+      latexFrom: open.latexFrom,
+      latexTo: line.from + index,
+      to: line.from + index + 2,
+    })
     open = null
+  }
+  return blocks
+}
+
+/** decoration ของ block math จากช่วงที่ cache ไว้ — O(จำนวน block) ไม่ใช่ O(บรรทัด)
+ *  カーแตะ block ใด → ปล่อย raw (แก้ LaTeX ได้) */
+function mathDecorations(
+  doc: Text,
+  selection: EditorSelection,
+  blocks: readonly MathBlock[],
+): DecorationSet {
+  const ranges: Array<{ from: number; to: number; value: Decoration }> = []
+  for (const block of blocks) {
+    const touched = selection.ranges.some(
+      (range) => range.from <= block.to + 1 && range.to >= block.from - 1,
+    )
+    if (touched) continue
+    const startLine = doc.lineAt(Math.min(block.from, doc.length))
+    const endLine = doc.lineAt(Math.min(block.to, doc.length))
+    const latex = doc.sliceString(
+      Math.min(block.latexFrom, doc.length),
+      Math.min(block.latexTo, doc.length),
+    )
+    ranges.push({
+      from: startLine.from,
+      to: endLine.to,
+      value: Decoration.replace({ widget: new MathWidget(latex.trim(), true), block: true }),
+    })
   }
   return Decoration.set(
     ranges.map((range) => range.value.range(range.from, range.to)),
@@ -729,22 +820,102 @@ function blockMathDecorations(doc: Text, selection: EditorSelection): Decoration
   )
 }
 
-const setBlockMath = StateEffect.define<DecorationSet>()
+export interface MathFieldValue {
+  blocks: MathBlock[]
+  decos: DecorationSet
+}
 
-/** StateField: block math (คำนวณใหม่เมื่อ doc/selection เปลี่ยน — ไม่ผูกกับ viewport) */
-const blockMathField = StateField.define<DecorationSet>({
-  create: (state) => blockMathDecorations(state.doc, state.selection),
-  update(value, tr) {
-    for (const effect of tr.effects) {
-      if (effect.is(setBlockMath)) return effect.value
-    }
-    if (tr.docChanged || tr.selection) {
-      return blockMathDecorations(tr.state.doc, tr.state.selection)
-    }
-    return value
+/** StateField: block math — incremental (Track E perf budget)
+ *  · การแก้ที่ไม่แตะ block math เลย → map ตำแหน่งเดิม (ไม่สแกนทั้งเอกสาร)
+ *  · เปลี่ยนカー → คำนวณ decoration ใหม่จากช่วงที่ cache (O(#block)) */
+const blockMathField = StateField.define<MathFieldValue>({
+  create: (state) => {
+    const blocks = scanBlockMath(state.doc)
+    return { blocks, decos: mathDecorations(state.doc, state.selection, blocks) }
   },
-  provide: (field) => EditorView.decorations.from(field),
+  update(value, tr) {
+    if (!tr.docChanged && !tr.selection) return value
+    const started = performance.now()
+    const next = updateBlockMath(value, tr)
+    rebuildPerf.fieldMs += performance.now() - started
+    return next
+  },
+  provide: (field) => EditorView.decorations.from(field, (value) => value.decos),
 })
+
+function updateBlockMath(value: MathFieldValue, tr: Transaction): MathFieldValue {
+  {
+    if (!tr.docChanged) {
+      return {
+        blocks: value.blocks,
+        decos: mathDecorations(tr.state.doc, tr.state.selection, value.blocks),
+      }
+    }
+    // doc เปลี่ยน: สแกนใหม่เฉพาะเมื่อ "อาจ" เกิด/หายคู่ fence
+    let rescan = false
+    tr.changes.iterChanges((fromA, toA, fromB, _toB, inserted) => {
+      if (rescan) return
+      // พิมพ์/วาง `$$` เข้ามา → อาจเป็น fence ใหม่
+      if (inserted.toString().includes("$$")) {
+        rescan = true
+        return
+      }
+      // แตะช่วงของ block ที่ cache ไว้ (รวมหัว/ท้าย 1 ตัว) → คู่ fence อาจเปลี่ยน
+      if (value.blocks.some((block) => fromA <= block.to + 1 && toA >= block.from - 1)) {
+        rescan = true
+        return
+      }
+      // บรรทัดที่แก้ (หรือบรรทัดบน/ล่าง) กลายเป็น fence เปิดใหม่หรือเปล่า
+      const pos = Math.max(0, Math.min(fromB, tr.state.doc.length))
+      const line = tr.state.doc.lineAt(pos)
+      if (line.text.trim().startsWith("$$")) {
+        rescan = true
+        return
+      }
+      const prev = line.number > 1 ? tr.state.doc.line(line.number - 1) : null
+      if (prev?.text.trim().startsWith("$$")) rescan = true
+    })
+    if (rescan) {
+      const blocks = scanBlockMath(tr.state.doc)
+      return { blocks, decos: mathDecorations(tr.state.doc, tr.state.selection, blocks) }
+    }
+    const mapPos = (pos: number, assoc: number) => tr.changes.mapPos(pos, assoc)
+    const blocks = value.blocks.map((block) => ({
+      from: mapPos(block.from, 1),
+      to: mapPos(block.to, -1),
+      latexFrom: mapPos(block.latexFrom, 1),
+      latexTo: mapPos(block.latexTo, -1),
+    }))
+    return { blocks, decos: mathDecorations(tr.state.doc, tr.state.selection, blocks) }
+  }
+}
+
+/** บรรทัดว่างตรงカー → คำใบ้ว่าพิมพ์ `/` ได้ (Track E) — widget ไม่เข้าเอกสาร (aria-hidden)
+ *  ข้ามเมื่อเอกสารว่างทั้งหมด (ให้ placeholder ของ CM แสดงคู่ความนั้น) และข้ามในโค้ด */
+class EmptyLineWidget extends WidgetType {
+  readonly #label: string
+
+  constructor(label: string) {
+    super()
+    this.#label = label
+  }
+
+  override eq(other: EmptyLineWidget): boolean {
+    return other.#label === this.#label
+  }
+
+  override toDOM(): HTMLElement {
+    const span = document.createElement("span")
+    span.className = "cm-doku-empty-hint"
+    span.setAttribute("aria-hidden", "true")
+    span.textContent = this.#label
+    return span
+  }
+
+  override ignoreEvent(): boolean {
+    return true
+  }
+}
 
 /** resolver ของ asset ส่งผ่าน closure ตอนสร้าง plugin — widget ต้องใช้ตอนคำนวณ decoration ครั้งแรก */
 const livePreview = (options: DecorationOptions) =>
@@ -766,7 +937,11 @@ const livePreview = (options: DecorationOptions) =>
           update.selectionSet ||
           update.focusChanged
         ) {
+          const started = performance.now()
           const built = buildDecorations(update.view, options)
+          // ต้นทุนต่อ keystroke = plugin + state field ที่อัปเดตใน transaction เดียวกัน
+          rebuildPerf.record(performance.now() - started + rebuildPerf.fieldMs)
+          rebuildPerf.fieldMs = 0
           this.decorations = built.decorations
           this.atomic = built.atomic
         }
@@ -1336,6 +1511,7 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
     blockLabels: options.blockLabels ?? {},
     calloutTypes: options.calloutTypes ?? [],
     inlineBlocks: options.inlineBlocks ?? [],
+    ...(options.placeholder ? { placeholder: options.placeholder } : {}),
   }
   const previewPlugin = livePreview(decorationOptions)
   const extensions: Extension[] = [
@@ -1721,8 +1897,18 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
 
 declare global {
   interface Window {
-    DokuEditor?: { create: typeof create }
+    DokuEditor?: {
+      create: typeof create
+      /** สถิติ decoration rebuild (ms ต่อ update) — Track E perf budget */
+      perf: { rebuilds: () => number[]; reset: () => void }
+    }
   }
 }
 
-window.DokuEditor = { create }
+window.DokuEditor = {
+  create,
+  perf: {
+    rebuilds: () => [...rebuildPerf.samples],
+    reset: () => rebuildPerf.reset(),
+  },
+}

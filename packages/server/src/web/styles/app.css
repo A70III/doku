@@ -1182,6 +1182,30 @@ html[data-zen] .doku-main {
   background: var(--d-accent-weak);
 }
 
+/* focus line / active block (M3.2 Track E) — ขีดบางๆ ด้านซ้ายของ block ที่カーอยู่
+   ใช้ ::before (ไม่ทับ box-shadow/background ของ block variant) — โชว์เฉพาะตอน editor มี focus
+   และไม่มี block selection (Docs/09 §5: cue เดียวว่า “カーอยู่ block ไหน”) */
+.cm-doku-block-active {
+  position: relative;
+}
+.cm-doku-block-active::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--d-accent);
+  opacity: 0.35;
+}
+
+/* hint “พิมพ์ / เพื่อสั่ง” บนบรรทัดว่างที่カーอยู่ — decoration ของ CM (aria-hidden) */
+.cm-doku-empty-hint {
+  color: var(--d-text-subtle);
+  pointer-events: none;
+  user-select: none;
+}
+
 /* drop indicator ของ drag & drop */
 .doku-drop-indicator {
   position: absolute;
@@ -1316,6 +1340,8 @@ html[data-zen] .doku-main {
   .z-doku-inline-bar,
   .doku-inline-link,
   .doku-gutter,
+  .cm-doku-block-active::before,
+  .cm-doku-empty-hint,
   .cm-cursor,
   .cm-dropCursor,
   .cm-selectionBackground {
