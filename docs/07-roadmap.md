@@ -172,12 +172,14 @@
 - [x] code block: chrome เท่าหน้าอ่าน + โทเคนสี map กับ Shiki github-light/dark (`--k-code-*`) — ยังไม่ทำ per-language (ไม่มี dep ภาษา)
 - [x] marker policy: atomic **เฉพาะ delimiter** (`EditorView.atomicRanges`) · ซ่อนเมื่อカーไม่สัมผัส · **composition guard (ห้าม rebuild ขณะ IME ทำงาน)**
 
-### Track C — block layer (+ drag & drop)
+### Track C — block layer (+ drag & drop) ✅
 
-- [ ] **C1** `BlockInfo` (line range) + hover gutter `+` / `⋮⋮` + block highlight · follow mouse ต่อ frame · pin · delay + hit-area
-- [ ] **C2** block selection (`Esc` · คลิก handle · ลากข้าม block) + multi-block + block-aware `Cmd+A` / `Backspace`
-- [ ] **C3** คีย์ลัด: `Mod+Shift+↑/↓` move · `Mod+D` duplicate · `Mod+/` turn into · `Tab`/`Shift+Tab` nest · ลบ block
-- [ ] **C4** drag & drop: drop indicator · depth จากตำแหน่งแนวนอน · multi-block · long-press 150ms (touch) · pointer ≤ 1 งาน/frame
+- [x] **C1** `BlockInfo` (line range) + hover gutter `+` / `⋮⋮` + block highlight · follow mouse ต่อ frame · pin · delay 200ms + hit-area
+      (`packages/server/src/web/editor/blocks.ts` = block model + operations แบบ pure md → md)
+- [x] **C2** block selection (`Esc` · คลิก handle · ลากข้าม block) + multi-block + block-aware `Cmd+A` / `Backspace` (StateField เก็บช่วง)
+- [x] **C3** คีย์ลัด: `Mod+Shift+↑/↓` move · `Mod+D` duplicate · `Mod+/` turn into · `Tab`/`Shift+Tab` nest · `Shift+Delete` ลบ block
+- [x] **C4** drag & drop: drop indicator · depth จากตำแหน่งแนวนอน · multi-block · long-press 150ms (touch) · pointer ≤ 1 งาน/frame
+      (ยกเลิกได้: `pointercancel`/วางที่เดิมไม่แตะไฟล์)
 
 ### Track D — inline layer
 

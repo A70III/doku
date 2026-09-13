@@ -895,6 +895,7 @@ ${INTERACTIONS_JS}
         .map((block) => block.name),
       onDirective: (info) => renderDirectiveStrip(info),
       onMark: (info) => renderMarkStrip(info),
+      onTurnInto: (target) => openTurnIntoMenu(target),
       onChange: markDirty,
       onSave: () => flushSave(true),
     };
@@ -1444,6 +1445,352 @@ ${INTERACTIONS_JS}
       openMeta(currentDocPath());
     });
   }
+
+/* ── block layer: gutter overlay + block menu + drag & drop ───────────────
+     docs/09 §3.3 (overlay ของ client) · Track C1–C4
+     · follow mouse ต่อ frame (rAF) · delay ซ่อน 200ms + hit-area (handle ไม่หนีมือ)
+     · ทุก operation เรียก handle ที่เขียนกลับเป็น markdown (ไม่มี state ซ่อน) */
+
+  let gutterBlock = null; // block ที่ gutter ชี้อยู่
+  let gutterHideTimer = 0;
+  let gutterFrame = 0;
+  let gutterPointer = null;
+  let lastPointer = null;
+
+  function gutterEl() {
+    let el = document.getElementById("doku-gutter");
+    if (!el && articleEl) {
+      el = document.createElement("div");
+      el.id = "doku-gutter";
+      el.className = "z-doku-gutter";
+      el.hidden = true;
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "doku-gutter-btn";
+      add.setAttribute("data-gutter", "add");
+      add.setAttribute("aria-label", "แทรก block ที่นี่");
+      add.textContent = "+";
+      const handle = document.createElement("button");
+      handle.type = "button";
+      handle.className = "doku-gutter-btn doku-gutter-handle";
+      handle.setAttribute("data-gutter", "handle");
+      handle.setAttribute("aria-label", "เมนู block (คลิก = เปิด · ลาก = ย้าย)");
+      handle.textContent = "⋮⋮";
+      el.appendChild(add);
+      el.appendChild(handle);
+      articleEl.appendChild(el);
+      el.addEventListener("pointerenter", () => {
+        gutterPointer = true;
+        clearTimeout(gutterHideTimer);
+      });
+      el.addEventListener("pointerleave", () => {
+        gutterPointer = false;
+        scheduleGutterHide();
+      });
+      el.addEventListener("click", (event) => {
+        const btn = event.target.closest ? event.target.closest("[data-gutter]") : null;
+        if (!btn) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (btn.getAttribute("data-gutter") === "add") openInsertMenu(btn);
+        else openBlockMenu(btn);
+      });
+    }
+    return el;
+  }
+
+  function scheduleGutterHide() {
+    clearTimeout(gutterHideTimer);
+    gutterHideTimer = window.setTimeout(() => {
+      if (gutterPointer || dragState) return;
+      hideGutter();
+    }, 200);
+  }
+
+  function hideGutter() {
+    gutterBlock = null;
+    const el = gutterEl();
+    if (el) el.hidden = true;
+    if (writing.handle) writing.handle.clearHighlight();
+  }
+
+  /** block ที่พิกัดจอ (clientX/clientY) — ใช้ทั้ง hover, long-press และ drag */
+  function blockAtPoint(x, y) {
+    if (!writing.handle) return null;
+    return writing.handle.blockAtPoint(x, y);
+  }
+
+  function showGutter(block) {
+    const el = gutterEl();
+    if (!el || !writing.handle || !articleEl) return;
+    clearTimeout(gutterHideTimer);
+    gutterBlock = block;
+    const coords = writing.handle.coordsAt(block.from);
+    const rect = articleEl.getBoundingClientRect();
+    if (coords) {
+      el.style.top = Math.max(0, coords.top - rect.top) + "px";
+    }
+    el.style.left = Math.max(0, -44) + "px";
+    el.hidden = false;
+    writing.handle.highlight(block.from, block.to);
+  }
+
+  /** pointer ครั้งเดียวต่อ frame (docs/09 §3.3) */
+  function onGutterPointerMove(event) {
+    if (!writing.handle) return;
+    if (event.pointerType === "touch") return; // touch = long-press ไม่มี hover (docs/08 ข้อ 71)
+    const el = gutterEl();
+    if (el && !el.hidden && inRect(el, event, 6)) {
+      gutterPointer = true;
+      clearTimeout(gutterHideTimer);
+      return;
+    }
+    lastPointer = { x: event.clientX, y: event.clientY };
+    if (gutterFrame) return;
+    gutterFrame = window.requestAnimationFrame(() => {
+      gutterFrame = 0;
+      const point = lastPointer;
+      if (!point || !writing.handle) return;
+      const block = blockAtPoint(point.x, point.y);
+      if (!block) {
+        scheduleGutterHide();
+        return;
+      }
+      showGutter(block);
+    });
+  }
+
+  /* ── เมนูของ block (C1/C3: ทุกอย่างมีคีย์ลัดเทียบเท่า) ─────────────────── */
+
+  function insertItems(schema) {
+    return buildSlashItems(schema).map((item) => ({
+      label: item.label,
+      run: () => {
+        if (!writing.handle || !gutterBlock) return;
+        writing.handle.insertAt(gutterBlock.from, item.template);
+      },
+    }));
+  }
+
+  function openInsertMenu(anchor) {
+    if (!writing.handle || !gutterBlock) return;
+    const items = insertItems(writing.schema).slice(0, 24);
+    openMenu(anchor, "แทรก block", [
+      {
+        label: "ย่อหน้า (พิมพ์ต่อท้าย)",
+        run: () => {
+          if (!gutterBlock || !writing.handle) return;
+          writing.handle.insertAt(gutterBlock.from, "");
+        },
+      },
+      ...items.map((item, index) => ({ separator: index === 0, ...item })),
+    ]);
+  }
+
+  /** เมนู Turn into (Mod+/ หรือ ⋮⋮) — ใช้ target จาก editor (จาก/to/พิกัด) */
+  function turnIntoItems(from, to) {
+    const run = (target) => () => writing.handle && writing.handle.turnInto(from, to, target)
+    return [
+      { label: "หัวข้อใหญ่ (H1)", run: run("h1") },
+      { label: "หัวข้อ (H2)", run: run("h2") },
+      { label: "หัวข้อย่อย (H3)", run: run("h3") },
+      { label: "ย่อหน้า", run: run("paragraph") },
+      { label: "รายการ", run: run("list") },
+      { label: "งานที่ต้องทำ", run: run("todo") },
+      { label: "อ้างคำพูด", run: run("quote") },
+      { label: "โค้ด", run: run("code") },
+    ]
+  }
+
+  function openTurnIntoMenu(target) {
+    const anchor = document.createElement("button");
+    anchor.type = "button";
+    anchor.style.position = "fixed";
+    anchor.style.left = Math.max(0, Math.round(target.x)) + "px";
+    anchor.style.top = Math.max(0, Math.round(target.y)) + "px";
+    anchor.style.width = "1px";
+    anchor.style.height = "1px";
+    anchor.style.opacity = "0";
+    anchor.style.pointerEvents = "none";
+    document.body.appendChild(anchor);
+    openMenu(anchor, "Turn into", turnIntoItems(target.from, target.to));
+    window.setTimeout(() => anchor.remove(), 0);
+  }
+
+  function openBlockMenu(anchor) {
+    if (!writing.handle || !gutterBlock) return;
+    const block = gutterBlock;
+    const words = writing.handle.textOfBlock(block.from, block.to).trim();
+    const count = words ? words.split(/s+/u).filter(Boolean).length : 0;
+    openMenu(anchor, "block #" + block.headLine + " · " + block.kind, [
+      ...turnIntoItems(block.from, block.to),
+      { separator: true },
+      {
+        label: "ย้ายขึ้น",
+        hint: "Mod+Shift+↑",
+        run: () => writing.handle.runBlockOp("moveUp", { from: block.from, to: block.to }),
+      },
+      {
+        label: "ย้ายลง",
+        hint: "Mod+Shift+↓",
+        run: () => writing.handle.runBlockOp("moveDown", { from: block.from, to: block.to }),
+      },
+      {
+        label: "ทำสำเนา",
+        hint: "Mod+D",
+        run: () => writing.handle.runBlockOp("duplicate", { from: block.from, to: block.to }),
+      },
+      { label: "ซ้อน (nest)", hint: "Tab", run: () => writing.handle.runBlockOp("indent", { from: block.from, to: block.to }) },
+      { label: "ลดร่น (un-nest)", hint: "Shift+Tab", run: () => writing.handle.runBlockOp("outdent", { from: block.from, to: block.to }) },
+      { separator: true },
+      { label: "คัดลอกลิงก์เอกสาร", run: () => copyDocLink(currentDocPath()) },
+      { label: count.toLocaleString("th-TH") + " คำ", run: () => {} },
+      { separator: true },
+      {
+        label: "ลบ block",
+        danger: true,
+        hint: "Shift+Delete",
+        run: () => writing.handle.runBlockOp("delete", { from: block.from, to: block.to }),
+      },
+    ]);
+  }
+
+  /* ── drag & drop: ลาก block (C4) ──────────────────────────────────────── */
+
+  let dragState = null;
+  let dragFrame = 0;
+  let dragPointer = null;
+
+  function dropIndicator() {
+    let el = document.getElementById("doku-drop-indicator");
+    if (!el && articleEl) {
+      el = document.createElement("div");
+      el.id = "doku-drop-indicator";
+      el.className = "doku-drop-indicator";
+      el.hidden = true;
+      articleEl.appendChild(el);
+    }
+    return el;
+  }
+
+  /** ตำแหน่ง/ความลึกของ drop จากพิกัด pointer — ครั้งเดียวต่อ frame */
+  function updateDropTarget() {
+    dragFrame = 0;
+    if (!dragState || !writing.handle || !dragPointer || !articleEl) return;
+    const { x, y } = dragPointer;
+    const blocks = writing.handle.blocks();
+    // บรรทัดเป้าหมาย = block ที่ pointer อยู่ หรือ block ถัดไป (drop ระหว่างบรรทัด)
+    let target = null;
+    for (const block of blocks) {
+      const coords = writing.handle.coordsAt(block.from);
+      if (!coords) continue;
+      if (coords.top <= y + 6) target = block;
+      else break;
+    }
+    const next = target
+      ? blocks.find((block) => block.from > target.from && block.depth <= target.depth)
+      : blocks[0];
+    const rect = articleEl.getBoundingClientRect();
+    const depth = Math.max(
+      0,
+      Math.min(5, Math.round((x - rect.left - 24) / 24)),
+    );
+    const anchorBlock = next ?? target;
+    const coords = anchorBlock && writing.handle.coordsAt(anchorBlock.from);
+    const el = dropIndicator();
+    if (el && coords) {
+      el.style.top = Math.max(0, coords.top - rect.top - 3) + "px";
+      el.style.left = Math.max(0, 24 + depth * 24) + "px";
+      el.style.setProperty("--drop-depth", String(depth));
+      el.hidden = false;
+    }
+    dragState.targetFrom = anchorBlock ? anchorBlock.from : writing.handle.offsetAtCoords(y) ?? 0;
+    dragState.depth = depth;
+    dragState.targetLine = anchorBlock ? anchorBlock.headLine - 1 : 0;
+  }
+
+  function endDrag(apply) {
+    if (!dragState) return;
+    const state = dragState;
+    dragState = null;
+    const el = dropIndicator();
+    if (el) el.hidden = true;
+    window.removeEventListener("pointermove", onDragMove, true);
+    window.removeEventListener("pointerup", onDragUp, true);
+    window.removeEventListener("pointercancel", onDragCancel, true);
+    if (!apply || !writing.handle) return;
+    if (!state.moved) {
+      const handle = document.querySelector('[data-gutter="handle"]');
+      if (handle) openBlockMenu(handle);
+      return;
+    }
+    const targetPos = writing.handle.offsetAtCoords(dragPointer ? dragPointer.y : state.y);
+    writing.handle.moveBlockTo(state.from, state.to, targetPos ?? state.targetFrom, state.depth);
+  }
+
+  function onDragMove(event) {
+    dragPointer = { x: event.clientX, y: event.clientY };
+    if (dragState) dragState.moved = true;
+    if (dragFrame) return;
+    dragFrame = window.requestAnimationFrame(updateDropTarget);
+  }
+
+  function onDragUp(event) {
+    event.preventDefault();
+    endDrag(true);
+  }
+
+  function onDragCancel() {
+    endDrag(false);
+  }
+
+  function startDrag(event) {
+    if (!gutterBlock || !writing.handle) return;
+    dragState = {
+      from: gutterBlock.from,
+      to: gutterBlock.to,
+      depth: gutterBlock.depth,
+      targetFrom: gutterBlock.from,
+      targetLine: gutterBlock.headLine - 1,
+      moved: false,
+      x: event.clientX,
+      y: event.clientY,
+    };
+    dragPointer = { x: event.clientX, y: event.clientY };
+    window.addEventListener("pointermove", onDragMove, true);
+    window.addEventListener("pointerup", onDragUp, true);
+    window.addEventListener("pointercancel", onDragCancel, true);
+  }
+
+  const gutterPointerDown = (event) => {
+    const btn = event.target.closest ? event.target.closest('[data-gutter="handle"]') : null;
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    startDrag(event);
+  };
+
+  if (articleEl) {
+    articleEl.addEventListener("pointerdown", gutterPointerDown);
+    articleEl.addEventListener("pointermove", onGutterPointerMove);
+    articleEl.addEventListener("pointerleave", scheduleGutterHide);
+    // touch = long-press 150ms (docs/08 ข้อ 71) — ไม่มี hover บนมือถือ
+    articleEl.addEventListener("touchstart", (event) => {
+      if (!writing.handle) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const block = blockAtPoint(touch.clientX, touch.clientY);
+      if (!block) return;
+      longPressTimer = window.setTimeout(() => {
+        showGutter(block);
+        const handle = document.querySelector('[data-gutter="handle"]');
+        if (handle) openBlockMenu(handle);
+      }, 150);
+    }, { passive: true });
+    articleEl.addEventListener("touchend", () => clearTimeout(longPressTimer));
+    articleEl.addEventListener("touchmove", () => clearTimeout(longPressTimer));
+  }
+  let longPressTimer = 0;
 
   /* ── mark swatch strip (docs/08 ข้อ 6/55) — แถบสีของ ==mark== เมื่อカーอยู่ในช่วง ──
      reuse กลไก pin/ไม่-rebuild ของ block strip เดิม (key ต่อบรรทัด · sync ค่าในที่

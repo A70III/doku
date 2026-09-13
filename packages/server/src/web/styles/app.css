@@ -1132,6 +1132,78 @@ html[data-zen] .doku-main {
   font-size: var(--d-text-sm);
 }
 
+
+/* ══ block layer (M3.2 Track C — docs/09 §3.3) ═══════════════════════════
+   gutter เป็น overlay ของ client (docs/08 ข้อ 66) · follow mouse ต่อ frame
+   · hit-area + delay 200ms (handle ไม่หนีมือ) */
+
+.z-doku-gutter {
+  position: absolute;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: var(--d-space-1);
+  width: 40px;
+  padding-inline: var(--d-space-1);
+}
+.doku-gutter-btn {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--d-radius-sm);
+  background: transparent;
+  color: var(--d-text-subtle);
+  font-size: var(--d-text-sm);
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--d-dur-fast) var(--d-ease), color var(--d-dur-fast) var(--d-ease);
+}
+.doku-gutter-btn:hover,
+.doku-gutter-btn:focus-visible {
+  background: var(--d-bg-subtle);
+  color: var(--k-text);
+}
+.doku-gutter-handle {
+  cursor: grab;
+  letter-spacing: -2px;
+}
+.doku-gutter-handle:active {
+  cursor: grabbing;
+}
+
+/* block ที่ถูก hover/เลือก */
+.cm-doku-block-hover {
+  background: var(--d-bg-subtle);
+}
+.cm-doku-block-selected {
+  background: var(--d-accent-weak);
+}
+
+/* drop indicator ของ drag & drop */
+.doku-drop-indicator {
+  position: absolute;
+  z-index: 26;
+  height: 2px;
+  width: 42%;
+  margin-inline-start: calc(var(--d-space-6) + var(--drop-depth, 0) * var(--d-space-6));
+  background: var(--d-accent);
+  border-radius: 1px;
+  pointer-events: none;
+}
+.doku-drop-indicator::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -3px;
+  inset-block-start: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--d-accent);
+}
+
 @media print {
   .doku-rail,
   .doku-toc-col,

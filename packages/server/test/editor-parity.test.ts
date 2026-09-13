@@ -7,6 +7,7 @@ import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
 import { CLIENT_JS } from "../src/web/client.ts"
+import { parseAttrs } from "../src/web/editor/blocks.ts"
 
 /**
  * M3.2 Track B — read-parity (docs/09 §5 Track B · docs/08 ข้อ 69)
@@ -61,26 +62,10 @@ describe("editor read-parity (Track B)", () => {
   })
 
   test("attribute ของ directive อ่านได้ทั้ง quoted/unquoted/flag (registry เขียนแบบไหนก็ได้)", () => {
-    const match = /const ATTR_PAIR = (\/.*\/g)/.exec(EDITOR_SOURCE)
-    expect(match).not.toBeNull()
-    // ตัด `/` หน้า-หลังและ flag `g` ออกก่อนประกอบ RegExp ใหม่
-    const literal = match?.[1] as string
-    const pattern = new RegExp(literal.slice(1, literal.lastIndexOf("/")), "g")
-    const parse = (raw: string | undefined): Record<string, string> => {
-      const attrs: Record<string, string> = {}
-      if (!raw) return attrs
-      pattern.lastIndex = 0
-      let m = pattern.exec(raw)
-      while (m) {
-        attrs[m[1] as string] = m[2] !== undefined ? m[2] : (m[3] ?? "")
-        m = pattern.exec(raw)
-      }
-      return attrs
-    }
-    expect(parse("{color=green strike}")).toEqual({ color: "green", strike: "" })
-    expect(parse('{title="เกร็ด มาก" color=red}')).toEqual({ title: "เกร็ด มาก", color: "red" })
-    expect(parse('{width="70%"}')).toEqual({ width: "70%" })
-    expect(parse(undefined)).toEqual({})
+    expect(parseAttrs("{color=green strike}")).toEqual({ color: "green", strike: "" })
+    expect(parseAttrs('{title="เกร็ด มาก" color=red}')).toEqual({ title: "เกร็ด มาก", color: "red" })
+    expect(parseAttrs('{width="70%"}')).toEqual({ width: "70%" })
+    expect(parseAttrs(undefined)).toEqual({})
   })
 
   test("client ส่งข้อมูล schema (block/callout/inline) ให้ editor", () => {

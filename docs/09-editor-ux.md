@@ -208,13 +208,17 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 - **DoD:** screenshot read ↔ edit ต่างกันเฉพาะที่จำเป็น · พิมพ์ไทยต่อเนื่อง (สระ/วรรณยุกต์/คำผสม) ไม่มีカーเพี้ยน ·
   `bun run shot` เพิ่ม scenario "พิมพ์ไทย + IME"
 
-### Track C — block layer (L) · "the Notion experience"
+### Track C — block layer (L) · "the Notion experience" ✅
 
-- [ ] **C1** `BlockInfo` + hover gutter (`+` / `⋮⋮`) + block highlight · follow mouse ต่อ frame · pin · delay + hit-area
-- [ ] **C2** block selection (`Esc` · คลิก handle · ลากข้าม block) + multi-block + block-aware `Cmd+A`/`Backspace`
-- [ ] **C3** ⌨️ คีย์ลัดทั้งหมด: `Mod+Shift+↑/↓` move · `Mod+D` duplicate · `Mod+/` turn into · `Tab`/`Shift+Tab` nest · `Shift+Delete` ลบ block
-- [ ] **C4** 🖱️ drag & drop: drop indicator · depth จากตำแหน่งแนวนอน · multi-block drag · long-press 150ms ( touch) ·
-      pointer ต่อ frame · measure-then-draw · cache geometry
+- [x] **C1** `BlockInfo` + hover gutter (`+` / `⋮⋮`) + block highlight · follow mouse ต่อ frame · pin · delay 200ms + hit-area
+      · โมดูล `web/editor/blocks.ts` (block model + op เป็น pure function → เทสต์ได้ · ไม่เดินทั้งเอกสาร ใช้ visible range)
+- [x] **C2** block selection (`Esc` · โมดูลเลือกด้วย ⋮⋮ · ลาก/เลือกข้อความข้าม block) + multi-block + block-aware `Cmd+A`/`Backspace`
+      (`hoverBlockField`/`blockSelectionField` = StateField · client เป็นเจ้าของ overlay ไม่ inline DOM hack)
+- [x] **C3** ⌨️ คีย์ลัดทั้งหมด: `Mod+Shift+↑/↓` move · `Mod+D` duplicate · `Mod+/` turn into · `Tab`/`Shift+Tab` nest · `Shift+Delete` ลบ block
+      (Tab ใช้ `shift:` แบบเดียวกับ `indentWithTab` ของ CM6 — ผูก `"Shift-Tab"` ตรง ๆ ไม่ถูก match)
+      · เขียนกลับด้วย **change ที่เล็กที่สุด** (prefix/suffix ร่วม) → カーไม่กระโดด + undo ละเอียด
+- [x] **C4** 🖱️ drag & drop: drop indicator · depth จากตำแหน่งแนวนอน · multi-block drag · long-press 150ms (touch) ·
+      pointer ต่อ frame · ยกเลิกได้ (`pointercancel`/วางที่เดิม)
 - **DoD:** ทุก op ที่ทำด้วยเมาส์มีคีย์ลัดเทียบเท่า · mouseup นอก editor = ยกเลิก ไม่แตะไฟล์ ·
   perf: pointer ≤ 1 งาน/frame · เลือก parent = เลือกลูก
 

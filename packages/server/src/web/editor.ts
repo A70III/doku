@@ -12,7 +12,7 @@
  */
 
 import { autocompletion, type Completion, type CompletionContext } from "@codemirror/autocomplete"
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands"
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands"
 import { markdown, markdownKeymap, markdownLanguage } from "@codemirror/lang-markdown"
 import { HighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language"
 import {
@@ -36,6 +36,27 @@ import {
 import type { SyntaxNode } from "@lezer/common"
 import { tags as t } from "@lezer/highlight"
 import katex from "katex"
+import {
+  type BlockInfo,
+  type BlockKind,
+  blockAt,
+  blockAtCursor,
+  blockText,
+  computeBlocks,
+  DIRECTIVE_CLOSE,
+  DIRECTIVE_LOOKBACK,
+  DIRECTIVE_OPEN,
+  deleteBlock,
+  duplicateBlock,
+  indentBlock,
+  moveBlock,
+  moveBlockTo,
+  outdentBlock,
+  parseAttrs,
+  scanDirectives,
+  type TurnInto,
+  turnIntoBlock,
+} from "./editor/blocks.ts"
 
 export interface DokuEditorHandle {
   getDoc(): string
@@ -49,6 +70,33 @@ export interface DokuEditorHandle {
   coordsAt(pos: number): { top: number; bottom: number } | null
   /** offset ของบรรทัดที่อยู่ ณ พิกัด y บนจอ (ใช้จำตำแหน่งอ่าน) */
   offsetAtCoords(y: number): number | null
+  /* ── block layer (Track C) ── */
+  /** block ที่อยู่ใน viewport */
+  blocks(): BlockHit[]
+  /** block ที่พิกัดจอ (clientX/clientY) — ใช้กับ gutter/drag */
+  blockAtPoint(x: number, y: number): BlockHit | null
+  /** block ที่カーอยู่ */
+  currentBlock(): BlockHit | null
+  /** ไฮไลต์ block (null = เลิก) */
+  highlight(from: number, to: number): void
+  clearHighlight(): void
+  /** เลือก/ยกเลิก block selection */
+  selectBlock(from: number, to: number): void
+  clearBlockSelection(): void
+  selectedBlock(): { from: number; to: number } | null
+  /** รัน operation ของ block — ระบุ range ได้ (เมนู/gutter ทำกับ block ที่ชี้อยู่ ไม่ใช่カー)
+   *  คืน false = ไม่มีอะไรเปลี่ยน */
+  runBlockOp(op: BlockOp, range?: { from: number; to: number } | null): boolean
+  /** เปลี่ยนชนิด block ที่เลือก/カーอยู่ */
+  turnInto(from: number, to: number, target: TurnInto): void
+  /** ข้อความของ block (word count/menu) */
+  textOfBlock(from: number, to: number): string
+  /** แทรกข้อความที่ตำแหน่ง (เมนู `+`) */
+  insertAt(pos: number, text: string): void
+  /** ย้าย block ไปตำแหน่งที่ลากวาง (drag & drop) */
+  moveBlockTo(from: number, to: number, targetPos: number, depth: number): void
+  /** ลบ block ที่เลือก (Backspace) */
+  deleteSelectedBlocks(): boolean
   /** แก้ attribute ของ directive ที่カーอยู่ (ค่าที่เขียนกลับเป็นข้อความ markdown) */
   patchDirective(patch: Record<string, string | null>): void
   /** ตั้ง/ลบสีของ `==mark==` ที่カーอยู่ในช่วง — null = ลบ `{.color}` (เขียนกลับเป็น markdown เสมอ) */
@@ -74,6 +122,8 @@ export interface DokuEditorOptions {
   calloutTypes?: readonly string[]
   /** ชื่อ block ที่เป็น inline directive (schema blocks kind=text) — `:badge[…]` */
   inlineBlocks?: readonly string[]
+  /** `Mod-/` หรือ ⋮⋮ → Turn into — client เปิดเมนูที่พิกัดนี้ */
+  onTurnInto?: (target: { from: number; to: number; x: number; y: number }) => void
   /** カーเข้า/ออก directive block — client ใช้โชว์ block control strip */
   onDirective?: (info: DirectiveInfo | null) => void
   /** カ์อยู่ใน `==mark==` หรือไม่ — client ใช้โชว์แถบ swatch สี (docs/08 ข้อ 55) */
@@ -279,81 +329,12 @@ const LINK_MARKS = new Set(["LinkMark"])
 const markDeco = (cls: string) => Decoration.mark({ class: cls })
 const hide = () => Decoration.replace({})
 
-/** `:::` fence (มีชื่อ block) — ตัวเดียวกับที่ block scan ใช้ */
-const DIRECTIVE_OPEN = /^(:{3,})\s*([\w-]+)\s*(\{[^}]*\})?\s*$/
-/** `:::` ปิด (ไม่มีชื่อ) */
-const DIRECTIVE_CLOSE = /^(:{3,})\s*$/
 /** จับ suffix `{.color}` ด้วย — カーอยู่นอกช่วงต้องซ่อนทั้ง `==` และ suffix (docs/08 ข้อ 52) */
 const DOKU_MARK = /==([^=\n]+?)==(\{\.[\w-]+\})?/g
 /** inline directive `:badge[…]` / `:mark[…]` (registry kind = text) */
 const INLINE_DIRECTIVE = /:([\w-]+)\[([^\]]*)\](\{[^}]*\})?/g
 /** inline math `$…$` — ไม่รับช่องว่างหัว/ท้าย (ตาม remark-math) */
 const INLINE_MATH = /(?<![\\$])\$([^\s$][^$\n]*?[^\s$]|[^\s$])\$(?!\$)/g
-/** ถอยหลังกี่บรรทัดเพื่อหาต้น `:::` ที่囲 visible range — พอสำหรับเอกสารจริง (ห้ามเดินทั้งไฟล์) */
-const DIRECTIVE_LOOKBACK = 200
-
-interface DirectiveBlockInfo {
-  name: string
-  attrs: Record<string, string>
-  openFrom: number
-  openTo: number
-  closeFrom: number | null
-  closeTo: number | null
-}
-
-/** สแกน `:::` ในช่วงบรรทัด — stack ตามความยาว fence (docs/08 ข้อ 24 ชั้นนอกยาวกว่าชั้นใน) */
-function scanDirectives(doc: Text, fromLine: number, toLine: number): DirectiveBlockInfo[] {
-  const blocks: DirectiveBlockInfo[] = []
-  const stack: Array<{
-    name: string
-    attrs: Record<string, string>
-    fence: number
-    openFrom: number
-    openTo: number
-  }> = []
-  for (let n = fromLine; n <= toLine; n += 1) {
-    const line = doc.line(n)
-    const close = DIRECTIVE_CLOSE.exec(line.text)
-    if (close) {
-      const fence = (close[1] as string).length
-      while (stack.length > 0 && (stack[stack.length - 1] as { fence: number }).fence <= fence) {
-        const open = stack.pop()
-        if (!open) break
-        blocks.push({
-          name: open.name,
-          attrs: open.attrs,
-          openFrom: open.openFrom,
-          openTo: open.openTo,
-          closeFrom: line.from,
-          closeTo: line.to,
-        })
-      }
-      continue
-    }
-    const match = DIRECTIVE_OPEN.exec(line.text)
-    if (match) {
-      stack.push({
-        name: match[2] as string,
-        attrs: parseAttrs(match[3]),
-        fence: (match[1] as string).length,
-        openFrom: line.from,
-        openTo: line.to,
-      })
-    }
-  }
-  // block ที่ยังไม่ปิด (カーอยู่ระหว่างเขียน) — ยังต้องได้หัว + พื้น block
-  for (const open of stack) {
-    blocks.push({
-      name: open.name,
-      attrs: open.attrs,
-      openFrom: open.openFrom,
-      openTo: open.openTo,
-      closeFrom: null,
-      closeTo: null,
-    })
-  }
-  return blocks
-}
 
 export interface DecorationOptions {
   resolveAsset: (src: string) => string
@@ -755,6 +736,178 @@ const livePreview = (options: DecorationOptions) =>
     { decorations: (plugin) => plugin.decorations },
   )
 
+/* ── block layer (M3.2 Track C — docs/09 §3.2 · docs/08 ข้อ 64/66/70) ─────
+   block = line range จาก `computeBlocks` (Lezer + fence scan ต่อ visible range)
+   · state ทั้งหมดของ "block layer" เป็น StateField (มีผลต่อ decoration)
+   · ทุก operation เขียนกลับเป็น markdown ผ่าน `editor/blocks.ts` (ไม่มี state ซ่อน) */
+
+/** ข้อมูล block ที่ส่งให้ client (gutter/menu/drag ใช้ร่วมกัน) */
+export interface BlockHit {
+  from: number
+  to: number
+  kind: BlockKind
+  depth: number
+  headLine: number
+  childCount: number
+}
+
+export type BlockOp = "moveUp" | "moveDown" | "duplicate" | "delete" | "indent" | "outdent"
+
+function toHit(block: BlockInfo): BlockHit {
+  return {
+    from: block.from,
+    to: block.to,
+    kind: block.kind,
+    depth: block.depth,
+    headLine: block.headLine,
+    childCount: block.childCount,
+  }
+}
+
+const setHighlight = StateEffect.define<{ from: number; to: number } | null>()
+const setBlockSelection = StateEffect.define<{ from: number; to: number } | null>()
+
+/** สร้าง line decorations สำหรับช่วง [from, to] ด้วยคลาสเดียว */
+function rangeLines(
+  doc: EditorState["doc"],
+  range: { from: number; to: number },
+  cls: string,
+): DecorationSet {
+  const out: Array<{ from: number; to: number; value: Decoration }> = []
+  const first = doc.lineAt(Math.max(0, Math.min(range.from, doc.length)))
+  const last = doc.lineAt(Math.max(0, Math.min(range.to, doc.length)))
+  for (let n = first.number; n <= last.number; n += 1) {
+    const line = doc.line(n)
+    out.push({ from: line.from, to: line.from, value: Decoration.line({ class: cls }) })
+  }
+  return Decoration.set(
+    out.map((entry) => entry.value.range(entry.from, entry.to)),
+    true,
+  )
+}
+
+/** hover = decoration ล้วน (ไม่ต้อง query ตำแหน่ง) */
+const hoverBlockField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(value, tr) {
+    for (const item of tr.effects) {
+      if (item.is(setHighlight)) {
+        return item.value
+          ? rangeLines(tr.state.doc, item.value, "cm-doku-block-hover")
+          : Decoration.none
+      }
+    }
+    return value.map(tr.changes)
+  },
+  provide: (field) => EditorView.decorations.from(field),
+})
+
+/** block selection เก็บ "ช่วง" ไว้ด้วย (keymap/Backspace ต้องรู้) */
+const blockSelectionField = StateField.define<{ from: number; to: number } | null>({
+  create: () => null,
+  update(value, tr) {
+    for (const item of tr.effects) {
+      if (item.is(setBlockSelection)) return item.value
+    }
+    if (tr.docChanged && value) {
+      return { from: tr.changes.mapPos(value.from, -1), to: tr.changes.mapPos(value.to, 1) }
+    }
+    return value
+  },
+})
+
+const selectedDecoField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(value, tr) {
+    const range = tr.state.field(blockSelectionField)
+    const changed = tr.docChanged || tr.effects.some((item) => item.is(setBlockSelection))
+    if (!changed) return value.map(tr.changes)
+    return range ? rangeLines(tr.state.doc, range, "cm-doku-block-selected") : Decoration.none
+  },
+  provide: (field) => EditorView.decorations.from(field),
+})
+
+/** block ทั้งหมดในช่วงที่มองเห็น */
+function blocksInView(view: EditorView): BlockInfo[] {
+  return computeBlocks(view.state, view.viewport.from, view.viewport.to)
+}
+
+/** block ที่ operation จะทำงานด้วย — block selection มาก่อน แล้วจึง block ที่カーอยู่ */
+function targetBlock(view: EditorView, blocks: readonly BlockInfo[]): BlockInfo | null {
+  const selected = view.state.field(blockSelectionField, false)
+  if (selected) {
+    const block =
+      blocks.find((item) => item.from === selected.from) ??
+      computeBlocks(view.state, selected.from, selected.to).find(
+        (item) => item.from === selected.from,
+      )
+    if (block) return block
+  }
+  return blockAtCursor(view.state, blocks)
+}
+
+/** เขียน md ใหม่ด้วย **change ที่เล็กที่สุด** (prefix/suffix ร่วม)
+ *  - เล็กกว่า = undo ละเอียดกว่า และカーไม่กระโดด (replacing ทั้งเอกสารทำให้カーไปที่ 0) */
+function replaceDocument(view: EditorView, md: string, event: string): void {
+  const oldText = view.state.doc.toString()
+  if (oldText === md) return
+  const max = Math.min(oldText.length, md.length)
+  let start = 0
+  while (start < max && oldText[start] === md[start]) start += 1
+  let endOld = oldText.length
+  let endNew = md.length
+  while (endOld > start && endNew > start && oldText[endOld - 1] === md[endNew - 1]) {
+    endOld -= 1
+    endNew -= 1
+  }
+  view.dispatch({
+    changes: { from: start, to: endOld, insert: md.slice(start, endNew) },
+    userEvent: event,
+  })
+}
+
+function runBlockOp(
+  view: EditorView,
+  op: BlockOp,
+  range?: { from: number; to: number } | null,
+): boolean {
+  const blocks = blocksInView(view)
+  const block = range
+    ? (blocks.find((item) => item.from === range.from && item.to === range.to) ??
+      computeBlocks(view.state, range.from, range.to).find((item) => item.from === range.from))
+    : targetBlock(view, blocks)
+  if (!block) return false
+  const md = view.state.doc.toString()
+  const next =
+    op === "moveUp"
+      ? moveBlock(md, block, blocks, -1)
+      : op === "moveDown"
+        ? moveBlock(md, block, blocks, 1)
+        : op === "duplicate"
+          ? duplicateBlock(md, block, blocks)
+          : op === "delete"
+            ? deleteBlock(md, block, blocks)
+            : op === "indent"
+              ? indentBlock(md, block)
+              : outdentBlock(md, block)
+  if (next === null || next === md) return false
+  replaceDocument(view, next, `doku.block.${op}`)
+  view.dispatch({ effects: [setBlockSelection.of(null), setHighlight.of(null)] })
+  return true
+}
+
+/** เลือก block ที่カーอยู่ (ใช้ Esc / Mod-a) */
+function selectBlockAtCursor(view: EditorView): boolean {
+  const blocks = blocksInView(view)
+  const block = blockAtCursor(view.state, blocks)
+  if (!block) return false
+  view.dispatch({
+    selection: EditorSelection.range(block.from, block.to),
+    effects: setBlockSelection.of({ from: block.from, to: block.to }),
+  })
+  return true
+}
+
 /* ── slash menu (docs/08 ข้อ 55) ────────────────────────────────────────── */
 
 export interface SlashItem {
@@ -857,24 +1010,7 @@ export interface DirectiveInfo {
 }
 
 const FENCE_LINE = /^(:{3,})\s*([\w-]+)\s*(\{[^}]*\})?\s*$/
-/** อ่าน attribute ของ directive — รับทั้ง `key="value"` และ `key=value` (แบบ registry)
- *  และ flag เปล่า (`strike`) → ค่า "" */
-const ATTR_PAIR = /([\w-]+)(?:\s*=\s*(?:"([^"]*)"|([^\s}]+)))?/g
 
-function parseAttrs(raw: string | undefined): Record<string, string> {
-  const attrs: Record<string, string> = {}
-  if (!raw) return attrs
-  ATTR_PAIR.lastIndex = 0
-  let match = ATTR_PAIR.exec(raw)
-  while (match) {
-    const value = match[2] !== undefined ? match[2] : (match[3] ?? "")
-    attrs[match[1] as string] = value
-    match = ATTR_PAIR.exec(raw)
-  }
-  return attrs
-}
-
-/** หา directive ที่カーอยู่ข้างใน (ถ้ามี) — สแกนขึ้นหาปิด fence ที่ยังไม่ถูกปิด */
 function directiveAtCursor(view: EditorView): DirectiveInfo | null {
   const line = view.state.doc.lineAt(view.state.selection.main.head)
   for (let number = line.number; number >= 1; number -= 1) {
@@ -1071,6 +1207,9 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
     theme,
     syntaxHighlighting(codeHighlight),
     blockMathField,
+    hoverBlockField,
+    blockSelectionField,
+    selectedDecoField,
     previewPlugin,
     EditorView.atomicRanges.of((view) => view.plugin(previewPlugin)?.atomic ?? Decoration.none),
     EditorView.contentAttributes.of({
@@ -1078,9 +1217,66 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
       spellcheck: "false",
     }),
     keymap.of([
-      // markdownKeymap (Enter สืบ list · Backspace ลบ marker) มาก่อน defaultKeymap (docs/08 ข้อ 70)
+      // คีย์ล็อกของ Doku มาก่อน defaultKeymap (docs/08 ข้อ 70)
       ...markdownKeymap,
-      indentWithTab,
+      {
+        // ใช้ `shift:` แบบเดียวกับ indentWithTab ของ CM6 — "Shift-Tab" ตรง ๆ ไม่ถูก match
+        key: "Tab",
+        preventDefault: true,
+        run: (view) => runBlockOp(view, "indent"),
+        shift: (view) => runBlockOp(view, "outdent"),
+      },
+      { key: "Mod-Shift-ArrowUp", preventDefault: true, run: (view) => runBlockOp(view, "moveUp") },
+      {
+        key: "Mod-Shift-ArrowDown",
+        preventDefault: true,
+        run: (view) => runBlockOp(view, "moveDown"),
+      },
+      { key: "Mod-d", preventDefault: true, run: (view) => runBlockOp(view, "duplicate") },
+      { key: "Shift-Delete", preventDefault: true, run: (view) => runBlockOp(view, "delete") },
+      {
+        key: "Mod-Backspace",
+        run: (view) =>
+          view.state.field(blockSelectionField, false) ? runBlockOp(view, "delete") : false,
+      },
+      {
+        key: "Mod-/",
+        preventDefault: true,
+        run: (view) => {
+          const blocks = blocksInView(view)
+          const block = targetBlock(view, blocks)
+          if (!block || !options.onTurnInto) return false
+          const coords = view.coordsAtPos(block.from)
+          options.onTurnInto({
+            from: block.from,
+            to: block.to,
+            x: (coords?.left ?? 0) + 24,
+            y: (coords?.bottom ?? 0) + 4,
+          })
+          return true
+        },
+      },
+      {
+        key: "Mod-a",
+        run: (view) => {
+          // จังหวะ 1 = เลือก block · จังหวะ 2 = ทั้งเอกสาร (defaultKeymap)
+          if (view.state.field(blockSelectionField, false)) {
+            view.dispatch({ effects: setBlockSelection.of(null) })
+            return false
+          }
+          return selectBlockAtCursor(view)
+        },
+      },
+      {
+        key: "Escape",
+        run: (view) => {
+          if (view.state.field(blockSelectionField, false)) {
+            view.dispatch({ effects: [setBlockSelection.of(null), setHighlight.of(null)] })
+            return true
+          }
+          return selectBlockAtCursor(view)
+        },
+      },
       ...defaultKeymap,
       ...historyKeymap,
       {
@@ -1164,6 +1360,93 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
       const rect = view.dom.getBoundingClientRect()
       const pos = view.posAtCoords({ x: rect.left + 8, y })
       return typeof pos === "number" ? pos : null
+    },
+    blocks: () => blocksInView(view).map(toHit),
+    blockAtPoint: (x, y) => {
+      const pos = view.posAtCoords({ x, y })
+      if (typeof pos !== "number") return null
+      const blocks = blocksInView(view)
+      const block = blockAt(blocks, pos) ?? blockAt(blocks, Math.max(0, pos - 1))
+      return block ? toHit(block) : null
+    },
+    currentBlock: () => {
+      const block = blockAtCursor(view.state, blocksInView(view))
+      return block ? toHit(block) : null
+    },
+    highlight: (from, to) => {
+      view.dispatch({ effects: setHighlight.of({ from, to }) })
+    },
+    clearHighlight: () => {
+      view.dispatch({ effects: setHighlight.of(null) })
+    },
+    selectBlock: (from, to) => {
+      view.dispatch({
+        selection: EditorSelection.range(from, to),
+        effects: setBlockSelection.of({ from, to }),
+      })
+    },
+    clearBlockSelection: () => {
+      view.dispatch({ effects: setBlockSelection.of(null) })
+    },
+    selectedBlock: () => view.state.field(blockSelectionField, false) ?? null,
+    runBlockOp: (op, range) => runBlockOp(view, op, range ?? null),
+    turnInto: (from, to, target) => {
+      const blocks = computeBlocks(view.state, from, to)
+      const block = blocks.find((item) => item.from === from && item.to === to) ?? blocks[0]
+      if (!block) return
+      const md = view.state.doc.toString()
+      const next = turnIntoBlock(md, block, target)
+      if (next === md) return
+      replaceDocument(view, next, "doku.block.turnInto")
+    },
+    textOfBlock: (from, to) => {
+      const blocks = computeBlocks(view.state, from, to)
+      const block = blocks.find((item) => item.from === from) ?? blocks[0]
+      return block ? blockText(view.state.doc.toString(), block) : ""
+    },
+    insertAt: (pos, template) => {
+      const doc = view.state.doc
+      const at = Math.max(0, Math.min(pos, doc.length))
+      const line = doc.lineAt(at)
+      const atLineStart = at === line.from
+      const caretInTemplate = template.indexOf("|")
+      const body = template.replace("|", "")
+      let insert = body
+      let offset = caretInTemplate === -1 ? body.length : caretInTemplate
+      if (!insert.endsWith("\n")) insert += "\n"
+      if (atLineStart) {
+        // แทรก "ก่อน" block เป้าหมาย — เว้นบรรทัดให้อ่านออก (markdown block)
+        const prevIsBlank = at === 0 || doc.lineAt(Math.max(0, at - 1)).text.trim() === ""
+        if (!prevIsBlank) {
+          insert = `\n${insert}`
+          offset += 1
+        }
+        const nextLine = line.number < doc.lines ? doc.line(line.number + 1) : null
+        if (nextLine && nextLine.text.trim() !== "") insert += "\n"
+      }
+      view.dispatch({
+        changes: { from: at, insert },
+        selection: EditorSelection.cursor(at + offset),
+        scrollIntoView: true,
+        userEvent: "doku.block.insert",
+      })
+      view.focus()
+    },
+    moveBlockTo: (from, to, targetPos, depth) => {
+      const blocks = computeBlocks(view.state, Math.min(from, targetPos), to)
+      const block = blocks.find((item) => item.from === from)
+      if (!block) return
+      const targetLine =
+        view.state.doc.lineAt(Math.max(0, Math.min(targetPos, view.state.doc.length))).number - 1
+      const md = view.state.doc.toString()
+      const next = moveBlockTo(md, block, blocksInView(view), targetLine, depth)
+      if (!next || next === md) return
+      replaceDocument(view, next, "doku.block.dragMove")
+      view.dispatch({ effects: [setBlockSelection.of(null), setHighlight.of(null)] })
+    },
+    deleteSelectedBlocks: () => {
+      if (!view.state.field(blockSelectionField, false)) return false
+      return runBlockOp(view, "delete")
     },
     patchDirective: (patch) => {
       const info = directiveAtCursor(view)
