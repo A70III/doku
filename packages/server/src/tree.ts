@@ -19,6 +19,7 @@ import {
   type Meta,
   sha256Hex,
   type VaultFs,
+  type VaultStat,
   walkVault,
 } from "@doku/core"
 
@@ -129,9 +130,15 @@ export class VaultState {
     }
 
     // listingHash: เอา mtime ของ asset ด้วย เพราะ asset เปลี่ยน = ?h=<hash> ใน fragment เปลี่ยน
+    // ⚠️ fs error ต่อ asset (เช่น symlink ที่หลุด vault) ต้องไม่ทำให้ tree/home ล้มทั้งหน้า
     const assetParts: string[] = []
     for (const asset of assets) {
-      const info = (await this.#fs.stat?.(asset)) ?? null
+      let info: VaultStat | null = null
+      try {
+        info = (await this.#fs.stat?.(asset)) ?? null
+      } catch {
+        info = null
+      }
       assetParts.push(`${asset}:${info?.mtimeMs ?? 0}`)
     }
     const listingHash = await sha256Hex(`${docIds.sort().join("\n")}\n\n${assetParts.join("\n")}`)
@@ -155,7 +162,12 @@ export class VaultState {
   async #readSummary(id: string): Promise<DocSummary | null> {
     const meta = await this.#readDocMeta(id)
     if (!meta) return null
-    const stat = (await this.#fs.stat?.(`${id}.md`)) ?? null
+    let stat: VaultStat | null = null
+    try {
+      stat = (await this.#fs.stat?.(`${id}.md`)) ?? null
+    } catch {
+      stat = null
+    }
     return {
       id,
       title: meta.title ?? basenameOf(id),

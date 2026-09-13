@@ -56,4 +56,14 @@
 
 ## รอเคาะ
 
-_ว่าง — ยังไม่มีคำถามค้าง_
+เจอตอน bug-hunt M3 — **ยังไม่ตัดสิน** (พบมาก่อน M3 บางข้อ) ต้องเคาะก่อนแก้:
+
+| # | เรื่อง | ทางเลือก / ข้อมูล |
+|---|---|---|
+| Q1 | `#` ในชื่อไฟล์ | `isSafeVaultPath` ยอมรับ `#` แต่ `normalizeVaultPath` ตัดเป็น fragment → `GET /d/a%23b` เปิด `a.md` แทน `a#b.md` (หรือ 404) · ทางเลือก: (ก) ห้าม `#` ใน path (เพิ่มใน FORBIDDEN_CHARS — ต้องย้าย `.md` จริงที่มี `#` ออก) หรือ (ข) แยก fragment ก่อน decode ทุกจุด · ผลกระทบต่ำ (ชื่อไฟล์มี `#` ไม่บ่อย) |
+| Q2 | sanitize protocol | scheme พิมพ์ใหญ่ (`HTTP://`) ถูกตัด, `mailto:`/`tel:`/`data:` ถูกตัด, `target`/`rel` ถูก allow แบบ any (ยังไม่มีโค้ดตั้ง), `color` ใน global allowlist ขัดกับ docs/06 ที่บอก "raw color ปิด default" |
+| Q3 | asset `?h=` | ไม่ verify ว่า `h` ตรงกับเนื้อไฟล์จริง → `?h=FAKE` ได้ `immutable` 1 ปี (ลิงก์ที่พิมพ์มือ pin ค้าง) · ทางเลือก: verify hash แล้วค่อย immutable หรือใส่ ETag ทุก asset |
+| Q4 | `width=70%` | docs/03 สอน `70%` แต่ renderer เดิมรับแต่เลข (`70`) — **แก้แล้วให้รับ `%`** ใน M3 (ข้อ 46); ถ้าต้องการให้รับแต่เลข ให้แก้ docs/03 แทน |
+| Q5 | `meta.render.math=false` | remark-math ยังทำงาน → `$a^2$` หาย delimiter กลายเป็น code · ต้องการให้คงข้อความ `$…$` หรือไม่ |
+| Q6 | wikilink หาไม่เจอ + alias | `[[missing\|label]]` แสดงเป็น `missing\|label` (ไม่มี `[[ ]]`) ขณะที่ `[[missing]]` คง `[[missing]]` · ควร fallback เป็น alias หรือคงข้อความเดิม |
+| Q7 | asset filename charset | docs/06 ระบุ `[a-zA-Z0-9._\-\u0E00-\u0E7F ]+` แต่ยังไม่มีที่บังคับ (รอ upload API M4) |

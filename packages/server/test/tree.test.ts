@@ -79,3 +79,20 @@ describe("VaultState", () => {
     expect(docs[0]?.title).toBe("broken")
   })
 })
+
+describe("VaultState ทน fs error ต่อ asset (เช่น symlink หลุด vault)", () => {
+  test("stat ที่ throw ต่อ asset → tree ยังสร้างได้ (ไม่ล้มทั้งหน้า)", async () => {
+    const base = memoryVaultFs({ "a.md": "# A\n", "weird.bin": "x" })
+    const fs = {
+      ...base,
+      stat: async (rel: string) => {
+        if (rel === "weird.bin") throw new Error("symlink ออกนอก vault")
+        return base.stat?.(rel) ?? null
+      },
+    }
+    const state = new VaultState(fs, "vault")
+    const snapshot = await state.get()
+    expect(snapshot.docs.map((doc) => doc.id)).toEqual(["a"])
+    expect(snapshot.tree).toHaveLength(1)
+  })
+})
