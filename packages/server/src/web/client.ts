@@ -500,6 +500,7 @@ ${INTERACTIONS_JS}
     dirty: false,
     editing: false,
     timer: 0,
+    schema: null,
   };
 
   function readEmbedded() {
@@ -554,7 +555,7 @@ ${INTERACTIONS_JS}
     );
   }
 
-  function mountWritingSurface(md, anchor) {
+  function mountWritingSurface(md, anchor, slashItems) {
     const host = document.createElement("div");
     host.className = "doku-inline-editor";
     bodyEl.textContent = "";
@@ -567,6 +568,8 @@ ${INTERACTIONS_JS}
         anchor,
         placeholder: "เริ่มเขียน… (พิมพ์ / เพื่อแทรก block)",
         resolveAsset: makeAssetResolver(writing.path),
+        slashItems,
+        onDirective: (info) => renderDirectiveStrip(info),
         onChange: () => {
           writing.dirty = true;
           setDocStatus("dirty", "กำลังบันทึก…");
@@ -599,13 +602,15 @@ ${INTERACTIONS_JS}
     if (writing.editing || !articleEl || !bodyEl) return;
     const payload = readEmbedded();
     if (!payload) return;
+    const schema = await loadSchema();
+    writing.schema = schema;
     writing.path = articleEl.getAttribute("data-doc-id");
     writing.etag = payload.etag || null;
     writing.editing = true;
     writing.dirty = false;
     articleEl.setAttribute("data-editing", "1");
     setDocStatus("clean", "พร้อมแก้ไข");
-    mountWritingSurface(payload.md, offsetForElement(payload.md, anchor));
+    mountWritingSurface(payload.md, offsetForElement(payload.md, anchor), buildSlashItems(schema));
   }
 
   function writeSnapshot() {
@@ -621,6 +626,7 @@ ${INTERACTIONS_JS}
   }
 
   function teardownWriting() {
+    renderDirectiveStrip(null);
     writing.editing = false;
     writing.path = null;
     writing.dirty = false;
@@ -722,6 +728,218 @@ ${INTERACTIONS_JS}
       fail(error);
       reload();
     }
+  }
+
+  /* ── slash menu + block control strip (docs/08 ข้อ 55) ─────────────────── */
+
+  const LF = String.fromCharCode(10);
+  const FENCE = String.fromCharCode(96).repeat(3); // ห้ามเขียน backtick ตรง ๆ — โค้ดนี้อยู่ใน template literal
+  const BLOCK_LABELS = {
+    note: "กล่องหมายเหตุ",
+    info: "ข้อมูล",
+    tip: "เคล็ดลับ",
+    success: "สำเร็จ",
+    warning: "คำเตือน",
+    danger: "อันตราย",
+    quote: "อ้างคำพูด",
+    mark: "ไฮไลต์ข้อความ",
+    badge: "ป้ายสถานะ",
+    stat: "ตัวเลขเดี่ยว",
+    stats: "ชุดตัวเลข",
+    figure: "รูปภาพ + caption",
+    gallery: "แกลเลอรีรูป",
+    video: "วิดีโอ / เสียง",
+    card: "การ์ดลิงก์",
+    section: "หัวข้อใหญ่",
+    grid: "ตารางแบ่งคอลัมน์",
+    col: "คอลัมน์",
+    kv: "คู่ key–value",
+    progress: "แถบความคืบหน้า",
+    steps: "ขั้นตอน",
+    timeline: "ไทม์ไลน์",
+    "margin-note": "โน้ตข้างขอบ",
+    motion: "อนิเมชัน",
+    details: "ส่วนพับได้",
+    tabs: "แท็บ",
+  };
+
+  /** markdown พื้นฐานที่ Notion มีให้ในเมนู / */
+  const MARKDOWN_ITEMS = [
+    { keyword: "h2", label: "หัวข้อใหญ่", detail: "##", template: "## |" },
+    { keyword: "h3", label: "หัวข้อย่อย", detail: "###", template: "### |" },
+    { keyword: "list", label: "รายการ", detail: "-", template: "- |" },
+    { keyword: "todo", label: "งานที่ต้องทำ", detail: "- [ ]", template: "- [ ] |" },
+    { keyword: "num", label: "รายการมีลำดับ", detail: "1.", template: "1. |" },
+    { keyword: "quote", label: "อ้างคำพูด", detail: ">", template: "> |" },
+    { keyword: "code", label: "โค้ด", detail: "code", template: FENCE + "ts" + LF + "|" + LF + FENCE },
+    { keyword: "table", label: "ตาราง", detail: "| … |", template: "| หัวข้อ | หัวข้อ |" + LF + "| --- | --- |" + LF + "| | |" },
+    { keyword: "math", label: "สมการ", detail: "$$", template: "$$" + LF + "|" + LF + "$$" },
+    { keyword: "image", label: "รูป", detail: "![]()", template: "![|](assets/)" },
+    { keyword: "divider", label: "เส้นคั่น", detail: "---", template: "---" },
+  ];
+
+  let schemaPromise = null;
+  function loadSchema() {
+    if (!schemaPromise) {
+      schemaPromise = api("/api/schema").catch(() => null);
+    }
+    return schemaPromise;
+  }
+
+  /** ใช้ example จาก registry เป็นเทมเพลต — ไม่มีข้อมูลชุดที่สองให้ดูแล
+   *  block แบบ container → วางカーในบรรทัดว่างแรกหลัง fence เปิด */
+  function schemaTemplate(block) {
+    const example = String(block.example || "").replace(/s+$/, "");
+    if (!example) return "";
+    if (block.kind !== "container") return example;
+    const lines = example.split(LF);
+    let index = -1;
+    for (let i = 1; i < lines.length - 1; i += 1) {
+      if (!lines[i].trim()) {
+        index = i;
+        break;
+      }
+    }
+    if (index === -1) {
+      // ไม่มีบรรทัดว่างใน example -> แทรกบรรทัดว่างก่อน fence ปิด เพื่อให้カーอยู่ "ใน" block
+      lines.splice(lines.length - 1, 0, "|");
+      return lines.join(LF);
+    }
+    lines[index] = "|";
+    return lines.join(LF);
+  }
+
+  function buildSlashItems(schema) {
+    const items = MARKDOWN_ITEMS.slice();
+    if (!schema || !schema.blocks) return items;
+    for (const block of schema.blocks) {
+      const template = schemaTemplate(block);
+      if (!template) continue;
+      items.push({
+        keyword: block.name,
+        label: (BLOCK_LABELS[block.name] || block.name) + " · " + block.name,
+        detail: ":::",
+        template,
+      });
+    }
+    return items;
+  }
+
+  /* block control strip — แถบลอยเมื่อカーเข้า directive block */
+  function stripEl() {
+    let el = document.getElementById("doku-block-strip");
+    if (!el && articleEl) {
+      el = document.createElement("div");
+      el.id = "doku-block-strip";
+      el.className = "doku-block-strip";
+      el.hidden = true;
+      articleEl.appendChild(el);
+    }
+    return el;
+  }
+
+  function stripControl(label, node) {
+    const wrap = document.createElement("label");
+    wrap.className = "doku-block-strip-field";
+    const span = document.createElement("span");
+    span.textContent = label;
+    wrap.appendChild(span);
+    wrap.appendChild(node);
+    return wrap;
+  }
+
+  function renderDirectiveStrip(info) {
+    const el = stripEl();
+    if (!el) return;
+    if (!info || !writing.editing) {
+      el.hidden = true;
+      el.textContent = "";
+      return;
+    }
+    const schema = writing.schema;
+    const block = schema && schema.blocks ? schema.blocks.find((b) => b.name === info.name) : null;
+    el.textContent = "";
+
+    const name = document.createElement("span");
+    name.className = "doku-block-strip-name";
+    name.textContent = BLOCK_LABELS[info.name] || info.name;
+    el.appendChild(name);
+
+    if (block) {
+      // callout ทั้ง 7 type ใช้ renderer เดียวกัน → สลับชื่อ block ได้
+      if (schema.variants && schema.variants.indexOf(info.name) !== -1) {
+        const select = document.createElement("select");
+        for (const variant of schema.variants) {
+          const option = document.createElement("option");
+          option.value = variant;
+          option.textContent = BLOCK_LABELS[variant] || variant;
+          if (variant === info.name) option.selected = true;
+          select.appendChild(option);
+        }
+        select.addEventListener("change", () => {
+          writing.handle.patchDirective({ name: select.value });
+        });
+        el.appendChild(stripControl("ชนิด", select));
+      }
+      for (const attr of block.attributes) {
+        if (attr === "src" && info.name === "figure") continue;
+        const allowed = block.values && block.values[attr];
+        const current = info.attrs[attr] || "";
+        let control;
+        if (allowed && allowed.length && allowed.length <= 12) {
+          control = document.createElement("select");
+          const empty = document.createElement("option");
+          empty.value = "";
+          empty.textContent = "—";
+          control.appendChild(empty);
+          for (const value of allowed) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            if (value === current) option.selected = true;
+            control.appendChild(option);
+          }
+        } else if (attr === "color") {
+          control = document.createElement("select");
+          const empty = document.createElement("option");
+          empty.value = "";
+          empty.textContent = "—";
+          control.appendChild(empty);
+          for (const value of (schema.colors || [])) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            if (value === current) option.selected = true;
+            control.appendChild(option);
+          }
+        } else {
+          control = document.createElement("input");
+          control.type = "text";
+          control.value = current;
+          control.size = attr === "title" || attr === "caption" ? 14 : 7;
+        }
+        control.setAttribute("aria-label", attr);
+        control.addEventListener("change", () => {
+          const patch = {};
+          patch[attr] = control.value;
+          writing.handle.patchDirective(patch);
+        });
+        el.appendChild(stripControl(attr, control));
+      }
+    }
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "doku-icon-btn doku-block-strip-remove";
+    remove.title = "ลบ block นี้";
+    remove.setAttribute("aria-label", "ลบ block นี้");
+    remove.textContent = "×";
+    remove.addEventListener("click", () => writing.handle.removeDirective());
+    el.appendChild(remove);
+
+    el.hidden = false;
+    el.style.top = Math.max(0, info.top - 38) + "px";
+    el.style.left = Math.max(0, info.left) + "px";
   }
 
   /* ── เข้าโหมดเขียนด้วยการคลิกที่เอกสาร (Notion-like — docs/08 ข้อ 52) ──── */

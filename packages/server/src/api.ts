@@ -9,7 +9,10 @@
  */
 
 import {
+  BLOCK_COLORS,
+  BLOCKS,
   buildDocIndex,
+  CALLOUT_TYPES,
   docEtag,
   etagHeader,
   FOLDER_META_KEYS,
@@ -721,6 +724,23 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
       html: result.html,
       meta: result.meta,
       warnings: result.warnings,
+    })
+  })
+
+  /** `/api/schema` — block registry สำหรับ agent + UI (docs/03 §9 · docs/05)
+   *  ใช้ที่: slash menu / block control strip (M3.1) และ MCP descriptions (M4) */
+  api.get("/schema", (context) => {
+    return context.json({
+      ok: true,
+      colors: BLOCK_COLORS,
+      variants: CALLOUT_TYPES,
+      blocks: BLOCKS.filter((block) => block.implemented).map((block) => ({
+        name: block.name,
+        kind: block.kind,
+        attributes: block.attributes,
+        values: block.values,
+        example: block.example,
+      })),
     })
   })
 

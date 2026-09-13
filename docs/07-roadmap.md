@@ -108,8 +108,8 @@
 
 - [x] **เอกสารเป็น editor ตั้งแต่แรก** — เลิก overlay/split **และเลิกปุ่ม "แก้ไข"** · เอกสารที่ render แล้วเป็น CM6 Live Preview ในคอลัมน์เดิม · กว้าง/ฟอนต์/leading เท่ากับตอนอ่าน · ไม่มี mode switch
 - [x] **Live Preview** — ซ่อน syntax marker เมื่อカーออกจาก node · widget สำหรับ table · figure · code · math · callout (`:::`)
-- [ ] **slash menu** — `/` → เมนู block ภาษาไทย (กรองได้) → แทรก directive จริง (รวม `::::tabs`+`:::tab` ตามข้อ 24) · ใช้ `@codemirror/autocomplete`
-- [ ] **block control strip** — แถบลอยเมื่อカーเข้า block: variant · `color=` · `title=` · `icon=` · align/width · ลบ block → **เขียนกลับเป็น directive text** · รายการ attribute มาจาก `/api/schema`
+- [x] **slash menu** — `/` → เมนู block ภาษาไทย (กรองได้) → แทรก directive จริง (รวม `::::tabs`+`:::tab` ตามข้อ 24) · ใช้ `@codemirror/autocomplete`
+- [x] **block control strip** — แถบลอยเมื่อカーเข้า block: variant · `color=` · `title=` · `icon=` · align/width · ลบ block → **เขียนกลับเป็น directive text** · รายการ attribute มาจาก `/api/schema`
 - [ ] **คุณสมบัติ inline** — property panel บนหัวเอกสาร (ชื่อ · แท็ก · สรุป · สถานะ · theme) ไม่ใช่ modal
 - [x] **autosave** — debounce 800ms · `If-Match` · 409 = ให้เลือก (ไม่ทับเงียบ) · ไม่สร้าง revision ถ้าเนื้อหาเท่าเดิม · คีย์ลัดตาม **focus** ไม่ใช่โหมด ([08 ข้อ 54](08-decisions.md)) · fallback `<textarea>` ตามข้อ 37 ยังต้องใช้ได้
 

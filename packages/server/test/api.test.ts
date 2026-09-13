@@ -386,3 +386,39 @@ describe("path safety ผ่าน HTTP (M3 hardening)", () => {
     expect((await res.json()).error.code).toBe("path_invalid")
   })
 })
+
+describe("GET /api/schema (M3.1) — registry สำหรับ slash menu / block control strip", () => {
+  test("คืน block ที่ implement แล้ว + attribute + values + ตัวอย่าง", async () => {
+    const { app } = setup({ "a.md": DOC })
+    const res = await app.request("/api/schema")
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      ok: boolean
+      colors: string[]
+      blocks: Array<{
+        name: string
+        kind: string
+        attributes: string[]
+        values: Record<string, string[]>
+        example: string
+      }>
+    }
+    expect(body.ok).toBe(true)
+    expect(body.colors).toContain("red")
+    expect(body.blocks.length).toBeGreaterThan(10)
+
+    // callout ลงทะเบียนแยกต่อ type (note/info/tip/success/warning/danger/quote)
+    for (const variant of ["note", "info", "tip", "success", "warning", "danger", "quote"]) {
+      const callout = body.blocks.find((block) => block.name === variant)
+      expect(callout, `ไม่พบ block "${variant}"`).toBeDefined()
+      expect(callout?.attributes).toContain("title")
+      expect(callout?.example).toContain(":::")
+    }
+
+    // ทุก block ต้องมีชื่อ + ตัวอย่าง (ใช้สร้างเมนูได้โดยไม่ต้องมีข้อมูลชุดที่สอง)
+    for (const block of body.blocks) {
+      expect(block.name.length).toBeGreaterThan(0)
+      expect(block.example.length).toBeGreaterThan(0)
+    }
+  })
+})

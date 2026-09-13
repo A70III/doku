@@ -626,6 +626,88 @@
   outline: none;
 }
 
+/* ── block control strip (docs/08 ข้อ 55) ────────────────────────────────
+   ลอยเหนือบรรทัดแรกของ directive ที่カーอยู่ · ค่าที่แก้ถูกเขียนกลับเป็น
+   ข้อความ markdown ทันที (ไม่มี state ซ่อน) */
+.doku-article {
+  position: relative;
+}
+.doku-block-strip {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--d-space-3);
+  max-width: 100%;
+  padding: var(--d-space-1) var(--d-space-2);
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-md);
+  background: var(--k-bg);
+  box-shadow: var(--k-shadow-md);
+  font-size: var(--d-text-xs);
+  color: var(--d-text-muted);
+}
+.doku-block-strip[hidden] {
+  display: none;
+}
+.doku-block-strip-name {
+  font-weight: 600;
+  color: var(--k-text);
+}
+.doku-block-strip-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--d-space-1);
+  color: var(--d-text-subtle);
+}
+.doku-block-strip-field select,
+.doku-block-strip-field input {
+  padding: 0.1rem 0.3rem;
+  border: 1px solid var(--d-border-control);
+  border-radius: var(--d-radius-sm);
+  background: var(--k-bg);
+  font: inherit;
+  font-size: var(--d-text-xs);
+  color: var(--k-text);
+}
+.doku-block-strip-remove {
+  width: 22px;
+  height: 22px;
+  font-size: var(--d-text-base);
+  line-height: 1;
+}
+
+/* ── slash menu (CodeMirror autocomplete) ─────────────────────────────── */
+.cm-tooltip.cm-tooltip-autocomplete {
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-md);
+  background: var(--k-bg);
+  box-shadow: var(--k-shadow-lg);
+  font-family: var(--d-font-sans);
+}
+.cm-tooltip-autocomplete > ul {
+  max-height: 18rem;
+  font-size: var(--d-text-sm);
+}
+.cm-tooltip-autocomplete > ul > li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--d-space-2);
+  padding: var(--d-space-1) var(--d-space-2);
+  color: var(--k-text);
+}
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--d-bg-subtle);
+  color: var(--d-accent);
+}
+.cm-tooltip-autocomplete .cm-completionDetail {
+  margin-inline-start: auto;
+  color: var(--d-text-subtle);
+  font-style: normal;
+  font-family: var(--d-font-mono);
+  font-size: var(--d-text-xs);
+}
+
 /* ตัวบอกสถานะบันทึก — เงียบ · ไม่มีปุ่ม */
 .doku-doc-status {
   font-size: var(--d-text-xs);
