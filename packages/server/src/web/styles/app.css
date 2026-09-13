@@ -657,6 +657,12 @@
   gap: var(--d-space-3);
 }
 
+/* ตอนเขียน: ถ้าชื่อเรื่องอยู่ในเนื้อหา (ไฟล์ขึ้นต้นด้วย # h1) ให้ซ่อน title ที่ header
+   — ไม่งั้นเห็นชื่อเรื่องซ้ำสองที่ (header + บรรทัดแรกของ editor) */
+html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
+  display: none;
+}
+
 /* ── block control strip (docs/08 ข้อ 55) ────────────────────────────────
    ลอยเหนือบรรทัดแรกของ directive ที่カーอยู่ · ค่าที่แก้ถูกเขียนกลับเป็น
    ข้อความ markdown ทันที (ไม่มี state ซ่อน) */

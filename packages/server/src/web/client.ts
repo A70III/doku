@@ -612,6 +612,10 @@ ${INTERACTIONS_JS}
     writing.editing = true;
     writing.dirty = false;
     articleEl.setAttribute("data-editing", "1");
+    // ไฟล์ที่ขึ้นต้นด้วย # h1 = ชื่อเรื่องอยู่ในเนื้อหา → editor จะโชว์บรรทัดนั้นเป็นชื่อเรื่อง
+    // ซ่อนชื่อเรื่องที่ header ระหว่างเขียน ไม่งั้นเห็นชื่อซ้ำสองที่ (dedupe ตอน render อยู่นอกไฟล์)
+    if (/^\\s*#\\s+\\S/.test(payload.md)) docEl.setAttribute("data-title-in-body", "1");
+    else docEl.removeAttribute("data-title-in-body");
     // SSE guard อ่านจาก <html> (ดู listener ด้านบน) — ต้องตั้งทั้งสองที่
     // ไม่งั้น autosave ที่เราเขียนเองจะ trigger watcher → SSE → reload กลางการพิมพ์
     docEl.setAttribute("data-editing", "1");
@@ -639,6 +643,7 @@ ${INTERACTIONS_JS}
     clearTimeout(writing.timer);
     if (articleEl) articleEl.removeAttribute("data-editing");
     docEl.removeAttribute("data-editing");
+    docEl.removeAttribute("data-title-in-body");
     setDocStatus("clean", "");
   }
 
@@ -968,8 +973,13 @@ ${INTERACTIONS_JS}
     el.appendChild(remove);
 
     el.hidden = false;
-    el.style.top = Math.max(0, info.top - 38) + "px";
-    el.style.left = Math.max(0, info.left) + "px";
+    // วาง "เหนือ" บรรทัด fence และชิดขวาของคอลัมน์อ่าน
+    // → ข้อความในบรรทัด fence ไม่ถูกบัง และหัวข้อ (ชิดซ้าย) ก็ไม่ถูกทับ
+    const stripWidth = el.offsetWidth;
+    const stripHeight = el.offsetHeight;
+    const columnWidth = articleEl ? articleEl.clientWidth : stripWidth;
+    el.style.top = Math.max(0, info.top - stripHeight - 4) + "px";
+    el.style.left = Math.max(0, columnWidth - stripWidth) + "px";
   }
 
   /* ── เข้าโหมดเขียนด้วยการคลิกที่เอกสาร (Notion-like — docs/08 ข้อ 52) ──── */
