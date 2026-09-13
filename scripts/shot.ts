@@ -131,6 +131,18 @@ const A11Y_SCRIPT = `(() => {
     }
   }
 
+  // ── KaTeX (docs/08 ข้อ 70) — มีสมการแล้วต้องมี katex.css จริง ──
+  if (document.querySelector(".katex")) {
+    const display = document.querySelector(".katex-display")
+    if (display && getComputedStyle(display).display !== "block") {
+      issues.push("katex.css ไม่ได้โหลด (display math ไม่เป็น block)")
+    }
+    const mathml = document.querySelector(".katex-mathml")
+    if (mathml && getComputedStyle(mathml).position !== "absolute") {
+      issues.push("katex.css ไม่ได้โหลด (ข้อความ MathML ไม่ถูกซ่อน — โผล่ซ้ำข้างสูตร)")
+    }
+  }
+
   return issues
 })()`
 

@@ -93,6 +93,7 @@ describe("ออกจากโหมดเขียน (Esc / คลิก chro
     const makePaint = new Function(
       "bodyEl",
       "renderDocFragment",
+      "ensureKatexCss",
       "syncHeader",
       "syncTocFromBody",
       "$",
@@ -101,6 +102,7 @@ describe("ออกจากโหมดเขียน (Esc / คลิก chro
     const paintRendered = makePaint(
       painted,
       async () => ({ html: rendered, meta: { title: "หัวเรื่อง" } }),
+      () => {},
       () => {},
       () => {},
       () => null, // $(".doku-colophon") = ไม่มีใน stub
@@ -125,6 +127,7 @@ describe("ออกจากโหมดเขียน (Esc / คลิก chro
     const makePaint = new Function(
       "bodyEl",
       "renderDocFragment",
+      "ensureKatexCss",
       "syncHeader",
       "syncTocFromBody",
       "$",
@@ -133,6 +136,7 @@ describe("ออกจากโหมดเขียน (Esc / คลิก chro
     const paintRendered = makePaint(
       painted,
       async () => ({ html: "<p>x</p>", meta: { title: "หัวเรื่อง" } }),
+      () => {},
       () => {},
       () => {},
       (sel: string) => (sel === ".doku-colophon" ? colophon : null),

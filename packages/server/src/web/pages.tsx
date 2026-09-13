@@ -60,8 +60,10 @@ function formatBytes(bytes: number): string {
 export const Layout: FC<{
   title: string
   theme?: Meta["theme"]
+  /** เนื้อหาหน้านี้มีสมการ (KaTeX) — ค่อยโหลด katex.css (docs/08 ข้อ 70) */
+  math?: boolean
   children: Child
-}> = ({ title, theme, children }) => {
+}> = ({ title, theme, math, children }) => {
   const accent = theme?.accent && HEX_COLOR_PATTERN.test(theme.accent) ? theme.accent : null
   return (
     <html
@@ -77,6 +79,8 @@ export const Layout: FC<{
         <title>{title}</title>
         <link rel="stylesheet" href="/static/app.css" />
         <link rel="stylesheet" href="/static/content.css" />
+        {/* woff2 ถูกฝังเป็น data URI → ~380KB · โหลดเฉพาะหน้าที่มีสมการ (docs/08 ข้อ 23/70) */}
+        {math ? <link rel="stylesheet" href="/static/katex.css" data-katex="true" /> : null}
         <script src="/static/client.js" defer />
         <script src="/static/editor.js" defer />
       </head>
@@ -493,7 +497,7 @@ export const DocPage: FC<{
       ? null
       : JSON.stringify({ md: markdown, etag: etag ?? "" }).replaceAll("</", "<\\/")
   return (
-    <Layout title={meta.title ?? "doku"} theme={meta.theme}>
+    <Layout title={meta.title ?? "doku"} theme={meta.theme} math={doc.fragment.includes("katex")}>
       <div class="doku-shell">
         <Sidebar tree={tree} activeId={path} vaultName={vaultName} trashCount={trashCount} />
         <main class="doku-main">

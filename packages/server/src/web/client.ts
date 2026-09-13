@@ -1013,9 +1013,24 @@ ${INTERACTIONS_JS}
   /** วาด HTML กลับเข้าที่เดิม + sync TOC/colophon ให้ตรงกับเนื้อหาใหม่
    *  ⚠️ innerHTML ทำให้ node เดิมตายทั้งยวง — interaction ของ block (tabs/zoom/copy/motion)
    *  ต้องติดตั้งใหม่ทุกครั้ง ไม่งั้นกดแท็บไม่ได้จนกว่าจะ refresh (docs/03 progressive enhancement) */
+  /** โหลด katex.css เมื่อเนื้อหาที่เพิ่งวาดมีสมการ
+   *  หน้า /d/* ได้ <link> มาจาก server แล้ว แต่หลัง repaint (ออกจากโหมดเขียน) เนื้อหาอาจ
+   *  **เพิ่งมีสมการที่เพิ่งพิมพ์เพิ่ม** → ต้องโหลดตอนนี้ ไม่งั้น MathML ดิบโผล่และ display math
+   *  เป็น inline จนกว่าจะ refresh (docs/08 ข้อ 70) */
+  function ensureKatexCss(html) {
+    if (!html.includes("katex")) return;
+    if (document.querySelector("link[data-katex]")) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "/static/katex.css";
+    link.setAttribute("data-katex", "true");
+    document.head.appendChild(link);
+  }
+
   async function paintRendered(md, docId) {
     const result = await renderDocFragment(docId);
     bodyEl.innerHTML = result.html;
+    ensureKatexCss(result.html);
     syncHeader(result.meta);
     syncTocFromBody();
     if (typeof window !== "undefined" && typeof window.DokuInteractions === "function") {

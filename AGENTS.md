@@ -124,6 +124,8 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - container downgrade ของ block (section/stats/kv/details/tabs/… เลิกเป็นกล่อง) · แก้ `==…==` ที่เคยเป็นพื้นเหลืองทึบ
   - correctness lock ข้อ 56–61 (path `#` · sanitize protocol/attribute · asset `?h=` · `width` · `render.math=false` · wikilink)
   - verify: `bun run shot` ถ่าย 2 ธีม + **a11y smoke check** (ชื่อคอนโทรล · focus ring · 200% zoom · reduced motion · 360px)
+- ล็อกเพิ่มตอนแก้บั๊ก katex (หลัง M3.1): `katex.css` (~380KB ฝังฟอนต์) โหลด**เฉพาะหน้าที่มีสมการ** —
+  SSR ส่ง `math` ให้ `Layout` + client `ensureKatexCss()` หลัง repaint (กดพิมพ์สมการใหม่ตอนโหมดเขียน) (ข้อ 70)
 - **ถัดไป: M4** — REST ที่เหลือ (assets/context) + audit log + `doku mcp`
 - ยังไม่มี: MCP (M4), index/search (M5)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
