@@ -145,8 +145,8 @@
 ## M3.2 — One surface + block layer (เขียน/อ่านให้เหมือน Notion)
 
 > **ที่มา:** M3.1 ตัด overlay/split/ปุ่มแก้ไขออกแล้ว แต่**ยังมี 2 rendering path** — เอกสารที่ยังไม่ถูกแตะเป็น HTML
-> จาก server พอคลิกครั้งแรก client ทิ้ง HTML ทั้งบทความแล้ว mount CodeMirror ([client.ts:721](../packages/server/src/web/client.ts))
-> แล้วตอนออกก็ยิง `/api/render` กลับมาแทนที่ ([client.ts:840](../packages/server/src/web/client.ts))
+> จาก server พอคลิกครั้งแรก client ทิ้ง HTML ทั้งบทความแล้ว mount CodeMirror ([client.ts](../packages/server/src/web/client/main.ts))
+> แล้วตอนออกก็ยิง `/api/render` กลับมาแทนที่ ([client.ts](../packages/server/src/web/client/main.ts))
 > ⇒ **นี่คือโหมดแก้ไขที่ซ่อนอยู่** = ข้อ 52 ยังไม่สำเร็จจริง · และยังไม่มี block affordance เลย
 > (ไม่มี `+` · `⋮⋮` · เลือก block · ย้าย · turn into · fold) ⇒ ความรู้สึกจึงยังเป็น text editor (Obsidian) ไม่ใช่ Notion
 >

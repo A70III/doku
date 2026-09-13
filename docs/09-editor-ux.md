@@ -254,8 +254,9 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
   · ใช้ `window.DokuEditor.perf` (ต้นทุน plugin + state field ต่อ update) · block math StateField เปลี่ยนเป็น **incremental**
   (cache ช่วง `$$…$$` + map ตำแหน่งตาม change · สแกนใหม่เฉพาะเมื่อวางข้อความที่มี `$$` หรือแตะ block/fence line — เดิมสแกนทั้งเอกสารทุก keystroke)
 - [x] แยกไฟล์ `web/editor.ts`: `editor/{decorations,block-layer,inline-layer,blocks,inline,keymap}.ts`
-  (775 บรรทัดจาก 1,931) · **`editor/gutter.ts` ไม่มี** — gutter เป็น overlay ของ client (ข้อ 66) ซึ่งอยู่ใน `client.ts`
-  ที่เป็น string ก้อนเดียวโดยออกแบบ (ข้อ 17/37) → การแยกไฟล์ client ต้องเพิ่ม bundler ให้ client.js = decision ใหม่ (ยังไม่ทำ)
+  (775 บรรทัดจาก 1,931) · **`editor/gutter.ts` ไม่มี** — gutter เป็น overlay ของ client (ข้อ 66) ซึ่งอยู่ใน `client/main.ts`
+  · **client ผ่าน bundler แล้ว** ([ข้อ 78](08-decisions.md)): `bun run build:client` → `public/client.js` เสิร์ฟเหมือน `editor.js`
+  · seam ที่แยกแล้ว: `client/pure.ts` (S1 — heading/path/reload guard + `inRect`) · ที่เหลือทยอยย้ายจาก `main.ts` (`@ts-nocheck` = ratchet ที่ต้องลดลงเรื่อย ๆ)
 - [x] `bun run shot` scenario โต้ตอบจริง (ทั้ง 2 ธีม): bubble · link popover · พิมพ์ไทย (insertText) ·
   **IME guard** (ระหว่าง composing ต้องไม่ rebuild + จบแล้ว rebuild) · Esc เลือก block · ลาก block (drop indicator + markdown ถูกจัดลำดับใหม่)
   · a11y ต่อหน้า: ชื่อคอนโทรล · focus ring · 200% zoom · 360px · reduced motion

@@ -19,6 +19,7 @@ bun run dev          # dev server → localhost:7667 (bun --hot + tailwind)
 bun test             # bun test
 bun run check        # biome check (lint + format)
 bun run gen:schema   # z.toJSONSchema() → schema/  (ไม่ commit)
+bun run build:client # bundle browser client (main.ts) → packages/server/public/client.js (ไม่ commit)
 bun run build:editor # bundle CodeMirror 6 → packages/server/public/editor.js (ไม่ commit)
 bun run gen:icons    # generate Lucide subset → packages/core/src/icons/lucide.ts (commit)
 bun run shot         # playwright: screenshot 2 ธีม + a11y check + scenario โต้ตอบจริง (พิมพ์ไทย/IME/ลาก block)
@@ -35,6 +36,7 @@ packages/core/     @doku/core     resolve · render · blocks · validate · vau
 packages/fs-node/  @doku/fs-node  VaultFs adapter (node:fs)              (dep: core)
 packages/server/   @doku/server   Hono + JSX + Tailwind + watch + index (dep: core, fs-node)
                                   web/editor/* = ชั้น editor (decorations · block-layer · inline-layer · blocks · inline · keymap)
+                                  web/client/* = browser client: main.ts (bundle entry) · pure.ts (seam ที่แยกแล้ว — ข้อ 78)
 packages/cli/      @doku/cli      doku binary                          (dep: core, fs-node)
 packages/mcp/      @doku/mcp      MCP stdio                             (dep: core, fs-node)
 vault/             เนื้อหา = source of truth (gitignore)
@@ -172,6 +174,9 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · smart paste = HTML → markdown ผ่าน allowlist เดียวกัน + ทิ้ง `script`/`style`/`iframe`/`svg` ทั้งก้อน + paste ใน code fence = ดิบ (ข้อ 75)
 - ล็อกเพิ่มตอนทำ M3.2 Track E: `Escape` = บันได 2 จังหวะ (เลือก block → ยกเลิก + ออกเอกสาร) + `stopPropagation` เฉพาะเมื่อจัดการแล้ว (ข้อ 76)
   · ระหว่าง IME composition ห้ามสร้าง replace ใหม่ **แต่ต้อง map decoration set ตาม change** (ข้อ 77)
+- ล็อกหลัง M3.2: **browser client ผ่าน bundler เหมือน editor** (ข้อ 78) — `web/client.ts` (string) → `web/client/main.ts`
+  + `bun run build:client` → `public/client.js` (served ด้วย ETag เหมือน `editor.js`) · `core` ได้ `installInteractions()`
+  + subpath `@doku/core/client` · เทสต์เลิกงัดโค้ดจากสตริง · ส่วนที่ยังไม่ย้าย = `@ts-nocheck` ratchet ใน `client/main.ts` (ทยอยแยกเป็น seam)
 - **รอเคาะ**: ไม่มี (Q7 เคาะแล้วเป็นข้อ 72)
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
