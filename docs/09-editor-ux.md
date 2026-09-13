@@ -199,12 +199,12 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 - **DoD:** คลิกบรรทัดไหนカーตรงนั้น 100% (ชุดทดสอบข้อความซ้ำ) · ไม่มี request `/api/render` หลังแตะเอกสาร ·
   ไม่มี layout shift > 2px · no-JS ยังอ่านครบ · live reload ยังทำงานเมื่อ **ไม่มี** การแก้ที่ค้าง
 
-### Track B — read-parity (M) · "ไม่เห็น markdown ดิบ"
+### Track B — read-parity (M) · "ไม่เห็น markdown ดิบ" ✅
 
-- [ ] `markdownKeymap` + `indentWithTab` ที่ nest ตาม block model (Enter สืบ list · Backspace ลบ marker · Tab nest)
-- [ ] widget: `:::` (callout/details/tabs ตาม renderer จริง) · math (`$…$` → KaTeX) · **checkbox คลิกได้** · `hr` · ช่องว่าง placeholder ต่อ block
-- [ ] code block: theme/สีเดียวกับ Shiki ตอนอ่าน (อย่างน้อย token mapping)
-- [ ] marker policy: atomic **เฉพาะ delimiter** · ซ่อนเมื่อカーไม่สัมผัส · **composition guard** ([08 ข้อ 69](08-decisions.md))
+- [x] GFM parser (`markdownLanguage`) + `markdownKeymap` (Enter สืบ list · Backspace ลบ marker) — Tab nest ตาม block model = C3
+- [x] widget: `:::` (หัว block จาก `BLOCK_LABELS` + พื้น tint ตาม variant) · math (`$…$` inline · `$$…$$` หลายบรรทัดผ่าน `blockMathField` เพราะ CM6 ห้าม plugin ทำ block decoration) · **checkbox คลิกได้** (เขียนกลับ `[x]`/`[ ]`) · `hr` · image · inline `:badge[…]` (attribute ชุดเดียวกับ renderer → CSS เดิมครอบ) · placeholder ต่อ block = E
+- [x] code block: chrome (พื้น/ระยะ) + token mapping กับ Shiki github-light/dark ผ่าน `--k-code-*` — per-language ยังไม่ทำ (ไม่มี dependency ภาษาในบันเดิล)
+- [x] marker policy: atomic **เฉพาะ delimiter** · ซ่อนเมื่อカーไม่สัมผัส · **composition guard** ([08 ข้อ 69](08-decisions.md)) · เพิ่มแล้ว: `<link /static/katex.css>` เมื่อเอกสารมีสมการ (เดิม route มีแต่ไม่เคย link → math ไม่มีสไตล์)
 - **DoD:** screenshot read ↔ edit ต่างกันเฉพาะที่จำเป็น · พิมพ์ไทยต่อเนื่อง (สระ/วรรณยุกต์/คำผสม) ไม่มีカーเพี้ยน ·
   `bun run shot` เพิ่ม scenario "พิมพ์ไทย + IME"
 
@@ -244,6 +244,7 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 
 | เรื่อง | สถานะ | เหตุผล |
 |---|---|---|
+| per-language code highlighting ใน editor | **เลื่อน** — ตอนนี้ map โทเคน/สี + chrome เท่านั้น | ไม่มี dependency ภาษาในบันเดิล (CSP self-host, ไม่มี lazy chunk) · ค่อยเพิ่มทีหลังเมื่อมีตัวที่คุ้ม |
 | table widget (แก้ในที่) | **เลื่อน** — คง decoration ปัจจุบัน | [08 ข้อ 68](08-decisions.md): เสียงบ/ความคุ้มค่าไม่คุ้มในรอบนี้ |
 | fold block | เฟส 2 ของ C (ถ้าเวลาไม่พอ) | ไม่ตัดออก แค่จัดลำดับ |
 | underline | **ตัดออก** | markdown ไม่มี · `<u>` ขัด sanitize allowlist |

@@ -13,9 +13,16 @@
 
 import { autocompletion, type Completion, type CompletionContext } from "@codemirror/autocomplete"
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands"
-import { markdown } from "@codemirror/lang-markdown"
-import { syntaxTree } from "@codemirror/language"
-import { EditorSelection, EditorState, type Extension } from "@codemirror/state"
+import { markdown, markdownKeymap, markdownLanguage } from "@codemirror/lang-markdown"
+import { HighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language"
+import {
+  EditorSelection,
+  EditorState,
+  type Extension,
+  StateEffect,
+  StateField,
+  type Text,
+} from "@codemirror/state"
 import {
   Decoration,
   type DecorationSet,
@@ -26,6 +33,9 @@ import {
   type ViewUpdate,
   WidgetType,
 } from "@codemirror/view"
+import type { SyntaxNode } from "@lezer/common"
+import { tags as t } from "@lezer/highlight"
+import katex from "katex"
 
 export interface DokuEditorHandle {
   getDoc(): string
@@ -58,6 +68,12 @@ export interface DokuEditorOptions {
   resolveAsset?: (src: string) => string
   /** รายการของ slash menu — client ประกอบจาก /api/schema + markdown พื้นฐาน */
   slashItems?: SlashItem[]
+  /** ป้ายชื่อ block ไทย (client BLOCK_LABELS) — หัวของ `:::` */
+  blockLabels?: Record<string, string>
+  /** callout variant จาก schema (note/info/tip/success/warning/danger/quote) */
+  calloutTypes?: readonly string[]
+  /** ชื่อ block ที่เป็น inline directive (schema blocks kind=text) — `:badge[…]` */
+  inlineBlocks?: readonly string[]
   /** カーเข้า/ออก directive block — client ใช้โชว์ block control strip */
   onDirective?: (info: DirectiveInfo | null) => void
   /** カ์อยู่ใน `==mark==` หรือไม่ — client ใช้โชว์แถบ swatch สี (docs/08 ข้อ 55) */
@@ -108,6 +124,151 @@ class ImageWidget extends WidgetType {
   }
 }
 
+/* ── widgets (read-parity — docs/09 Track B) ───────────────────────────── */
+
+/** checkbox ของ task list — คลิกได้ (client domEventHandlers เขียนกลับ `- [x]`/`- [ ]`) */
+class CheckboxWidget extends WidgetType {
+  #checked: boolean
+
+  constructor(checked: boolean) {
+    super()
+    this.#checked = checked
+  }
+
+  override eq(other: CheckboxWidget): boolean {
+    return other.#checked === this.#checked
+  }
+
+  override toDOM(): HTMLElement {
+    const input = document.createElement("input")
+    input.type = "checkbox"
+    input.checked = this.#checked
+    input.className = "cm-doku-checkbox-input"
+    input.setAttribute("aria-label", this.#checked ? "ทำแล้ว" : "ยังไม่ทำ")
+    return input
+  }
+
+  override ignoreEvent(): boolean {
+    // ต้องเป็น false ไม่งั้น CM6 ตัด event ก่อนถึง domEventHandlers (checkbox คลิกไม่ได้)
+    return false
+  }
+}
+
+/** `$…$` / `$$…$$` → KaTeX — CSS มาจาก `/static/katex.css` (หน้าเว็บ link เมื่อ fragment มีสมการ) */
+class MathWidget extends WidgetType {
+  #latex: string
+  #display: boolean
+
+  constructor(latex: string, display: boolean) {
+    super()
+    this.#latex = latex
+    this.#display = display
+  }
+
+  override eq(other: MathWidget): boolean {
+    return other.#latex === this.#latex && other.#display === this.#display
+  }
+
+  override toDOM(): HTMLElement {
+    const el = document.createElement(this.#display ? "div" : "span")
+    el.className = this.#display ? "cm-doku-math cm-doku-math-display" : "cm-doku-math"
+    try {
+      el.innerHTML = katex.renderToString(this.#latex, {
+        displayMode: this.#display,
+        throwOnError: false,
+      })
+    } catch {
+      el.textContent = this.#display ? `$$${this.#latex}$$` : `$${this.#latex}$`
+      el.classList.add("cm-doku-math-error")
+    }
+    return el
+  }
+
+  override ignoreEvent(): boolean {
+    // false = CM6 รับ event → คลิก math แล้วカーชิดขอบ widget → `touching` คืน raw ให้แก้ LaTeX
+    return false
+  }
+}
+
+/** inline directive `:badge[BETA]{color=green}` — read-parity (registry kind = text) */
+class InlineDirectiveWidget extends WidgetType {
+  #name: string
+  #text: string
+  #attrs: Record<string, string>
+
+  constructor(name: string, text: string, attrs: Record<string, string>) {
+    super()
+    this.#name = name
+    this.#text = text
+    this.#attrs = attrs
+  }
+
+  override eq(other: InlineDirectiveWidget): boolean {
+    return (
+      other.#name === this.#name &&
+      other.#text === this.#text &&
+      JSON.stringify(other.#attrs) === JSON.stringify(this.#attrs)
+    )
+  }
+
+  override toDOM(): HTMLElement {
+    // ใช้ element/attribute ชุดเดียวกับ renderer จริง → CSS ของ content.css ครอบให้เลย
+    const el = document.createElement(this.#name === "mark" ? "mark" : "span")
+    el.setAttribute("data-block", this.#name)
+    if (this.#attrs.color) el.setAttribute("data-color", this.#attrs.color)
+    if (this.#name === "badge" && "strike" in this.#attrs) el.setAttribute("data-strike", "true")
+    el.textContent = this.#text
+    return el
+  }
+
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
+/** หัวของ `:::` block — แทนบรรทัด fence เปิด (callout/details/tabs ตาม renderer จริง) */
+class BlockHeadWidget extends WidgetType {
+  #name: string
+  #label: string
+  #variant: string
+  #title: string
+
+  constructor(name: string, label: string, variant: string, title: string) {
+    super()
+    this.#name = name
+    this.#label = label
+    this.#variant = variant
+    this.#title = title
+  }
+
+  override eq(other: BlockHeadWidget): boolean {
+    return (
+      other.#name === this.#name &&
+      other.#label === this.#label &&
+      other.#variant === this.#variant &&
+      other.#title === this.#title
+    )
+  }
+
+  override toDOM(): HTMLElement {
+    const el = document.createElement("div")
+    el.className = "cm-doku-block-head"
+    el.setAttribute("data-block", this.#name)
+    if (this.#variant) el.setAttribute("data-variant", this.#variant)
+    const label = document.createElement("span")
+    label.className = "cm-doku-block-head-label"
+    label.textContent = this.#label
+    el.appendChild(label)
+    if (this.#title) {
+      const title = document.createElement("span")
+      title.className = "cm-doku-block-head-title"
+      title.textContent = this.#title
+      el.appendChild(title)
+    }
+    return el
+  }
+}
+
 /* ── decoration ─────────────────────────────────────────────────────────── */
 
 const HEADING_LINE = /^ATXHeading(\d)$/
@@ -115,24 +276,141 @@ const HIDE_MARKS = new Set(["EmphasisMark", "CodeMark", "StrikethroughMark"])
 /** marker ที่ซ่อนได้เมื่อカーออกจาก node — `HeaderMark`/`LinkMark` จัดการแยก */
 const LINK_MARKS = new Set(["LinkMark"])
 
-const lineDeco = (cls: string) => Decoration.line({ class: cls })
 const markDeco = (cls: string) => Decoration.mark({ class: cls })
 const hide = () => Decoration.replace({})
 
-const DOKU_FENCE = /^(:{3,})\s*([\w-]*)\s*(\{[^}]*\})?\s*$/
+/** `:::` fence (มีชื่อ block) — ตัวเดียวกับที่ block scan ใช้ */
+const DIRECTIVE_OPEN = /^(:{3,})\s*([\w-]+)\s*(\{[^}]*\})?\s*$/
+/** `:::` ปิด (ไม่มีชื่อ) */
+const DIRECTIVE_CLOSE = /^(:{3,})\s*$/
 /** จับ suffix `{.color}` ด้วย — カーอยู่นอกช่วงต้องซ่อนทั้ง `==` และ suffix (docs/08 ข้อ 52) */
 const DOKU_MARK = /==([^=\n]+?)==(\{\.[\w-]+\})?/g
+/** inline directive `:badge[…]` / `:mark[…]` (registry kind = text) */
+const INLINE_DIRECTIVE = /:([\w-]+)\[([^\]]*)\](\{[^}]*\})?/g
+/** inline math `$…$` — ไม่รับช่องว่างหัว/ท้าย (ตาม remark-math) */
+const INLINE_MATH = /(?<![\\$])\$([^\s$][^$\n]*?[^\s$]|[^\s$])\$(?!\$)/g
+/** ถอยหลังกี่บรรทัดเพื่อหาต้น `:::` ที่囲 visible range — พอสำหรับเอกสารจริง (ห้ามเดินทั้งไฟล์) */
+const DIRECTIVE_LOOKBACK = 200
 
-/** ซ่อน marker + ใส่คลาสระดับบรรทัด — เฉพาะช่วงที่มองเห็น (ไม่เดินทั้งเอกสาร)
+interface DirectiveBlockInfo {
+  name: string
+  attrs: Record<string, string>
+  openFrom: number
+  openTo: number
+  closeFrom: number | null
+  closeTo: number | null
+}
+
+/** สแกน `:::` ในช่วงบรรทัด — stack ตามความยาว fence (docs/08 ข้อ 24 ชั้นนอกยาวกว่าชั้นใน) */
+function scanDirectives(doc: Text, fromLine: number, toLine: number): DirectiveBlockInfo[] {
+  const blocks: DirectiveBlockInfo[] = []
+  const stack: Array<{
+    name: string
+    attrs: Record<string, string>
+    fence: number
+    openFrom: number
+    openTo: number
+  }> = []
+  for (let n = fromLine; n <= toLine; n += 1) {
+    const line = doc.line(n)
+    const close = DIRECTIVE_CLOSE.exec(line.text)
+    if (close) {
+      const fence = (close[1] as string).length
+      while (stack.length > 0 && (stack[stack.length - 1] as { fence: number }).fence <= fence) {
+        const open = stack.pop()
+        if (!open) break
+        blocks.push({
+          name: open.name,
+          attrs: open.attrs,
+          openFrom: open.openFrom,
+          openTo: open.openTo,
+          closeFrom: line.from,
+          closeTo: line.to,
+        })
+      }
+      continue
+    }
+    const match = DIRECTIVE_OPEN.exec(line.text)
+    if (match) {
+      stack.push({
+        name: match[2] as string,
+        attrs: parseAttrs(match[3]),
+        fence: (match[1] as string).length,
+        openFrom: line.from,
+        openTo: line.to,
+      })
+    }
+  }
+  // block ที่ยังไม่ปิด (カーอยู่ระหว่างเขียน) — ยังต้องได้หัว + พื้น block
+  for (const open of stack) {
+    blocks.push({
+      name: open.name,
+      attrs: open.attrs,
+      openFrom: open.openFrom,
+      openTo: open.openTo,
+      closeFrom: null,
+      closeTo: null,
+    })
+  }
+  return blocks
+}
+
+export interface DecorationOptions {
+  resolveAsset: (src: string) => string
+  /** ป้ายชื่อ block ไทย (จาก client BLOCK_LABELS) */
+  blockLabels: Record<string, string>
+  /** ชื่อ callout variant (schema.variants) — เลือกสีพื้นตามชนิด */
+  calloutTypes: readonly string[]
+  inlineBlocks: readonly string[]
+}
+
+/** ตำแหน่งนี้อยู่ในโค้ดหรือไม่ (ห้าม decorate `:badge[…]` ใน code span/fence) */
+function insideCode(view: EditorView, from: number, to: number): boolean {
+  const tree = syntaxTree(view.state)
+  for (const pos of [from, to]) {
+    let node: SyntaxNode | null = tree.resolveInner(pos, 1)
+    while (node) {
+      if (
+        node.name === "InlineCode" ||
+        node.name === "FencedCode" ||
+        node.name === "CodeBlock" ||
+        node.name === "CodeText"
+      ) {
+        return true
+      }
+      node = node.parent
+    }
+  }
+  return false
+}
+
+/** ซ่อน marker + ใส่คลาสระดับบรรทัด/บล็อก — เฉพาะช่วงที่มองเห็น (ไม่เดินทั้งเอกสาร)
  *  `touching` = カーสัมผัส node — **เฉพาะเมื่อ editor มี focus** (docs/08 ข้อ 65)
- *  ตอน mount ครั้งเดียว (one surface) カーอยู่ที่ 0 แต่ยังไม่ focus → ต้องเห็นหน้าแบบอ่าน */
-function buildDecorations(view: EditorView, resolveAsset: (src: string) => string): DecorationSet {
+ *  ตอน mount ครั้งเดียว (one surface) カーอยู่ที่ 0 แต่ยังไม่ focus → ต้องเห็นหน้าแบบอ่าน
+ *  `atomic` = replace เฉพาะ delimiter (ไม่ทำ atomicRanges ทั้งช่วง — docs/08 ข้อ 69) */
+function buildDecorations(
+  view: EditorView,
+  options: DecorationOptions,
+): { decorations: DecorationSet; atomic: DecorationSet } {
   const ranges: Array<{ from: number; to: number; value: Decoration }> = []
+  /** delimiter ที่ซ่อนและต้องเป็น atomic (カーข้ามไป ไม่ตกใน `**…**` — docs/08 ข้อ 69) */
+  const atomicRanges: Array<[number, number]> = []
   const doc = view.state.doc
   const selection = view.state.selection
   const focused = view.hasFocus
   const touching = (from: number, to: number): boolean =>
     focused && selection.ranges.some((range) => range.from <= to + 1 && range.to >= from - 1)
+  const lineClass = (
+    line: { from: number; to: number },
+    cls: string,
+    attributes?: Record<string, string>,
+  ) => {
+    ranges.push({
+      from: line.from,
+      to: line.from,
+      value: Decoration.line(attributes ? { class: cls, attributes } : { class: cls }),
+    })
+  }
 
   for (const visible of view.visibleRanges) {
     syntaxTree(view.state).iterate({
@@ -142,19 +420,14 @@ function buildDecorations(view: EditorView, resolveAsset: (src: string) => strin
         const name = node.name
         const heading = HEADING_LINE.exec(name)
         if (heading) {
-          // decoration ระดับบรรทัดใช้ offset ต้นบรรทัด
-          ranges.push({
-            from: doc.lineAt(node.from).from,
-            to: doc.lineAt(node.from).from,
-            value: lineDeco(`cm-doku-h${heading[1]}`),
-          })
+          lineClass(doc.lineAt(node.from), `cm-doku-h${heading[1]}`)
           return
         }
         if (name === "Blockquote") {
           let pos = doc.lineAt(node.from).from
           const end = doc.lineAt(Math.min(node.to, doc.length)).from
           while (pos <= end) {
-            ranges.push({ from: pos, to: pos, value: lineDeco("cm-doku-quote") })
+            lineClass({ from: pos, to: pos }, "cm-doku-quote")
             pos = pos + doc.lineAt(pos).length + 1
             if (pos > doc.length) break
           }
@@ -165,9 +438,29 @@ function buildDecorations(view: EditorView, resolveAsset: (src: string) => strin
           let pos = doc.lineAt(node.from).from
           const end = doc.lineAt(Math.min(node.to, doc.length)).from
           while (pos <= end) {
-            ranges.push({ from: pos, to: pos, value: lineDeco(cls) })
+            lineClass({ from: pos, to: pos }, cls)
             pos = pos + doc.lineAt(pos).length + 1
             if (pos > doc.length) break
+          }
+          return
+        }
+        if (name === "HorizontalRule") {
+          const line = doc.lineAt(node.from)
+          lineClass(line, "cm-doku-hr")
+          if (!touching(node.from, node.to)) {
+            ranges.push({ from: line.from, to: line.to, value: hide() })
+          }
+          return
+        }
+        if (name === "TaskMarker") {
+          const checked = /\[[xX]\]/.test(doc.sliceString(node.from, node.to))
+          if (checked) lineClass(doc.lineAt(node.from), "cm-doku-task-done")
+          if (!touching(node.from, node.to)) {
+            ranges.push({
+              from: node.from,
+              to: node.to,
+              value: Decoration.replace({ widget: new CheckboxWidget(checked) }),
+            })
           }
           return
         }
@@ -180,7 +473,7 @@ function buildDecorations(view: EditorView, resolveAsset: (src: string) => strin
             from: node.from,
             to: node.to,
             value: Decoration.replace({
-              widget: new ImageWidget(match[2] as string, match[1] as string, resolveAsset),
+              widget: new ImageWidget(match[2] as string, match[1] as string, options.resolveAsset),
             }),
           })
           return
@@ -188,16 +481,15 @@ function buildDecorations(view: EditorView, resolveAsset: (src: string) => strin
         if (name === "HeaderMark") {
           if (touching(node.from, node.to)) return
           const after = doc.sliceString(node.to, node.to + 1)
-          ranges.push({
-            from: node.from,
-            to: after === " " ? node.to + 1 : node.to,
-            value: hide(),
-          })
+          const to = after === " " ? node.to + 1 : node.to
+          ranges.push({ from: node.from, to, value: hide() })
+          atomicRanges.push([node.from, to])
           return
         }
         if (HIDE_MARKS.has(name) || LINK_MARKS.has(name)) {
           if (touching(node.from, node.to)) return
           ranges.push({ from: node.from, to: node.to, value: hide() })
+          atomicRanges.push([node.from, node.to])
           return
         }
         if (name === "Link") {
@@ -212,68 +504,251 @@ function buildDecorations(view: EditorView, resolveAsset: (src: string) => strin
           const after = doc.sliceString(node.to, node.to + 1)
           if (after !== ")") return
           ranges.push({ from, to: node.to + 1, value: hide() })
+          atomicRanges.push([from, node.to + 1])
         }
       },
     })
   }
 
-  // doku extensions ที่ Lezer ไม่รู้จัก (`:::` fence, `==mark==`) — สแกนเป็นบรรทัด
+  // doku extensions ที่ Lezer ไม่รู้จัก (`:::` block, `==mark==`) + math — สแกนเป็นบรรทัด
   for (const visible of view.visibleRanges) {
-    let line = doc.lineAt(visible.from)
+    const firstLine = doc.lineAt(visible.from).number
+    const lastLine = doc.lineAt(Math.min(visible.to, doc.length)).number
+
+    // ── `:::` blocks: หัว block แทน fence เปิด · พื้น block ตามชนิด · ซ่อน fence ปิด ──
+    const blocks = scanDirectives(doc, Math.max(1, firstLine - DIRECTIVE_LOOKBACK), lastLine)
+    for (const block of blocks) {
+      const openLine = doc.lineAt(block.openFrom)
+      if (openLine.from >= visible.from - 1 && openLine.to <= visible.to + 1) {
+        const variant =
+          options.calloutTypes.indexOf(block.name) !== -1 ? block.name : (block.attrs.type ?? "")
+        ranges.push({
+          from: openLine.from,
+          to: openLine.to,
+          value: Decoration.replace({
+            widget: new BlockHeadWidget(
+              block.name,
+              options.blockLabels[block.name] ?? block.name,
+              variant,
+              block.attrs.title ?? "",
+            ),
+          }),
+        })
+      }
+      const endPos = block.closeFrom ?? doc.length
+      const lastBlockLine = doc.lineAt(endPos).number
+      const attrs: Record<string, string> = { "data-block": block.name }
+      const variant =
+        options.calloutTypes.indexOf(block.name) !== -1 ? block.name : (block.attrs.type ?? "")
+      if (variant) attrs["data-variant"] = variant
+      for (let n = openLine.number + 1; n < lastBlockLine; n += 1) {
+        const line = doc.line(n)
+        if (line.from <= visible.to && line.to >= visible.from) {
+          lineClass(line, "cm-doku-block-line", attrs)
+        }
+      }
+      if (
+        block.closeFrom !== null &&
+        !touching(block.closeFrom, block.closeTo ?? block.closeFrom)
+      ) {
+        const closeLine = doc.lineAt(block.closeFrom)
+        if (closeLine.from <= visible.to && closeLine.to >= visible.from) {
+          ranges.push({ from: closeLine.from, to: closeLine.to, value: hide() })
+        }
+      }
+    }
+
+    // ── `==mark==`, `:::` (ไม่ครบคู่), hr, task marker, math — ต่อบรรทัด ──
+    const covered: Array<[number, number]> = []
+    let line = doc.line(firstLine)
     while (line.from <= visible.to) {
       const text = line.text
-      const fence = DOKU_FENCE.exec(text)
-      if (fence) {
-        ranges.push({ from: line.from, to: line.from, value: lineDeco("cm-doku-fence") })
+
+      // block math `$$…$$` (บรรทัดเดียวหรือหลายบรรทัด)
+      const trimmed = text.trim()
+      // `$$…$$` บรรทัดเดียว — หลายบรรทัดเป็นงานของ blockMathField (CM6 ห้าม plugin ทำ block deco)
+      if (trimmed.length > 4 && trimmed.startsWith("$$") && trimmed.endsWith("$$")) {
+        const openAt = line.from + text.indexOf("$$")
+        const endPos = line.from + text.lastIndexOf("$$") + 2
+        const latex = text.slice(text.indexOf("$$") + 2, text.lastIndexOf("$$"))
+        if (!touching(openAt, endPos)) {
+          covered.push([openAt, endPos])
+          ranges.push({
+            from: openAt,
+            to: endPos,
+            value: Decoration.replace({ widget: new MathWidget(latex.trim(), true) }),
+          })
+        }
       }
+
       DOKU_MARK.lastIndex = 0
       let match = DOKU_MARK.exec(text)
       while (match) {
         const start = line.from + match.index
         const end = start + match[0].length
-        const color = match[2] ? match[2].slice(2, -1) : ""
         // Decoration.mark แนบ data-color → CSS อ่าน --dk-mapped-bg ตาม {.color} (ผิวเดียวกับหน้าอ่าน)
-        const deco = Decoration.mark({
-          class: "cm-doku-mark",
-          ...(color ? { attributes: { "data-color": color } } : {}),
+        const color = match[2] ? match[2].slice(2, -1) : ""
+        ranges.push({
+          from: start,
+          to: end,
+          value: Decoration.mark({
+            class: "cm-doku-mark",
+            ...(color ? { attributes: { "data-color": color } } : {}),
+          }),
         })
-        ranges.push({ from: start, to: end, value: deco })
         if (!touching(start, end)) {
           // ซ่อน `==` เปิด + `==` ปิด และ `{.color}` ท้ายช่วงเป็น **ชุดเดียว**
           // (ห้ามช่วง replace ซ้อนกัน — CM6 จะทิ้งช่วงที่ทับ แล้ว marker โผล่)
           const suffix = match[2] ? match[2].length : 0
           ranges.push({ from: start, to: start + 2, value: hide() })
           ranges.push({ from: end - suffix - 2, to: end, value: hide() })
+          atomicRanges.push([start, start + 2])
+          atomicRanges.push([end - suffix - 2, end])
         }
         match = DOKU_MARK.exec(text)
       }
+
+      // inline directive `:badge[…]` — ข้ามบรรทัดที่เป็น `:::` fence/ปิด และในโค้ด
+      if (!DIRECTIVE_OPEN.test(text) && !DIRECTIVE_CLOSE.test(text)) {
+        INLINE_DIRECTIVE.lastIndex = 0
+        let inline = INLINE_DIRECTIVE.exec(text)
+        while (inline) {
+          const start = line.from + inline.index
+          const end = start + inline[0].length
+          const name = inline[1] as string
+          if (
+            options.inlineBlocks.indexOf(name) !== -1 &&
+            !touching(start, end) &&
+            !insideCode(view, start, end)
+          ) {
+            ranges.push({
+              from: start,
+              to: end,
+              value: Decoration.replace({
+                widget: new InlineDirectiveWidget(name, inline[2] as string, parseAttrs(inline[3])),
+              }),
+            })
+          }
+          inline = INLINE_DIRECTIVE.exec(text)
+        }
+      }
+
+      // inline math `$…$` — ข้ามช่วงที่ block math ครอบแล้ว
+      INLINE_MATH.lastIndex = 0
+      let math = INLINE_MATH.exec(text)
+      while (math) {
+        const start = line.from + math.index
+        const end = start + math[0].length
+        const inCovered = covered.some(([a, b]) => start < b && end > a)
+        if (!inCovered && !touching(start, end)) {
+          ranges.push({
+            from: start,
+            to: end,
+            value: Decoration.replace({ widget: new MathWidget(math[1] as string, false) }),
+          })
+        }
+        math = INLINE_MATH.exec(text)
+      }
+
       if (line.to >= doc.length) break
-      line = doc.lineAt(line.to + 1)
+      line = doc.line(line.number + 1)
     }
   }
 
+  return {
+    decorations: Decoration.set(
+      ranges.map((range) => range.value.range(range.from, range.to)),
+      true,
+    ),
+    atomic: Decoration.set(
+      atomicRanges.map(([from, to]) => hide().range(from, to)),
+      true,
+    ),
+  }
+}
+
+/** block math `$$` หลายบรรทัด — **ต้องเป็น StateField** เพราะ CM6 ห้าม plugin สร้าง block decoration
+ *  (สแกนเฉพาะบรรทัดที่ขึ้นต้นด้วย `$$` · ครอบทั้งบรรทัดตามข้อกำหนดของ block replace)
+ *  カーแตะ block → ปล่อย raw (แก้ LaTeX ได้) */
+function blockMathDecorations(doc: Text, selection: EditorSelection): DecorationSet {
+  const ranges: Array<{ from: number; to: number; value: Decoration }> = []
+  let open: { from: number; latexFrom: number } | null = null
+  for (let n = 1; n <= doc.lines; n += 1) {
+    const line = doc.line(n)
+    const trimmed = line.text.trim()
+    if (!open) {
+      if (trimmed === "$$") {
+        const at = line.text.indexOf("$$")
+        open = { from: line.from + at, latexFrom: line.from + at + 2 }
+      }
+      continue
+    }
+    if (!trimmed.endsWith("$$")) continue
+    const index = line.text.lastIndexOf("$$")
+    const to = line.from + index + 2
+    const touched = selection.ranges.some(
+      (range) => range.from <= to + 1 && range.to >= (open as { from: number }).from - 1,
+    )
+    if (!touched) {
+      const latex = doc.sliceString(
+        (open as { from: number; latexFrom: number }).latexFrom,
+        line.from + index,
+      )
+      const startLine = doc.lineAt((open as { from: number }).from)
+      ranges.push({
+        from: startLine.from,
+        to: line.to,
+        value: Decoration.replace({ widget: new MathWidget(latex.trim(), true), block: true }),
+      })
+    }
+    open = null
+  }
   return Decoration.set(
     ranges.map((range) => range.value.range(range.from, range.to)),
     true,
   )
 }
 
+const setBlockMath = StateEffect.define<DecorationSet>()
+
+/** StateField: block math (คำนวณใหม่เมื่อ doc/selection เปลี่ยน — ไม่ผูกกับ viewport) */
+const blockMathField = StateField.define<DecorationSet>({
+  create: (state) => blockMathDecorations(state.doc, state.selection),
+  update(value, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setBlockMath)) return effect.value
+    }
+    if (tr.docChanged || tr.selection) {
+      return blockMathDecorations(tr.state.doc, tr.state.selection)
+    }
+    return value
+  },
+  provide: (field) => EditorView.decorations.from(field),
+})
+
 /** resolver ของ asset ส่งผ่าน closure ตอนสร้าง plugin — widget ต้องใช้ตอนคำนวณ decoration ครั้งแรก */
-const livePreview = (resolveAsset: (src: string) => string) =>
+const livePreview = (options: DecorationOptions) =>
   ViewPlugin.fromClass(
     class {
       decorations: DecorationSet
+      atomic: DecorationSet
       constructor(view: EditorView) {
-        this.decorations = buildDecorations(view, resolveAsset)
+        const built = buildDecorations(view, options)
+        this.decorations = built.decorations
+        this.atomic = built.atomic
       }
       update(update: ViewUpdate): void {
+        // composition guard (docs/08 ข้อ 69): ห้าม replace ระหว่าง IME ทำงาน (ไทย/จีน/ญี่ปุ่น)
+        if (update.view.composing) return
         if (
           update.docChanged ||
           update.viewportChanged ||
           update.selectionSet ||
           update.focusChanged
         ) {
-          this.decorations = buildDecorations(update.view, resolveAsset)
+          const built = buildDecorations(update.view, options)
+          this.decorations = built.decorations
+          this.atomic = built.atomic
         }
       }
     },
@@ -382,7 +857,9 @@ export interface DirectiveInfo {
 }
 
 const FENCE_LINE = /^(:{3,})\s*([\w-]+)\s*(\{[^}]*\})?\s*$/
-const ATTR_PAIR = /([\w-]+)\s*=\s*"([^"]*)"/g
+/** อ่าน attribute ของ directive — รับทั้ง `key="value"` และ `key=value` (แบบ registry)
+ *  และ flag เปล่า (`strike`) → ค่า "" */
+const ATTR_PAIR = /([\w-]+)(?:\s*=\s*(?:"([^"]*)"|([^\s}]+)))?/g
 
 function parseAttrs(raw: string | undefined): Record<string, string> {
   const attrs: Record<string, string> = {}
@@ -390,7 +867,8 @@ function parseAttrs(raw: string | undefined): Record<string, string> {
   ATTR_PAIR.lastIndex = 0
   let match = ATTR_PAIR.exec(raw)
   while (match) {
-    attrs[match[1] as string] = match[2] as string
+    const value = match[2] !== undefined ? match[2] : (match[3] ?? "")
+    attrs[match[1] as string] = value
     match = ATTR_PAIR.exec(raw)
   }
   return attrs
@@ -524,21 +1002,84 @@ const theme = EditorView.theme({
   },
 })
 
+/** หา TaskMarker ของ checkbox widget ที่คลิก — ใช้บรรทัดของ widget (marker มีได้บรรทัดละตัว)
+ *  `posAtDOM` ของ widget คืนตำแหน่ง "ระหว่าง" อักขระ จึงไม่พึ่ง syntax tree */
+function taskMarkerForWidget(
+  view: EditorView,
+  checkbox: Element,
+): { from: number; to: number } | null {
+  const doc = view.state.doc
+  let pos: number
+  try {
+    pos = view.posAtDOM(checkbox, 0)
+  } catch {
+    return null
+  }
+  const line = doc.lineAt(Math.max(0, Math.min(pos, doc.length)))
+  const match = /\[[ xX]\]/.exec(line.text)
+  if (!match) return null
+  const from = line.from + match.index
+  return { from, to: from + match[0].length }
+}
+
+/** โทเคนโค้ดใน editor — map กับสี Shiki github-light/github-dark ที่หน้าอ่านใช้
+ *  (ค่าสีเป็น CSS var ต่อธีม — ดู app.css `--k-code-*`) */
+const codeHighlight = HighlightStyle.define([
+  { tag: [t.comment, t.lineComment, t.blockComment, t.docComment], color: "var(--k-code-comment)" },
+  {
+    tag: [t.keyword, t.controlKeyword, t.operatorKeyword, t.moduleKeyword, t.definitionKeyword],
+    color: "var(--k-code-keyword)",
+  },
+  { tag: [t.string, t.special(t.string), t.regexp], color: "var(--k-code-string)" },
+  { tag: [t.number, t.bool, t.null, t.atom, t.constant(t.name)], color: "var(--k-code-number)" },
+  {
+    tag: [t.function(t.variableName), t.function(t.propertyName), t.labelName],
+    color: "var(--k-code-function)",
+  },
+  { tag: [t.typeName, t.className, t.namespace], color: "var(--k-code-type)" },
+  {
+    tag: [t.propertyName, t.attributeName, t.definition(t.propertyName)],
+    color: "var(--k-code-property)",
+  },
+  { tag: [t.tagName, t.angleBracket], color: "var(--k-code-tag)" },
+  { tag: t.variableName, color: "var(--k-code-variable)" },
+  { tag: [t.operator, t.punctuation, t.bracket, t.separator], color: "var(--k-code-operator)" },
+  { tag: [t.heading, t.strong], fontWeight: "600" },
+  { tag: t.emphasis, fontStyle: "italic" },
+  { tag: t.strikethrough, textDecoration: "line-through" },
+  { tag: t.link, color: "var(--d-accent)", textDecoration: "underline" },
+  { tag: t.meta, color: "var(--k-code-meta)" },
+  { tag: t.invalid, color: "var(--k-danger)" },
+])
+
 /* ── create ─────────────────────────────────────────────────────────────── */
 
 function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHandle {
   const resolveAsset = options.resolveAsset ?? ((src: string) => src)
+  const decorationOptions: DecorationOptions = {
+    resolveAsset,
+    blockLabels: options.blockLabels ?? {},
+    calloutTypes: options.calloutTypes ?? [],
+    inlineBlocks: options.inlineBlocks ?? [],
+  }
+  const previewPlugin = livePreview(decorationOptions)
   const extensions: Extension[] = [
     history(),
-    markdown(),
+    // GFM เท่าฝั่งอ่าน (ตาราง/ strikethrough / task list) — docs/09 Track B
+    markdown({ base: markdownLanguage }),
     EditorView.lineWrapping,
     theme,
-    livePreview(resolveAsset),
+    syntaxHighlighting(codeHighlight),
+    blockMathField,
+    previewPlugin,
+    EditorView.atomicRanges.of((view) => view.plugin(previewPlugin)?.atomic ?? Decoration.none),
     EditorView.contentAttributes.of({
       "aria-label": "เนื้อหาเอกสาร (markdown)",
       spellcheck: "false",
     }),
     keymap.of([
+      // markdownKeymap (Enter สืบ list · Backspace ลบ marker) มาก่อน defaultKeymap (docs/08 ข้อ 70)
+      ...markdownKeymap,
       indentWithTab,
       ...defaultKeymap,
       ...historyKeymap,
@@ -558,6 +1099,17 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
       blur: () => {
         options.onBlur?.()
         return false
+      },
+      click: (event, view) => {
+        const target = event.target as HTMLElement | null
+        const checkbox = target?.closest?.(".cm-doku-checkbox-input")
+        if (!checkbox) return false
+        const marker = taskMarkerForWidget(view, checkbox)
+        if (!marker) return false
+        const source = view.state.doc.sliceString(marker.from, marker.to)
+        const next = /\[[xX]\]/.test(source) ? "[ ]" : "[x]"
+        view.dispatch({ changes: { from: marker.from, to: marker.to, insert: next } })
+        return true
       },
     }),
   ]

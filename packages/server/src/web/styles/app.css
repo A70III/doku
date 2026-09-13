@@ -985,6 +985,153 @@ html[data-zen] .doku-main {
   padding-block: var(--d-space-12);
 }
 
+
+/* ══ read-parity ของ editor (M3.2 Track B — docs/09 §5) ═════════════════
+   หน้าตาตอนเขียนต้องใกล้ตอนอ่าน: `:::` ได้หัว block + พื้นสี · task list มี checkbox
+   · hr เป็นเส้น · math เป็น KaTeX · โค้ดสีเดียวกับ Shiki (github-light/dark) */
+
+/* โทเคนสีโค้ด — ค่าตรงกับ Shiki github-light / github-dark ที่หน้าอ่านใช้ */
+:root {
+  --k-code-comment: #6e7781;
+  --k-code-keyword: #cf222e;
+  --k-code-string: #0a3069;
+  --k-code-number: #0550ae;
+  --k-code-function: #8250df;
+  --k-code-type: #953800;
+  --k-code-property: #0550ae;
+  --k-code-variable: #24292f;
+  --k-code-tag: #116329;
+  --k-code-operator: #0550ae;
+  --k-code-meta: #6e7781;
+}
+[data-theme='dark'] {
+  --k-code-comment: #8b949e;
+  --k-code-keyword: #ff7b72;
+  --k-code-string: #a5d6ff;
+  --k-code-number: #79c0ff;
+  --k-code-function: #d2a8ff;
+  --k-code-type: #ffa657;
+  --k-code-property: #79c0ff;
+  --k-code-variable: #ffa657;
+  --k-code-tag: #7ee787;
+  --k-code-operator: #ff7b72;
+  --k-code-meta: #8b949e;
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme='auto'] {
+    --k-code-comment: #8b949e;
+    --k-code-keyword: #ff7b72;
+    --k-code-string: #a5d6ff;
+    --k-code-number: #79c0ff;
+    --k-code-function: #d2a8ff;
+    --k-code-type: #ffa657;
+    --k-code-property: #79c0ff;
+    --k-code-variable: #ffa657;
+    --k-code-tag: #7ee787;
+    --k-code-operator: #ff7b72;
+    --k-code-meta: #8b949e;
+  }
+}
+
+/* code block: พื้นจาง + padding เท่าหน้าอ่าน (pre: --d-space-4/5, radius md) */
+.cm-doku-code {
+  padding-inline: var(--d-space-5);
+  background: var(--d-bg-subtle);
+}
+.cm-doku-code:first-of-type {
+  border-start-start-radius: var(--d-radius-md);
+  border-start-end-radius: var(--d-radius-md);
+  padding-block-start: var(--d-space-4);
+}
+.cm-doku-code:last-of-type {
+  border-end-start-radius: var(--d-radius-md);
+  border-end-end-radius: var(--d-radius-md);
+  padding-block-end: var(--d-space-4);
+}
+
+/* hr — ซ่อน `---` แล้วเหลือเส้นจริง */
+.cm-doku-hr {
+  padding-block: var(--d-space-3);
+  border-bottom: 1px solid var(--d-border);
+}
+
+/* task list — checkbox คลิกได้ + บรรทัดที่ทำแล้วจางลง */
+.cm-doku-checkbox-input {
+  width: 1em;
+  height: 1em;
+  margin-inline-end: var(--d-space-2);
+  vertical-align: -0.1em;
+  accent-color: var(--d-accent);
+  cursor: pointer;
+}
+.cm-doku-task-done {
+  color: var(--d-text-subtle);
+  text-decoration: line-through;
+}
+
+/* `:::` — หัว block (แทน fence เปิด) + พื้น block ตามชนิด (เหมือน container หน้าอ่าน) */
+.cm-doku-block-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--d-space-3);
+  margin-block: var(--d-space-4) var(--d-space-1);
+  font-size: var(--d-text-xs);
+  color: var(--d-text-subtle);
+}
+.cm-doku-block-head-label {
+  font-family: var(--d-font-mono);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.cm-doku-block-head-title {
+  font-weight: 600;
+  color: var(--d-text-muted);
+}
+.cm-doku-block-line[data-block] {
+  padding-inline: var(--d-space-5);
+}
+.cm-doku-block-line[data-variant='note'],
+.cm-doku-block-line[data-variant='info'] {
+  background: color-mix(in srgb, var(--k-info) 9%, var(--k-bg));
+  box-shadow: inset 3px 0 0 var(--k-info);
+}
+.cm-doku-block-line[data-variant='tip'] {
+  background: color-mix(in srgb, var(--k-tip) 9%, var(--k-bg));
+  box-shadow: inset 3px 0 0 var(--k-tip);
+}
+.cm-doku-block-line[data-variant='success'] {
+  background: color-mix(in srgb, var(--k-success) 9%, var(--k-bg));
+  box-shadow: inset 3px 0 0 var(--k-success);
+}
+.cm-doku-block-line[data-variant='warning'] {
+  background: color-mix(in srgb, var(--k-warning) 10%, var(--k-bg));
+  box-shadow: inset 3px 0 0 var(--k-warning);
+}
+.cm-doku-block-line[data-variant='danger'] {
+  background: color-mix(in srgb, var(--k-danger) 9%, var(--k-bg));
+  box-shadow: inset 3px 0 0 var(--k-danger);
+}
+.cm-doku-block-line[data-variant='quote'] {
+  background: var(--d-bg-subtle);
+  box-shadow: inset 3px 0 0 var(--k-quote);
+}
+
+/* math — KaTeX ในบรรทัด/แบบ display (CSS มาจาก /static/katex.css) */
+.cm-doku-math {
+  cursor: default;
+}
+.cm-doku-math-display {
+  display: block;
+  padding-block: var(--d-space-3);
+  text-align: center;
+  overflow-x: auto;
+}
+.cm-doku-math-error {
+  color: var(--k-danger);
+  font-family: var(--d-font-mono);
+  font-size: var(--d-text-sm);
+}
+
 @media print {
   .doku-rail,
   .doku-toc-col,

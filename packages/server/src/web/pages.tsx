@@ -62,8 +62,10 @@ export const Layout: FC<{
   theme?: Meta["theme"]
   /** เอกสารขึ้นต้นด้วย `# h1` — ซ่อน title ที่ header ตอน editor mount (กันชื่อซ้ำ · docs/08 ข้อ 65) */
   titleInBody?: boolean
+  /** เอกสารมีสมการ (KaTeX) — ต้อง link `/static/katex.css` ไม่งั้น math ไม่มีสไตล์/ฟอนต์ */
+  math?: boolean
   children: Child
-}> = ({ title, theme, titleInBody, children }) => {
+}> = ({ title, theme, titleInBody, math, children }) => {
   const accent = theme?.accent && HEX_COLOR_PATTERN.test(theme.accent) ? theme.accent : null
   return (
     <html
@@ -80,6 +82,7 @@ export const Layout: FC<{
         <title>{title}</title>
         <link rel="stylesheet" href="/static/app.css" />
         <link rel="stylesheet" href="/static/content.css" />
+        {math ? <link rel="stylesheet" href="/static/katex.css" /> : null}
         <script src="/static/client.js" defer />
         <script src="/static/editor.js" defer />
       </head>
@@ -501,8 +504,10 @@ export const DocPage: FC<{
   // ใช้ `dedupe` ของ renderer (คิดจาก body ที่ตัด frontmatter แล้ว + เทียบกับ meta title)
   // ไม่ใช่ regex บน raw markdown — ไม่งั้น meta title ต่างจาก h1 จะหาย / frontmatter+h1 จะซ้ำ
   const titleInBody = doc.dedupe
+  // math ใน fragment = katex markup (docs/08 ข้อ 23) — โหลด CSS แบบ data-URI font เฉพาะเมื่อต้องใช้
+  const math = doc.fragment.includes("katex")
   return (
-    <Layout title={meta.title ?? "doku"} theme={meta.theme} titleInBody={titleInBody}>
+    <Layout title={meta.title ?? "doku"} theme={meta.theme} titleInBody={titleInBody} math={math}>
       <div class="doku-shell">
         <Sidebar tree={tree} activeId={path} vaultName={vaultName} trashCount={trashCount} />
         <main class="doku-main">

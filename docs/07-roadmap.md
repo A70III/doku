@@ -165,12 +165,12 @@
 - [x] **SSE guard เปลี่ยน `data-editing` → `data-dirty`** + event `doku:saved` กัน echo + เทสต์ autosave ตัวเอง
 - [x] `@media print` + a11y pass (คีย์บอร์ดอ่าน · screen reader · 200% zoom · 360px)
 
-### Track B — read-parity (ไม่เห็น markdown ดิบ)
+### Track B — read-parity (ไม่เห็น markdown ดิบ) ✅
 
-- [ ] `markdownKeymap` + `indentWithTab` ที่ nest ตาม block model (Enter สืบ list · Backspace ลบ marker · Tab nest)
-- [ ] widget: `:::` (callout/details/tabs) · math (`$…$` → KaTeX) · **checkbox คลิกได้** · `hr` · placeholder ต่อ block
-- [ ] code block: สี/theme เดียวกับ Shiki ตอนอ่าน
-- [ ] marker policy: atomic **เฉพาะ delimiter** · ซ่อนเมื่อカーไม่สัมผัส · **composition guard (ห้าม replace ขณะ IME ทำงาน)**
+- [x] GFM parser + `markdownKeymap` (Enter สืบ list · Backspace ลบ marker) — Tab nest เต็มรูปแบบอยู่ที่ C3
+- [x] widget: `:::` (หัว block + พื้นตาม variant ตาม renderer จริง) · math (`$…$`/`$$…$$` → KaTeX) · **checkbox คลิกได้** · `hr` · image · inline `:badge[…]` (placeholder ต่อ block อยู่ที่ E)
+- [x] code block: chrome เท่าหน้าอ่าน + โทเคนสี map กับ Shiki github-light/dark (`--k-code-*`) — ยังไม่ทำ per-language (ไม่มี dep ภาษา)
+- [x] marker policy: atomic **เฉพาะ delimiter** (`EditorView.atomicRanges`) · ซ่อนเมื่อカーไม่สัมผัส · **composition guard (ห้าม rebuild ขณะ IME ทำงาน)**
 
 ### Track C — block layer (+ drag & drop)
 

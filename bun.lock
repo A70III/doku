@@ -75,6 +75,8 @@
         "@codemirror/view": "^6.35.0",
         "@doku/core": "workspace:*",
         "@doku/fs-node": "workspace:*",
+        "@lezer/common": "^1.5.2",
+        "@lezer/highlight": "^1.2.3",
         "chokidar": "^4.0.0",
         "hono": "^4.6.0",
         "katex": "^0.16.0",

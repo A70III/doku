@@ -888,6 +888,11 @@ ${INTERACTIONS_JS}
       placeholder: "พิมพ์ / เพื่อแทรก block",
       resolveAsset: makeAssetResolver(writing.path),
       slashItems: buildSlashItems(schema),
+      blockLabels: BLOCK_LABELS,
+      calloutTypes: (schema && schema.variants) || [],
+      inlineBlocks: ((schema && schema.blocks) || [])
+        .filter((block) => block.kind === "text")
+        .map((block) => block.name),
       onDirective: (info) => renderDirectiveStrip(info),
       onMark: (info) => renderMarkStrip(info),
       onChange: markDirty,
