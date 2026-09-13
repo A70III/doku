@@ -16,7 +16,8 @@
     "dev": "bash scripts/dev.sh",
     "build:css": "bunx @tailwindcss/cli -i packages/server/src/web/styles/app.css -o packages/server/public/app.css --minify",
     "gen:icons": "bun run scripts/gen-icons.ts",
-    "build:editor": "bun run scripts/build-editor.ts"
+    "build:editor": "bun run scripts/build-editor.ts",
+    "shot": "bun run scripts/shot.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",
@@ -24,6 +25,7 @@
     "@tailwindcss/cli": "^4.0.0",
     "@types/bun": "^1.2.0",
     "lucide-static": "^1.45.0",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
     "zod": "^4.0.0"
