@@ -626,6 +626,37 @@
   outline: none;
 }
 
+/* ── คุณสมบัติเอกสาร (inline panel — docs/08 ข้อ 52) ───────────────────
+   ไม่ใช่ modal: อยู่บนหัวเอกสารในคอลัมน์อ่าน · พื้นจาง + hairline (ไม่ใช้เงา) */
+.doku-meta-panel-wrap {
+  margin-bottom: var(--d-space-8);
+  padding: var(--d-space-4) var(--d-space-5);
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-md);
+  background: var(--d-bg-subtle);
+}
+.doku-meta-panel-wrap[hidden] {
+  display: none;
+}
+.doku-meta-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--d-space-3);
+}
+.doku-meta-panel-title {
+  margin: 0;
+  font-size: var(--d-text-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--d-text-muted);
+}
+.doku-meta-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-space-3);
+}
+
 /* ── block control strip (docs/08 ข้อ 55) ────────────────────────────────
    ลอยเหนือบรรทัดแรกของ directive ที่カーอยู่ · ค่าที่แก้ถูกเขียนกลับเป็น
    ข้อความ markdown ทันที (ไม่มี state ซ่อน) */
@@ -873,6 +904,7 @@ html[data-zen] .doku-main {
   .doku-rail,
   .doku-toc-col,
   .doku-doc-toolbar,
+  .doku-meta-panel-wrap,
   .doku-toast,
   .doku-overlay {
     display: none !important;

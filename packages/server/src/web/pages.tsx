@@ -109,70 +109,6 @@ export const Layout: FC<{
             <div id="doku-palette-list" class="doku-palette-list" role="listbox" />
           </div>
         </div>
-        <div id="doku-meta-overlay" class="doku-overlay" hidden>
-          <form id="doku-meta-form" class="doku-panel" aria-label="คุณสมบัติเอกสาร">
-            <header class="doku-panel-head">
-              <h2 class="doku-panel-title">คุณสมบัติ</h2>
-              <button type="button" class="doku-icon-btn" data-action="meta-close" aria-label="ปิด">
-                <Icon name="x" />
-              </button>
-            </header>
-            <p class="doku-panel-hint">
-              แก้ <code>*.meta.json</code> — ไฟล์คือความจริง (path = id, ไม่มี field หมวดหมู่)
-            </p>
-            <label class="doku-field">
-              <span>ชื่อเรื่อง</span>
-              <input type="text" name="title" autocomplete="off" />
-            </label>
-            <label class="doku-field">
-              <span>สรุป</span>
-              <textarea name="summary" rows={2} maxlength={280} />
-            </label>
-            <label class="doku-field">
-              <span>แท็ก (คั่นด้วยจุลภาค)</span>
-              <input type="text" name="tags" autocomplete="off" placeholder="design, doku" />
-            </label>
-            <div class="doku-field-row">
-              <label class="doku-field">
-                <span>สถานะ</span>
-                <select name="status">
-                  <option value="active">active</option>
-                  <option value="draft">draft</option>
-                  <option value="archived">archived</option>
-                </select>
-              </label>
-              <label class="doku-field">
-                <span>ลำดับ</span>
-                <input type="number" name="order" step={1} />
-              </label>
-              <label class="doku-field">
-                <span>โหมดสี</span>
-                <select name="mode">
-                  <option value="">(ตามค่าเริ่มต้น)</option>
-                  <option value="auto">auto</option>
-                  <option value="light">light</option>
-                  <option value="dark">dark</option>
-                </select>
-              </label>
-            </div>
-            <div class="doku-field-row">
-              <label class="doku-field doku-field-inline">
-                <input type="checkbox" name="pinned" />
-                <span>ปักหมุด</span>
-              </label>
-              <label class="doku-field doku-field-inline">
-                <input type="checkbox" name="toc" />
-                <span>สารบัญ</span>
-              </label>
-            </div>
-            <footer class="doku-panel-foot">
-              <span id="doku-meta-status" class="doku-panel-hint" role="status" />
-              <button type="submit" class="doku-btn doku-btn-accent">
-                <Icon name="save" /> บันทึก
-              </button>
-            </footer>
-          </form>
-        </div>
         <div id="doku-folder-overlay" class="doku-overlay" hidden>
           <form id="doku-folder-form" class="doku-panel" aria-label="ตั้งค่าโฟลเดอร์">
             <header class="doku-panel-head">
@@ -545,6 +481,75 @@ export const DocPage: FC<{
             data-motion={meta.render.motion ? undefined : "off"}
           >
             <DocToolbar path={path} hasToc={toc.length >= 2} />
+            <section id="doku-meta-panel" class="doku-meta-panel-wrap" hidden>
+              <header class="doku-meta-panel-head">
+                <h2 class="doku-meta-panel-title">คุณสมบัติ</h2>
+                <button
+                  type="button"
+                  class="doku-icon-btn"
+                  data-action="meta-close"
+                  aria-label="ปิดคุณสมบัติ"
+                >
+                  <Icon name="x" size={16} />
+                </button>
+              </header>
+              <form id="doku-meta-form" class="doku-meta-panel" aria-label="คุณสมบัติเอกสาร">
+                <p class="doku-panel-hint">
+                  แก้ <code>*.meta.json</code> — ไฟล์คือความจริง (path = id, ไม่มี field หมวดหมู่)
+                </p>
+                <label class="doku-field">
+                  <span>ชื่อเรื่อง</span>
+                  <input type="text" name="title" autocomplete="off" />
+                </label>
+                <label class="doku-field">
+                  <span>สรุป</span>
+                  <textarea name="summary" rows={2} maxlength={280} />
+                </label>
+                <label class="doku-field">
+                  <span>แท็ก (คั่นด้วยจุลภาค)</span>
+                  <input type="text" name="tags" autocomplete="off" placeholder="design, doku" />
+                </label>
+                <div class="doku-field-row">
+                  <label class="doku-field">
+                    <span>สถานะ</span>
+                    <select name="status">
+                      <option value="active">active</option>
+                      <option value="draft">draft</option>
+                      <option value="archived">archived</option>
+                    </select>
+                  </label>
+                  <label class="doku-field">
+                    <span>ลำดับ</span>
+                    <input type="number" name="order" step={1} />
+                  </label>
+                  <label class="doku-field">
+                    <span>โหมดสี</span>
+                    <select name="mode">
+                      <option value="">(ตามค่าเริ่มต้น)</option>
+                      <option value="auto">auto</option>
+                      <option value="light">light</option>
+                      <option value="dark">dark</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="doku-field-row">
+                  <label class="doku-field doku-field-inline">
+                    <input type="checkbox" name="pinned" />
+                    <span>ปักหมุด</span>
+                  </label>
+                  <label class="doku-field doku-field-inline">
+                    <input type="checkbox" name="toc" />
+                    <span>สารบัญ</span>
+                  </label>
+                </div>
+                <footer class="doku-panel-foot">
+                  <span id="doku-meta-status" class="doku-panel-hint" role="status" />
+                  <button type="submit" class="doku-btn doku-btn-accent">
+                    <Icon name="save" /> บันทึก
+                  </button>
+                </footer>
+              </form>
+            </section>
             <div
               id="doku-doc-body"
               class="doku-prose"

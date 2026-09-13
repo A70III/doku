@@ -61,7 +61,7 @@ ${INTERACTIONS_JS}
   const paletteInput = $("#doku-palette-input");
   const paletteList = $("#doku-palette-list");
   const toastEl = $("#doku-toast");
-  const metaOverlay = $("#doku-meta-overlay");
+  const metaPanel = $("#doku-meta-panel");
   const metaForm = $("#doku-meta-form");
   const metaStatus = $("#doku-meta-status");
   const folderOverlay = $("#doku-folder-overlay");
@@ -359,7 +359,10 @@ ${INTERACTIONS_JS}
       metaForm.elements.toc.checked = render.toc !== false;
       metaForm.elements.pinned.checked = Boolean(meta.pinned);
       metaStatus.textContent = "";
-      metaOverlay.hidden = false;
+      if (metaPanel) {
+        metaPanel.hidden = false;
+        metaPanel.scrollIntoView({ block: "nearest" });
+      }
       metaForm.elements.title.focus();
     } catch (error) {
       fail(error);
@@ -550,7 +553,7 @@ ${INTERACTIONS_JS}
     return Boolean(
       target.closest &&
         target.closest(
-          "a, button, summary, input, select, textarea, [data-part='copy-code'], [data-part='tab-button'], [data-block='figure'][data-zoom]",
+          "a, button, summary, input, select, textarea, [data-part='copy-code'], [data-part='tab-button'], [data-block='figure'][data-zoom], .doku-doc-meta",
         ),
     );
   }
@@ -947,6 +950,12 @@ ${INTERACTIONS_JS}
   if (articleEl && bodyEl) {
     articleEl.addEventListener("click", (event) => {
       if (writing.editing) return;
+      const metaLine = event.target.closest ? event.target.closest(".doku-doc-meta") : null;
+      if (metaLine) {
+        event.preventDefault();
+        openMeta(currentDocPath());
+        return;
+      }
       if (isInteractiveTarget(event.target)) return;
       const selection = window.getSelection ? window.getSelection().toString() : "";
       if (selection) return; // กําลังเลือกข้อความอยู่ ไม่ต้องเข้าโหมดเขียน
@@ -1315,7 +1324,7 @@ ${INTERACTIONS_JS}
         newFolder(trigger.getAttribute("data-dir") || "");
         break;
       case "meta-close":
-        metaOverlay.hidden = true;
+        if (metaPanel) metaPanel.hidden = true;
         break;
       case "folder-close":
         folderOverlay.hidden = true;
@@ -1332,7 +1341,7 @@ ${INTERACTIONS_JS}
     }
   });
 
-  for (const overlay of [metaOverlay, folderOverlay]) {
+  for (const overlay of [folderOverlay]) {
     if (!overlay) continue;
     overlay.addEventListener("click", (event) => {
       if (event.target === overlay) overlay.hidden = true;
@@ -1367,7 +1376,7 @@ ${INTERACTIONS_JS}
       if (!menuEl.hidden) closeMenu();
       else if (tocSheetEl && !tocSheetEl.hidden) tocSheetEl.hidden = true;
       else if (!paletteEl.hidden) closePalette();
-      else if (!metaOverlay.hidden) metaOverlay.hidden = true;
+      else if (metaPanel && !metaPanel.hidden) metaPanel.hidden = true;
       else if (!folderOverlay.hidden) folderOverlay.hidden = true;
       else if (writing.editing) exitWriting();
     }
