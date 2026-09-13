@@ -273,30 +273,43 @@ function applyTemplate(view: EditorView, item: SlashItem, from: number, to: numb
 }
 
 function slashCompletion(items: SlashItem[]): Extension {
-  const options: Completion[] = items.map((item) => ({
-    label: "/" + item.keyword,
-    displayLabel: item.label,
-    detail: item.detail,
-    type: "keyword",
-    apply: (view, _completion, from, to) => applyTemplate(view, item, from, to),
-  }))
+  /** กรองเอง (ไทย/อังกฤษ) แล้วส่ง `filter: false` — CM6 กรองด้วย label ASCII ไม่โดนคำไทย */
+  const matchItem = (item: SlashItem, query: string): boolean => {
+    if (!query) return true
+    const needle = query.toLowerCase()
+    return (
+      item.keyword.toLowerCase().startsWith(needle) || item.label.toLowerCase().includes(needle)
+    )
+  }
 
   const source = (context: CompletionContext) => {
     const line = context.state.doc.lineAt(context.pos)
     const before = line.text.slice(0, context.pos - line.from)
-    // `/` ที่ต้นบรรทัด (หรือหลังช่องว่าง) แล้วพิมพ์ต่อได้แค่ตัวอักษร/ขีด
-    const match = /(^|\s)\/([\w-]*)$/.exec(before)
+    // `/` ที่ต้นบรรทัด (หรือหลังช่องว่าง) แล้วพิมพ์ต่อด้วยตัวอักษร (รวมไทย) หรือขีด
+    const match = /(^|\s)\/([\p{L}\p{N}_-]*)$/u.exec(before)
     if (!match) return null
-    const start = context.pos - (match[2] as string).length - 1
+    const query = match[2] as string
+    const start = context.pos - query.length - 1
     // ต้องไม่ใช่ URL (https://) หรือส่วนของ path
     if (start > line.from) {
       const prev = line.text[start - line.from - 1]
       if (prev && /[\w:/.-]/.test(prev)) return null
     }
+    const options: Completion[] = items
+      .filter((item) => matchItem(item, query))
+      .map((item) => ({
+        label: item.keyword,
+        displayLabel: item.label,
+        detail: item.detail,
+        type: "keyword",
+        apply: (view, _completion, from, to) => applyTemplate(view, item, from, to),
+      }))
+    if (options.length === 0) return null
     return {
       from: start,
       options,
-      validFor: /^\/[\w-]*$/,
+      filter: false,
+      validFor: /^\/[\p{L}\p{N}_-]*$/u,
     }
   }
 
