@@ -628,6 +628,18 @@ Doku คือ **ห้องสมุดดิจิทัลร่วมสม
 **กฎจังหวะ: "มาก่อน heading · น้อยหลัง heading"** — ตาต้องรู้ว่าหัวข้อเป็นเจ้าของย่อหน้าถัดไป
 `h2 { margin-block: var(--d-rhythm-h2) var(--d-rhythm-after) }` · **ห้ามให้ margin บน = ล่าง**
 
+**เจ้าของระยะแนวตั้งมีตัวเดียว** — flow rule ใน `prose.ts` (`:not(:first-child)` ไม่ใช่ `* + *`)
+
+- element rule **ห้ามตั้ง margin แนวตั้ง** · `margin: 0` shorthand reset `margin-top` ด้วย → ต้องมี specificity
+  ต่ำกว่า flow rule เสมอ (คือบั๊กที่ทำให้ย่อหน้าติดกันทั้งเอกสาร — [08 ข้อ 69](08-decisions.md))
+- **หลัง heading = `--d-rhythm-after` ตัวเดียว** — ลูกที่ตามหลัง heading/`hr` **ไม่รับ flow**
+  (margin ของมันจะ collapse กับ margin ของ heading → 24px แทนที่จะเป็น 12px)
+- ค่าเริ่มต้น `--d-flow` · block หนัก `pre`/`table`/`figure`/`gallery`/`callout` = `--d-flow-loose`
+  · container แน่น (`card-body`/`callout`/`details`/`margin-note`) + `li` = `--d-space-2`
+- block ที่ต้องจัดระยะเอง (โน้ตข้างที่ลอย ≥1400px · figure zoom · print) ตั้ง **`--dk-flow`** ที่ *ตัวเอง*
+  — custom property cascade ปกติ ไม่ต้องสู้ specificity (และ `@property inherits: false` — ลูกไม่รับค่าไปด้วย)
+- บังคับด้วย `packages/core/src/styles/rhythm.test.ts` + rhythm check ใน `bun run shot` (วัดระยะจริงระหว่างกล่อง)
+
 - **สเกลต้องนิ่ง** — class ใหม่ทุกตัวต้องใช้ token จากลิสต์นี้ · ห้าม `padding: 13px` / `gap: .7rem` ตรง ๆ ใน component
 - **ห้ามอ้าง `--d-space-*` ที่ไม่มีในลิสต์** — CSS จะทิ้ง declaration ทั้งก้อนเงียบ ๆ
   (นี่คือสาเหตุที่ rail/panel ไม่มี padding: `.doku-rail { padding: var(--d-space-6) var(--d-space-5) }` แต่ `--d-space-5` ไม่ถูก define → [08 ข้อ 50](08-decisions.md))

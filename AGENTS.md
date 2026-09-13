@@ -155,6 +155,11 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · **block ต้องไม่ทำเนื้อหาหาย** (bug-hunt sweep `blocks/*.ts`): `::::tabs` จับคู่ panel ผิดตัว + `:::card` href `.md#anchor` + `:::motion once` กลับด้าน (ข้อ 67)
   · ต่อด้วย sweep รอบสอง: block ที่ไม่ใช้เนื้อใน (`figure`/`video`/`progress`/`section divider`) คงเนื้อหาไว้ + `block_stray_child` · `progress` value ผิดไม่ทำ block หาย · `video` placeholder มีข้อความบอกเหตุ · `card` ไม่มี href ไม่เป็น `<a>` (ข้อ 68)
   · **ยังรอเคาะ**: Q7 asset filename charset (รอ upload API M4)
+- ล็อกเพิ่มตอนแก้บั๊ก prose rhythm (หลัง M3.1): prose layer เป็น **เจ้าของระยะแนวตั้งเพียงตัวเดียว** —
+  flow rule (`:not(:first-child)` specificity ≥ (0,2,1)) · element rule ห้ามตั้ง margin แนวตั้ง ·
+  block หนักใช้ `--d-flow-loose` · หลัง heading/`hr` เป็นระยะของตัว heading เอง (ลูกไม่รับ flow) ·
+  override ราย block ด้วย `--dk-flow` (ข้อ 69)
+  · guard: `packages/core/src/styles/rhythm.test.ts` + rhythm check ใน `bun run shot`
 
 ## ขอบเขตที่ตัดออกแล้ว (อย่าเสนอซ้ำ)
 

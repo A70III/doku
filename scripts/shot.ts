@@ -86,6 +86,51 @@ const A11Y_SCRIPT = `(() => {
   const specimen = Boolean(document.querySelector('[id^="block-"]'))
   if (!specimen && document.querySelectorAll("h1").length > 1) issues.push("มี h1 มากกว่า 1")
 
+  // ── vertical rhythm (docs/03 §1.4 · docs/08 ข้อ 69) ────────────────────
+  // บั๊กที่เคยเกิด: specificity ทำให้ margin-top ของ block เป็น 0 → ย่อหน้าติดกันเป็นพืด
+  // วัดจาก **ระยะจริงระหว่างกล่อง** (ไม่ใช่ margin-top — margin collapse กันได้)
+  const body = document.querySelector("#doku-doc-body")
+  if (body) {
+    const containers = [
+      body,
+      ...body.querySelectorAll(
+        ":is(section, blockquote, li, [data-block=col], [data-part=tab-panel], [data-part=card-body], [data-block=callout], [data-block=details], [data-block=margin-note])",
+      ),
+    ]
+    const broken = []
+    for (const container of containers) {
+      if (getComputedStyle(container).display === "none") continue
+      for (const child of [...container.children].slice(1)) {
+        const prev = child.previousElementSibling
+        const style = getComputedStyle(child)
+        // inline/ลอย/ซ้อนตำแหน่ง/ซ่อน ไม่ได้ระยะจาก flow โดยเจตนา
+        if (style.display.startsWith("inline") || style.display === "none") continue
+        if (style.float !== "none" || style.position !== "static") continue
+        const prevStyle = getComputedStyle(prev)
+        // ตัวก่อนหน้าที่ลอย/ซ้อนตำแหน่งไม่อยู่ใน flow → วัดระยะกับมันไม่ได้
+        if (prevStyle.float !== "none" || prevStyle.position !== "static") continue
+        if (prevStyle.display === "none") continue
+        const box = child.getBoundingClientRect()
+        const before = prev.getBoundingClientRect()
+        if (box.height === 0 || before.height === 0) continue
+        const gap = box.top - before.bottom
+        const label = prev.tagName.toLowerCase() + " → " + child.tagName.toLowerCase()
+        // หลัง heading/hr: ระยะต้องมาจาก margin ของตัวนำเอง (--d-rhythm-after) — ไม่งั้น collapse แล้วเกิน
+        if (/^(H[1-6]|HR)$/.test(prev.tagName)) {
+          const expected = parseFloat(getComputedStyle(prev).marginBottom)
+          if (Math.abs(gap - expected) > 1) {
+            broken.push(label + " (" + Math.round(gap) + "px ≠ " + expected + "px)")
+          }
+          continue
+        }
+        if (gap < 1) broken.push(label)
+      }
+    }
+    if (broken.length) {
+      issues.push("ระยะแนวตั้งของ block ไม่ตรง rhythm " + broken.length + " จุด (" + broken.slice(0, 3).join(", ") + ")")
+    }
+  }
+
   return issues
 })()`
 
@@ -226,7 +271,9 @@ async function main(): Promise<void> {
 
   if (flags.a11y) {
     if (checks.length === 0) {
-      console.log("a11y: ผ่านทุกข้อ (ชื่อคอนโทรล · focus ring · overflow · reduced motion · h1 เดียว)")
+      console.log(
+        "a11y: ผ่านทุกข้อ (ชื่อคอนโทรล · focus ring · overflow · reduced motion · h1 เดียว · rhythm)",
+      )
     } else {
       console.log(`a11y: พบ ${checks.length} ปัญหา`)
       for (const check of checks) console.log(`  x ${check.name}`)

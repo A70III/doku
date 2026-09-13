@@ -64,7 +64,6 @@ export const BLOCKS_CSS = `
   --dk-ink: var(--dk-mapped-ink, var(--dk-variant-ink, var(--k-info-ink)));
   --dk-color-bg: var(--dk-mapped-bg, var(--dk-variant-bg, var(--d-bg-subtle)));
   position: relative;
-  margin: 0;
   padding: var(--d-space-4) var(--d-space-5) var(--d-space-4) calc(var(--d-space-5) + 1.4em);
   border: 0;
   border-inline-start: 3px solid var(--dk-color);
@@ -77,9 +76,8 @@ export const BLOCKS_CSS = `
   inset-inline-start: var(--d-space-4);
   --dk-color: var(--dk-mapped-color, var(--dk-variant-color, var(--k-info)));
 }
-.doku-prose [data-block='callout'] > * + * { margin-top: var(--d-space-2); }
+/* ระยะภายใน callout มาจาก prose rhythm (②c) — ห้ามตั้ง margin ที่นี่ */
 .doku-prose [data-part='callout-title'] {
-  margin: 0;
   font-weight: 600;
   color: var(--dk-ink);
 }
@@ -132,7 +130,6 @@ ${CALLOUT_VARIANTS}
   display: flex;
   flex-direction: column;
   gap: var(--d-space-2);
-  margin: 0;
   max-width: 100%;
 }
 .doku-prose [data-block='figure'][data-align='left'] { align-items: flex-start; }
@@ -168,7 +165,8 @@ ${FIGURE_WIDTH_CSS}
   z-index: 60;
   width: auto;
   max-width: none;
-  margin: 0;
+  /* overlay เต็มจอ — ห้ามรับ flow margin ของ prose (ตั้งที่ตัวเอง ไม่สู้ specificity) */
+  --dk-flow: 0;
   padding: var(--d-space-6);
   align-items: center;
   justify-content: center;
@@ -206,7 +204,6 @@ ${FIGURE_WIDTH_CSS}
 }
 
 .doku-prose [data-block='video'][data-provider='youtube'] {
-  margin: 0;
   overflow: hidden;
 }
 .doku-prose [data-block='video'][data-provider='youtube'] iframe {
@@ -243,11 +240,8 @@ ${FIGURE_WIDTH_CSS}
   color: var(--d-text-muted);
   font-size: var(--d-text-sm);
 }
-.doku-prose [data-block='card'] [data-part='card-body'] > * + * { margin-top: var(--d-space-2); }
-.doku-prose [data-block='card'] [data-part='card-body'] > :last-child { margin-bottom: 0; }
 
 /* section — ไม่มี container: แยกด้วยระยะ + heading size (บันไดขั้น 1/3) */
-.doku-prose [data-block='section'][data-variant='hero'] > :first-child { margin-top: 0; }
 .doku-prose [data-block='section'][data-variant='hero'] > :is(h1, h2, h3) {
   font-size: var(--d-read-h2);
   letter-spacing: -0.008em;
@@ -265,7 +259,6 @@ ${FIGURE_WIDTH_CSS}
 .doku-prose [data-block='grid'][data-gap='sm'] { gap: var(--d-space-3); }
 .doku-prose [data-block='grid'][data-gap='lg'] { gap: var(--d-space-8); }
 .doku-prose [data-block='col'] { min-width: 0; }
-.doku-prose [data-block='col'] > * + * { margin-top: var(--d-flow); }
 
 /* responsive: ลดคอลัมน์ให้อ่านรู้เรื่องบนจอเล็ก (docs/03 §2) */
 @media (max-width: 900px) {
@@ -281,7 +274,6 @@ ${FIGURE_WIDTH_CSS}
 
 /* ── kv / progress / steps / timeline ────────────────────────────────────── */
 /* kv = definition list: ไม่มีกรอบนอก · hairline เฉพาะระหว่างแถว (บันไดขั้น 2) */
-.doku-prose [data-block='kv'] { margin: 0; }
 .doku-prose [data-part='kv-row'] {
   display: grid;
   grid-template-columns: minmax(6rem, 24%) 1fr;
@@ -292,12 +284,10 @@ ${FIGURE_WIDTH_CSS}
 .doku-prose [data-part='kv-row']:last-child { border-bottom: 0; padding-bottom: 0; }
 .doku-prose [data-part='kv-row']:first-child { padding-top: 0; }
 .doku-prose [data-part='kv-key'] {
-  margin: 0;
   color: var(--d-text-muted);
   font-size: var(--d-text-sm);
 }
 .doku-prose [data-part='kv-value'] {
-  margin: 0;
   font-size: var(--d-text-sm);
 }
 
@@ -323,7 +313,6 @@ ${FIGURE_WIDTH_CSS}
   list-style: none;
   counter-reset: doku-step;
   padding-left: 0;
-  margin: 0;
 }
 .doku-prose [data-block='steps'] li {
   counter-increment: doku-step;
@@ -345,7 +334,6 @@ ${FIGURE_WIDTH_CSS}
 /* timeline — เส้นเดียว + จุด (บันไดขั้น 2) */
 .doku-prose [data-block='timeline'] {
   list-style: none;
-  margin: 0;
   padding: 0 0 0 var(--d-space-5);
   border-inline-start: 1px solid var(--d-border-strong);
 }
@@ -371,23 +359,24 @@ ${FIGURE_WIDTH_CSS}
 
 /* ── margin-note ── rule ซ้ายเส้นเดียว ไม่มีพื้น (บันไดขั้น 2) */
 .doku-prose [data-block='margin-note'] {
-  margin: 0;
   padding: var(--d-space-1) 0 var(--d-space-1) var(--d-space-4);
   border-inline-start: 2px solid var(--d-border-strong);
   color: var(--d-text-muted);
   font-size: var(--d-text-sm);
 }
-.doku-prose [data-block='margin-note'] > * + * { margin-top: var(--d-space-2); }
+/* ≥1400px: ลอยข้างคอลัมน์ — จัดระยะเองผ่าน \`--dk-flow\` (margin สี่ด้านจะไปทับ flow ไม่ได้) */
 @media (min-width: 1400px) {
   .doku-prose [data-block='margin-note'] {
     float: inline-end;
     clear: both;
     width: 15rem;
-    margin: 0 calc(-1 * var(--d-space-12)) var(--d-space-4) var(--d-space-4);
+    --dk-flow: 0;
+    margin-block-end: var(--d-space-4);
+    margin-inline: var(--d-space-4) calc(-1 * var(--d-space-12));
   }
   .doku-prose [data-block='margin-note'][data-side='left'] {
     float: inline-start;
-    margin: 0 var(--d-space-4) var(--d-space-4) calc(-1 * var(--d-space-12));
+    margin-inline: calc(-1 * var(--d-space-12)) var(--d-space-4);
   }
 }
 
@@ -436,7 +425,6 @@ ${MOTION_DURATION_CSS}
   font-weight: 600;
 }
 .doku-prose [data-block='details'][open] > summary { margin-bottom: var(--d-space-3); }
-.doku-prose [data-block='details'] > :not(summary) + :not(summary) { margin-top: var(--d-space-2); }
 
 /* tabs — hairline คั่น header + tab ที่ active ขีด accent (ไม่มี pill/เงา/กรอบ) */
 .doku-prose [data-block='tabs'] { border: 0; }
@@ -468,8 +456,6 @@ ${MOTION_DURATION_CSS}
   font-weight: 600;
 }
 .doku-prose [data-part='tab-panel'] { padding: var(--d-space-5) 0 0; }
-.doku-prose [data-part='tab-panel'] > * + * { margin-top: var(--d-flow); }
-.doku-prose [data-part='tab-panel'] > :first-child { margin-top: 0; }
 /* ไม่มี JS: แสดงทุก panel ซ้อนกัน (อ่านได้) — JS ใส่ data-enhanced แล้วโชว์เฉพาะ active */
 .doku-prose [data-part='tab-panel'] + [data-part='tab-panel'] { border-top: 1px solid var(--d-border); }
 .doku-prose [data-block='tabs'][data-enhanced] [data-part='tab-panel'] { display: none; }

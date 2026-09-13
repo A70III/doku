@@ -8,6 +8,100 @@
  * หัวข้อเป็นเจ้าของย่อหน้าถัดไป ไม่ใช่ของย่อหน้าก่อน
  */
 
+/** prose layer — เจ้าของ rhythm */
+const FLOW_SCOPE = ".doku-prose"
+
+/**
+ * container ที่ลูกโดยตรงเรียงด้วย flow token
+ * — prose layer เอง + container ที่เป็น "หน้าเอกสารย่อ" (`section` · `blockquote` · `col` · `tab-panel`)
+ */
+const FLOW_NESTED = ":is(section, blockquote, [data-block='col'], [data-part='tab-panel'])"
+
+/**
+ * ตัวที่ "เป็นเจ้าของระยะหลังตัวเอง" — heading · hr
+ *
+ * ลูกที่ตามหลังจึง **ไม่รับ flow**: ระยะหลัง heading = `--d-rhythm-after` (12px) ตัวเดียว
+ * (docs/03 §1.4 "มาก่อน heading · น้อยหลัง heading" — หัวข้อเป็นเจ้าของบล็อกถัดไป)
+ * ถ้าปล่อยให้รับ flow ด้วย margin ของมันจะ **collapse** กับ margin ของ heading
+ * → ห่างกลายเป็น 24px (อ่านเหมือนเว้นบรรทัดผิดที่)
+ */
+const FLOW_LEADING = ":is(h1, h2, h3, h4, h5, h6, hr)"
+
+/**
+ * ลูกของ flow container
+ *
+ * `:not(:first-child)` = ตัวเดียวกับ `* + *` แต่ **specificity สูงกว่า reset ทุกตัว**
+ * (`*` ไม่เพิ่ม specificity → กฎเดิม `.doku-prose > * + *` แพ้ `.doku-prose p { margin: 0 }`)
+ * · `:not(${FLOW_LEADING})` — heading/`hr` มี rhythm token ของตัวเอง
+ * · `:not(${FLOW_LEADING} + *)` — ตัวที่ตามหลัง heading/`hr` ไม่รับ flow
+ */
+const FLOW_CHILD = `:not(:first-child):not(${FLOW_LEADING}):not(${FLOW_LEADING} + *)`
+
+/** block หนัก — ระยะ `--d-flow-loose` (docs/03 §1.4) */
+const FLOW_HEAVY = ":is(pre, table, figure, [data-block='gallery'], [data-block='callout'])"
+
+/** container ที่แน่นกว่าโดยเจตนา — การ์ด · callout · details · โน้ตข้าง */
+const FLOW_TIGHT =
+  ":is([data-part='card-body'], [data-block='callout'], [data-block='details'], [data-block='margin-note'])"
+
+const flowRules = (child: string, value: string): string =>
+  [FLOW_SCOPE, `${FLOW_SCOPE} ${FLOW_NESTED}`]
+    .map((scope) => `${scope} > ${child} { margin-block-start: ${value}; }`)
+    .join("\n")
+
+/**
+ * ── vertical rhythm — prose layer เป็นเจ้าของระยะแนวตั้ง "เพียงตัวเดียว" ──────
+ *
+ * (docs/03 §1.4 "prose ใช้ค่าเหล่านี้เท่านั้น ห้ามตั้ง margin เดี่ยว" · docs/08 ข้อ 69)
+ *
+ * ⚠️ ห้ามตั้ง margin แนวตั้งใน element rule — บั๊กที่เคยเกิดขึ้น:
+ * `.doku-prose p { margin: 0 }` มี specificity (0,1,1) ชนะ `.doku-prose > * + *` (0,1,0)
+ * และ shorthand `margin: 0` reset `margin-top` ไปด้วย → **ย่อหน้าทุกตัว margin-top = 0**
+ * (`--d-flow` ไม่เคยถูกใช้เลยตั้งแต่ M1) · element ที่ตั้ง `margin: 0` ไว้เอง
+ * (pre · blockquote · kv · callout · figure · timeline · margin-note) เป็นเหยื่อแบบเดียวกัน
+ *
+ * กลไก 3 ชั้น:
+ * ① reset UA margin ด้วย `:where()` — specificity 0 จึงไม่ชนะ flow rule
+ * ② flow rule ใช้ `:not(:first-child)` (0,2,2) ชนะ reset/`margin: 0` ที่ specificity ต่ำกว่าทุกตัว
+ *    · ตัด heading/`hr` ออก (มี `--d-rhythm-*` ของตัวเอง) และตัด **ตัวที่ตามหลัง heading**
+ *    ออกด้วย — ไม่งั้น margin ของมัน collapse กับ `--d-rhythm-after` แล้วห่างเป็น 24px
+ * ③ element ที่ต้องจัดระยะของตัวเอง (ลอย · zoom) ตั้ง `--dk-flow` ที่ *ตัวเอง*
+ *    — ไม่ต้องสู้ specificity (custom property cascade ปกติ)
+ *
+ * บังคับด้วย `rhythm.test.ts` — element rule ที่ตั้ง margin-top: 0 ต้องมี specificity
+ * น้อยกว่า flow rule เสมอ (ไม่งั้นระยะหายทั้งหน้าแบบเงียบ ๆ)
+ */
+const PROSE_RHYTHM_CSS = `
+/* ⓪ \`--dk-flow\` = ระยะแนวตั้ง *ของ element นั้น* (override \`--d-flow\` / \`--d-flow-loose\`)
+   ต้องไม่ inherit — ไม่งั้นโน้ตข้างที่ลอยแล้วตั้ง 0 จะลากย่อหน้าข้างในเป็น 0 ไปด้วย
+   (เบราว์เซอร์ที่ไม่รองรับ @property → ยังใช้ค่าเดิมได้ แค่ override จะไหลลงลูก) */
+@property --dk-flow { syntax: "*"; inherits: false; }
+/* ① UA default margin ของ block element → 0 (ห้ามเพิ่ม specificity ที่นี่) */
+.doku-prose :where(p, blockquote, pre, dl, dt, dd, figure, figcaption, table, ul, ol, li,
+  h1, h2, h3, h4, h5, h6, hr, section, aside, details, summary, div, video, audio, iframe, progress) {
+  margin: 0;
+}
+/* ② flow ปกติ — ระยะก่อน block ที่ไม่ใช่ตัวแรก */
+${flowRules(FLOW_CHILD, "var(--dk-flow, var(--d-flow))")}
+/* ②b block หนัก (docs/03 §1.4) */
+${flowRules(`${FLOW_HEAVY}${FLOW_CHILD}`, "var(--dk-flow, var(--d-flow-loose))")}
+/* ②c container แน่นกว่า: การ์ด · callout · details · โน้ตข้าง */
+${FLOW_SCOPE} ${FLOW_TIGHT} > ${FLOW_CHILD} { margin-block-start: var(--dk-flow, var(--d-space-2)); }
+/* ②d ย่อหน้าซ้อนในข้อ — แน่นกว่า flow ปกติ · nested list ยังใช้ขั้น 1 (\`li + li\`) */
+${FLOW_SCOPE} li > :not(:first-child):not(:is(ul, ol)):not(${FLOW_LEADING} + *) { margin-block-start: var(--dk-flow, var(--d-space-2)); }
+/* ③ ตัวแรกของ container ไม่มีระยะก่อน — heading ตัวแรกก็ด้วย
+   (ไม่งั้น h2 ตัวแรกของ section/tab panel ดันลง 64px ต่างจากย่อหน้าแรก)
+   specificity (0,2,x) ต้องชนะ heading rule (0,1,1) แต่ต่ำกว่า flow rule (0,2,1+) */
+${[
+  `${FLOW_SCOPE} > :first-child`,
+  `${FLOW_SCOPE} ${FLOW_NESTED} > :first-child`,
+  `${FLOW_SCOPE} ${FLOW_TIGHT} > :first-child`,
+  `${FLOW_SCOPE} li > :first-child`,
+].join(",\n")} {
+  margin-block-start: 0;
+}
+`
+
 export const PROSE_CSS = `
 * { box-sizing: border-box; }
 
@@ -120,7 +214,7 @@ export const PROSE_CSS = `
   line-height: var(--k-leading-body);
   overflow-wrap: break-word;
 }
-.doku-prose > * + * { margin-top: var(--d-flow); }
+${PROSE_RHYTHM_CSS}
 .doku-prose :is(h1, h2, h3, h4, h5, h6) {
   margin-block-start: var(--d-rhythm-h4);
   margin-block-end: var(--d-rhythm-after);
@@ -137,9 +231,8 @@ export const PROSE_CSS = `
 .doku-prose h6 { font-size: var(--d-text-sm); color: var(--d-text-muted); }
 /* h1 ในเนื้อหา (เอกสารที่ไม่มี meta.title) — เท่ากับชื่อเรื่องบน header */
 .doku-prose h1 { margin-block-start: 0; font-size: var(--d-read-h1); letter-spacing: -0.014em; }
-.doku-prose > :is(h1, h2, h3, h4, h5, h6):first-child { margin-block-start: 0; }
 /* หัวข้อไม่ต้องมีเส้นใต้ — hierarchy มาจากขนาด + ระยะ (docs/08 ข้อ 47–48) */
-.doku-prose p { margin: 0; text-wrap: pretty; }
+.doku-prose p { text-wrap: pretty; }
 .doku-prose :lang(th) { line-height: var(--k-leading-th); }
 .doku-prose a { color: var(--d-accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 .doku-prose strong { font-weight: 600; }
@@ -148,7 +241,6 @@ export const PROSE_CSS = `
 .doku-prose li > :is(ul, ol) { margin-top: var(--d-space-1); }
 .doku-prose li.task-list-item { list-style: none; margin-left: calc(var(--d-space-6) * -1); }
 .doku-prose blockquote {
-  margin: 0;
   padding: var(--d-space-1) var(--d-space-6);
   border-left: 2px solid var(--d-border-strong);
   color: var(--d-text-muted);
@@ -186,7 +278,6 @@ export const PROSE_CSS = `
 }
 .doku-prose pre {
   position: relative;
-  margin: 0;
   padding: var(--d-space-4) var(--d-space-5);
   overflow: auto;
   border: 1px solid var(--d-border);
@@ -289,7 +380,13 @@ export const PROSE_CSS = `
   .doku-card, article { border: 0 !important; box-shadow: none !important; max-width: none !important; padding: 0 !important; }
   .doku-prose a { color: inherit; text-decoration: underline; }
   .doku-prose pre, .doku-prose table, .doku-prose [data-block='callout'] { break-inside: avoid; }
-  .doku-prose [data-block='margin-note'] { float: none; width: auto; margin: var(--d-space-3) 0; }
+  /* พิมพ์: โน้ตข้างเป็น block ธรรมดา — ระยะจาก flow ผ่าน \`--dk-flow\` (ไม่ตั้ง margin เอง) */
+  .doku-prose [data-block='margin-note'] {
+    float: none;
+    width: auto;
+    --dk-flow: var(--d-space-3);
+    margin-block-end: var(--d-space-3);
+  }
   .doku-prose [data-part='tab-panel'] { display: block !important; }
 }
 `
