@@ -50,20 +50,26 @@ describe("parseArgs", () => {
 })
 
 describe("doku render (M0 definition of done)", () => {
-  testCli("render เอกสารจาก vault → HTML หน้าเดียวจบ", async () => {
-    const { code, stdout, stderr } = await doku([
+  testCli("render เอกสารจาก vault → HTML หน้าเดียวจบ", () => {
+    // เหตุผลเดียวกับ test ถัดไป: full page > 400KB (KaTeX CSS) → อ่านผ่าน pipe ไม่เสถียร
+    const dir = mkdtempSync(join(tmpdir(), "doku-page-"))
+    const out = join(dir, "out.html")
+    const { code, stderr } = doku([
       "render",
       "--vault",
       VAULT,
       "projects/doku/design",
+      "--out",
+      out,
     ])
     expect(code).toBe(0)
-    expect(stdout).toContain("<!doctype html>")
-    expect(stdout).toContain("doku-prose")
-    expect(stdout).toContain("Doku Design")
-    expect(stdout).toContain('data-accent style="--doc-accent: #7c3aed"')
+    const html = readFileSync(out, "utf8")
+    expect(html).toContain("<!doctype html>")
+    expect(html).toContain("doku-prose")
+    expect(html).toContain("Doku Design")
+    expect(html).toContain('data-accent style="--doc-accent: #7c3aed"')
     // M2: block ถูก render จริง — ต้องเห็น markup ของ design system (ไม่ใช่ code block เตือน)
-    expect(stdout).toContain('data-block="callout"')
+    expect(html).toContain('data-block="callout"')
     expect(stderr).not.toContain("block_unimplemented")
   })
 
@@ -87,13 +93,20 @@ describe("doku render (M0 definition of done)", () => {
     expect(stdout).toContain("<p>เนื้อหา</p>")
   })
 
-  testCli("โจทย์ M0: code สี + สมการ ครบในหน้าเดียว", async () => {
+  testCli("โจทย์ M0: code สี + สมการ ครบในหน้าเดียว", () => {
     const md = "# Demo\n\n$$E = mc^2$$\n\n```ts\nconst x = 1\n```\n"
-    const { code, stdout } = await doku(["render", "--stdin"], md)
+    // อ่านจาก "ไฟล์" ไม่ใช่ pipe: full page มี KaTeX CSS ~440KB และ Bun ยัง truncate stdout
+    // จาก subprocess เป็นครั้งคราว (วัดได้ 1/6 — ตัดที่ ~400KB ทำให้ body หายทั้งท่อน)
+    // subprocess ที่เขียนลงไฟล์เองไม่พลาด → ใช้ --out แล้วอ่านไฟล์
+    const dir = mkdtempSync(join(tmpdir(), "doku-m0-"))
+    const out = join(dir, "out.html")
+    const { code } = doku(["render", "--stdin", "--out", out], md)
     expect(code).toBe(0)
-    expect(stdout).toContain('class="katex"')
-    expect(stdout).toContain("data:font/woff2;base64") // KaTeX CSS ฝังฟอนต์ → offline ได้
-    expect(stdout).toContain("--shiki-dark")
+    const html = readFileSync(out, "utf8")
+    expect(html.length).toBeGreaterThan(400_000) // กัน truncation กลับมาแบบเงียบ ๆ
+    expect(html).toContain('class="katex"')
+    expect(html).toContain("data:font/woff2;base64") // KaTeX CSS ฝังฟอนต์ → offline ได้
+    expect(html).toContain("--shiki-dark")
   })
 
   testCli("--json ให้ agent parse ได้", async () => {
