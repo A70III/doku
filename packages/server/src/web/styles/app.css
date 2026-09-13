@@ -181,7 +181,9 @@
 .doku-search-trigger {
   display: flex;
   align-items: center;
-  gap: var(--d-space-2);
+  /* gap เป็น --d-space-1 ให้ "ค้นหา / คำสั่ง" + kbd อยู่บรรทัดเดียวใน rail 248px
+     (rail 248 − gutter 24×2 = 200px · เดิม gap space-2 ทำ span ไทยถูกตัดเป็น 2 บรรทัด) */
+  gap: var(--d-space-1);
   width: 100%;
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--d-border);
@@ -199,6 +201,8 @@
 .doku-search-trigger span {
   flex: 1;
   text-align: start;
+  /* ห้ามตัดคำ — ข้อความไทยยาวขอบกล่องพอดี ตัดได้เมื่อ font กว้างผิดคาด */
+  white-space: nowrap;
 }
 .doku-search-trigger kbd {
   font-family: var(--d-font-mono);
