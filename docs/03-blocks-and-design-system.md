@@ -665,6 +665,19 @@ migrate แล้วใน UI pass ([08 ข้อ 36](08-decisions.md))
 - syntax marker ซ่อนเมื่อカーอยู่นอก node · node ที่ render ได้ (table · figure · code · math · `:::`) กลายเป็น widget ในบรรทัด
 - **block control strip** ลอยเหนือบรรทัดแรกของ `:::` เมื่อカーเข้า → แก้ variant/`color=`/`title=`/`icon=`/align/width แล้ว **เขียนกลับเป็นข้อความ directive**
   · สีของ `==mark==` แก้ผ่านแถบ swatch เมื่อカーอยู่ในช่วง — เขียนกลับ `{.color}` ใน markdown เสมอ (docs/08 ข้อ 6/55)
+- **overlay บนคอลัมน์อ่าน** (ทั้งหมดเป็น `position: absolute` ใน `.doku-article` · สร้างโดย client ·
+  สร้างครั้งเดียว + sync ค่าในที่ ห้าม rebuild ต่อ keystroke · ซ่อนใน `@media print` · z-index: gutter 25 < drop 26 < strip 30 < **bubble 32** < link popover 33)
+
+  | element | เกิดเมื่อ | ตำแหน่ง/ขนาด | token |
+  |---|---|---|---|
+  | `.z-doku-gutter` (`+` `⋮⋮`) | hover/แตะบรรทัด | ชิดซ้ายของ block · 40px · delay 200ms + hit-area | `--d-space-1`, `--d-radius-sm` |
+  | `.doku-block-strip` | カーเข้า `:::` | เหนือบรรทัด fence · ชิดขวาคอลัมน์ | `--d-space-2`, `--d-radius-md`, `--k-shadow-md` |
+  | `.doku-mark-strip` | カーใน `==…==` | เหนือบรรทัดนั้น (mark ชนะ block strip) | เหมือน block strip |
+  | `.z-doku-inline-bar` | **เลือกข้อความ** (ไม่ว่าง) | เหนือช่วงที่เลือก · จัดกลาง · ปุ่ม B/I/S/code + ไฮไลต์ + ลิงก์ | `--d-space-1`, `--d-radius-md`, `--k-shadow-md` |
+  | `.doku-inline-link` | `Mod+K` / ปุ่มลิงก์ | ใต้ช่วงที่เลือก · ช่อง URL + นำไปใช้/ลบ | `--d-border-control` (เส้นขอบคอนโทรล, docs/03 §1.1) |
+
+  · ปุ่มที่ active ใช้ `aria-pressed` → `--d-accent-weak` พื้น + `--d-accent` ตัวอักษร (ไม่ใช้สีอิ่มบน tint)
+  · ทุกคอนโทรลมี `aria-label` ไทย + focus ring จาก global `:focus-visible` · ทั้งชุดซ่อนเมื่อカーย้ายออก/เลือก block
 - autosave ตาม debounce · ออกด้วย `Esc` (カーออกจากเอกสาร → คีย์ลัดงานอ่านกลับมาทำงาน)
 - ยังไม่มีカー = หน้าตาเหมือนหน้าอ่านทุกอย่าง ต่างกันแค่พิมพ์ได้
 

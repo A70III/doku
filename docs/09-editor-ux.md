@@ -44,6 +44,9 @@
 | 7 | ไม่มี inline layer | ไม่มี paste handler, ไม่มี bubble (grep `paste`/`clipboard` เจอแค่ copy URL) | ต้องพิมพ์ `**bold**` เอง · paste จากเว็บได้ข้อความแบน |
 | 8 | ไม่มี hover affordance | `app.css` ไม่มี hover ของบรรทัดเลย (มีแต่ hover ของ chrome) | เอกสารไม่ตอบสนองเมาส์ → รู้สึกเป็น "source view" |
 
+> **ปิดครบทั้ง 8 ข้อแล้วที่ M3.2** — ข้อ 1–2 Track A · ข้อ 4–6 Track B · ข้อ 3, 8 Track C · **ข้อ 7 Track D**
+> (ตารางนี้เก็บไว้เป็นหลักฐานของ *สภาพก่อน* M3.2 — ไม่ใช่สถานะปัจจุบัน)
+
 ### 2.2 "The Notion experience" คืออะไร — จากแหล่งจริง
 
 Notion เอง ([Intro to writing & editing](https://www.notion.com/help/writing-and-editing-basics)) นิยามด้วย **3 เครื่องมือ**:
@@ -97,6 +100,10 @@ Markdown style ระหว่างพิมพ์ (`#` → H1 · `[]` → to-d
 | `Mod-Shift-ArrowUp/Down` | ว่าง (`Alt-ArrowUp/Down` = moveLine อยู่) | **move block** | ตรงกับ Notion |
 | `Tab` / `Shift-Tab` | `indentWithTab` (indentMore) | **nest/un-nest block ตาม block model** | ต้อง override `indentWithTab` |
 | `Mod-Enter` `Mod-[` `Mod-]` `Mod-Backspace` | คงไว้ | คงไว้ (ขยายให้ block-aware) | ไม่ชน |
+
+**implement แล้ว (Track D):** ผูก `Mod-b` `Mod-i` `Mod-e` `Mod-Shift-s` `Mod-k` ตรง ๆ ก่อน `defaultKeymap`
+· **คีย์ของผิวเอกสารชนะ chrome** — `Mod+K`/`Mod+E` ในเอกสารเป็นของ CM6, command palette/`カーในเอกสารนี้` ทำงานเมื่อ focus อยู่นอกผิวเอกสาร (รวม bubble/link popover) → [08 ข้อ 74](08-decisions.md)
+· ตรวจกับ Chromium จริงแล้ว (Playwright): ตัวอักษรตัวพิมพ์ใหญ่คู่ `Shift` (`Control+Shift+S`) ถูก match ผ่าน fallback ของ `w3c-keyname` ✓
 
 ---
 
@@ -222,14 +229,17 @@ non-list แปลงเป็น list item ก่อน) · `Shift+Tab` = ย�
 - **DoD:** ทุก op ที่ทำด้วยเมาส์มีคีย์ลัดเทียบเท่า · mouseup นอก editor = ยกเลิก ไม่แตะไฟล์ ·
   perf: pointer ≤ 1 งาน/frame · เลือก parent = เลือกลูก
 
-### Track D — inline layer (M)
+### Track D — inline layer (M) ✅
 
-- [ ] bubble toolbar เมื่อเลือกข้อความ: B · I · S · code · link · highlight สี → เขียน markdown
-- [ ] `Cmd+B/I/E` · **override `Mod-i`/`Mod-/`** ก่อน `defaultKeymap` (§2.3) · `Cmd+K` link popover (แก้/ลบ URL)
-- [ ] paste URL ทับข้อความที่เลือก → link (`pasteURLAsLink` มีใน `lang-markdown`)
-- [ ] smart paste HTML → markdown (ผ่าน core เพื่อไม่ให้ logic ซ้ำ: ใช้ sanitize allowlist เดิม)
-- [ ] `:emoji:`
-- **DoD:** path bubble ไม่มี syntax โผล่ · paste จากหน้าเว็บได้ markdown ที่ `doku check` = 0 error
+- [x] bubble toolbar เมื่อเลือกข้อความ (B · I · S · code · link · highlight) → เขียน markdown
+      (`.z-doku-inline-bar` + `.doku-inline-link` = overlay ของ client · สร้างครั้งเดียว + sync `aria-pressed` ในที่ ไม่ rebuild)
+- [x] `Cmd+B/I/E` + **override `Mod-i`/`Mod-/`** ก่อน `defaultKeymap` (§2.3) · `Cmd+K` link popover (แก้/ลบ URL)
+      (`Mod-/` = Turn into อยู่ที่ Track C แล้ว · คีย์ของผิวเอกสารชนะ chrome — [08 ข้อ 74](08-decisions.md))
+- [x] paste URL ทับข้อความที่เลือก → link (`pasteURLAsLink` ของ lang-markdown — ไม่ต้องเขียนเอง)
+- [x] smart paste HTML → markdown (ผ่าน `editor/inline.ts` ไม่ให้ logic ซ้ำ · `script`/`style`/`iframe` ทิ้งทั้งก้อน)
+- [x] `:emoji:` (พิมพ์ `:name:` → อักขระจริง · IME guard)
+- **DoD:** path bubble ไม่มี syntax โผล่ · paste จากหน้าเว็บได้ markdown ที่ `doku check` = 0 error ✅
+      (เทสต์: `packages/server/test/inline.test.ts` + `inline-layer.test.ts` · smoke ใน Chromium จริง: bubble/B/I/E/Shift+S/K · วาง HTML · `:smile:` · autosave)
 
 ### Track E — feel / perf / a11y lock (S/M)
 

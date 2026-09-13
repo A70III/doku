@@ -1204,6 +1204,106 @@ html[data-zen] .doku-main {
   background: var(--d-accent);
 }
 
+/* ══ inline layer (M3.2 Track D — docs/09 §3.3) ═══════════════════════════
+   bubble ของ selection + link popover · overlay ของ client (absolute ใน .doku-article)
+   · chrome = Tailwind ไม่ได้ (นี่คือ content CSS layer — docs/08 ข้อ 28/53)
+   · สี/ระยะ/มุม จาก token เท่านั้น (ห้าม hardcode — docs/03 §1.4) */
+.z-doku-inline-bar {
+  position: absolute;
+  z-index: 32;
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-space-1);
+  max-width: calc(100vw - var(--d-space-4));
+  padding: var(--d-space-1);
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-md);
+  background: var(--k-bg);
+  box-shadow: var(--k-shadow-md);
+}
+.z-doku-inline-bar[hidden] {
+  display: none;
+}
+.doku-inline-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--d-space-1);
+}
+.doku-inline-btn {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 var(--d-space-1);
+  border: 0;
+  border-radius: var(--d-radius-sm);
+  background: transparent;
+  color: var(--k-text);
+  font-family: var(--d-font-sans);
+  font-size: var(--d-text-sm);
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--d-dur-fast) var(--d-ease), color var(--d-dur-fast) var(--d-ease);
+}
+.doku-inline-btn:hover,
+.doku-inline-btn:focus-visible {
+  background: var(--d-bg-subtle);
+  color: var(--d-accent);
+}
+.doku-inline-btn[aria-pressed='true'] {
+  background: var(--d-accent-weak);
+  color: var(--d-accent);
+}
+.doku-inline-wide {
+  font-size: var(--d-text-xs);
+}
+.doku-inline-sep {
+  width: 1px;
+  height: 16px;
+  margin-inline: var(--d-space-1);
+  background: var(--d-border);
+}
+.doku-inline-colors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--d-space-1);
+  padding: var(--d-space-1);
+  border-top: 1px solid var(--d-border);
+}
+.doku-inline-colors[hidden] {
+  display: none;
+}
+.doku-inline-link {
+  position: absolute;
+  z-index: 33;
+  display: flex;
+  align-items: center;
+  gap: var(--d-space-2);
+  max-width: min(24rem, calc(100vw - var(--d-space-4)));
+  padding: var(--d-space-2);
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-md);
+  background: var(--k-bg);
+  box-shadow: var(--k-shadow-md);
+}
+.doku-inline-link[hidden] {
+  display: none;
+}
+.doku-inline-link-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 16rem;
+  padding: var(--d-space-1) var(--d-space-2);
+  border: 1px solid var(--d-border-control);
+  border-radius: var(--d-radius-sm);
+  background: var(--k-bg);
+  font-family: var(--d-font-mono);
+  font-size: var(--d-text-sm);
+  color: var(--k-text);
+}
+
 @media print {
   .doku-rail,
   .doku-toc-col,
@@ -1213,6 +1313,8 @@ html[data-zen] .doku-main {
   .doku-overlay,
   .doku-block-strip,
   .doku-mark-strip,
+  .z-doku-inline-bar,
+  .doku-inline-link,
   .doku-gutter,
   .cm-cursor,
   .cm-dropCursor,

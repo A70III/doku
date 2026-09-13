@@ -895,6 +895,9 @@ ${INTERACTIONS_JS}
         .map((block) => block.name),
       onDirective: (info) => renderDirectiveStrip(info),
       onMark: (info) => renderMarkStrip(info),
+      // Track D: bubble toolbar + Mod+K link popover
+      onInlineSelection: (info) => renderInlineBar(info),
+      onLink: () => openLinkPopover(),
       onTurnInto: (target) => openTurnIntoMenu(target),
       onChange: markDirty,
       onSave: () => flushSave(true),
@@ -1362,8 +1365,9 @@ ${INTERACTIONS_JS}
       hideStrip();
       return;
     }
-    // カーอยู่ใน mark → mark bar ชนะ — block strip หลบจนกว่าカーออกจาก mark
-    if (markInfo) {
+    // bubble ของ selection / mark bar ชนะ block strip — strip หลบจนกว่าカーจะว่าง
+    // (bubble อธิบาย "ข้อความที่เลือก" ซึ่งเฉพาะจุดกว่า block ที่カーอยู่)
+    if (markInfo || inlineInfo) {
       hideStrip();
       return;
     }
@@ -1404,12 +1408,17 @@ ${INTERACTIONS_JS}
       return;
     }
     stripPin = false;
-    // คลิกนอกทั้ง editor และแผง → ซ่อนแผง (การออกจากโหมดเขียนจัดการใน click handler หลัก)
+    // คลิกนอกทั้ง editor และแผง (รวม bubble/link popover ของ Track D) → ซ่อนแผง
+    // (การออกจากโหมดเขียนจัดการใน click handler หลัก)
+    const panels = [inlineEl, linkPopEl];
     const inEditor =
       writing.mounted &&
-      (writing.mounted.contains(event.target) || inRect(writing.mounted, event, 4));
+      (writing.mounted.contains(event.target) ||
+        inRect(writing.mounted, event, 4) ||
+        panels.some((panel) => panel && (panel.contains(event.target) || inRect(panel, event, 4))));
     if (!inEditor) hideStrip();
     if (!inEditor) hideMarkBar();
+    if (!inEditor) hideInlineBar();
   });
 
   // แผงลอยอยู่บนเอกสาร → ตำแหน่งต้องตาม scroll/resize ด้วย (delta ของ editor host)
@@ -1431,6 +1440,9 @@ ${INTERACTIONS_JS}
       const columnWidth = articleEl ? articleEl.clientWidth : barWidth;
       el.style.left = Math.max(0, columnWidth - barWidth) + "px";
     }
+    // bubble ของ selection อิงพิกัดบนจอที่ editor ส่งมา — หลัง scroll ข้อมูลเก่า
+    // (คำนวณใหม่ทุก scroll = เปลืองต่อ frame) → ซ่อน แล้วเกิดใหม่เมื่อขยับカー (docs/09 §3.3)
+    hideInlineBar();
   }
   window.addEventListener("scroll", onViewportMove, true);
   window.addEventListener("resize", onViewportMove);
@@ -1906,6 +1918,228 @@ ${INTERACTIONS_JS}
     buildMarkBar(el, info, key);
   }
 
+  /* ── inline bubble + link popover (M3.2 Track D — docs/09 §3.3/§4) ───────
+     overlay ของ client เหมือน gutter/strip: สร้างครั้งเดียว · ซิงก์ attribute ในที่
+     ห้าม rebuild DOM ต่อ keystroke · ตำแหน่ง = จาก rect (viewport) ที่ editor ส่งมา
+     แปลงเป็นพิกัดใน .doku-article (position: relative) */
+  const INLINE_MARKS = [
+    ["bold", "B", "ตัวหนา (Mod+B)"],
+    ["italic", "I", "ตัวเอียง (Mod+I)"],
+    ["strike", "S", "ขีดฆ่า (Mod+Shift+S)"],
+    ["code", "</>", "โค้ด (Mod+E)"],
+  ];
+  let inlineEl = null;
+  let inlineInfo = null;
+  let linkPopEl = null;
+
+  /** วาง overlay เทียบกับ rect ของ selection (above = bubble · below = link popover)
+   *  จัดกลางบนช่วงที่เลือกในพิกัด viewport แล้วค่อย clamp — ยอมให้ล้นออกนอกคอลัมน์อ่านได้
+   *  (บับเบิลกว้างกว่าคอลัมน์อ่านเมื่อเลือกคำใกล้ขอบ — ห้ามให้ตกจอ) และ **พลิกด้าน**
+   *  เมื่อไม่มีที่ (บับเบิลบนขอบบน → ลงล่าง · popover ล่างขอบล่าง → ขึ้นบน) */
+  function positionOverlay(el, rect, placement) {
+    if (!el || !articleEl) return;
+    const base = articleEl.getBoundingClientRect();
+    const width = el.offsetWidth;
+    const height = el.offsetHeight;
+    const centered = rect.left + (rect.right - rect.left) / 2 - width / 2;
+    // bubble = จัดกลางบนช่วงที่เลือก · popover = ชิดซ้ายของช่วงที่เลือก (เหมือน Notion
+    // — popover กว้างกว่าคำที่เลือกมาก ถ้าจัดกลางจะดูลอยไม่ผูกกับข้อความ)
+    const anchor = placement === "below" ? rect.left : centered;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, anchor));
+    el.style.left = left - base.left + "px";
+    let top;
+    if (placement === "below") {
+      top = rect.bottom + 8;
+      if (top + height > window.innerHeight - 8) top = rect.top - height - 8;
+    } else {
+      top = rect.top - height - 8;
+      if (top < 8) top = rect.bottom + 8;
+    }
+    el.style.top = top - base.top + "px";
+  }
+
+  function hideLinkPopover() {
+    if (linkPopEl) linkPopEl.hidden = true;
+  }
+
+  function hideInlineBar() {
+    inlineInfo = null;
+    if (inlineEl) inlineEl.hidden = true;
+    hideLinkPopover();
+  }
+
+  function inlineBarEl() {
+    if (inlineEl || !articleEl) return inlineEl;
+    const el = document.createElement("div");
+    el.id = "doku-inline-bar";
+    el.className = "z-doku-inline-bar";
+    el.hidden = true;
+    el.setAttribute("role", "toolbar");
+    el.setAttribute("aria-label", "จัดรูปแบบข้อความ");
+    const row = document.createElement("div");
+    row.className = "doku-inline-row";
+    el.appendChild(row);
+    for (const mark of INLINE_MARKS) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "doku-inline-btn";
+      button.setAttribute("data-mark", mark[0]);
+      button.setAttribute("aria-label", mark[2]);
+      button.setAttribute("aria-pressed", "false");
+      button.textContent = mark[1];
+      button.addEventListener("click", () => {
+        if (writing.handle) writing.handle.toggleMark(mark[0]);
+      });
+      row.appendChild(button);
+    }
+    const sep = document.createElement("span");
+    sep.className = "doku-inline-sep";
+    row.appendChild(sep);
+    const colors = document.createElement("div");
+    colors.className = "doku-inline-colors";
+    colors.setAttribute("role", "group");
+    colors.setAttribute("aria-label", "สีไฮไลต์");
+    colors.hidden = true;
+    const colorsToggle = document.createElement("button");
+    colorsToggle.type = "button";
+    colorsToggle.className = "doku-inline-btn doku-inline-wide";
+    colorsToggle.setAttribute("data-action", "colors");
+    colorsToggle.setAttribute("aria-label", "ไฮไลต์สี");
+    colorsToggle.setAttribute("aria-expanded", "false");
+    colorsToggle.textContent = "ไฮไลต์";
+    colorsToggle.addEventListener("click", () => {
+      colors.hidden = !colors.hidden;
+      colorsToggle.setAttribute("aria-expanded", String(!colors.hidden));
+    });
+    row.appendChild(colorsToggle);
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "doku-inline-btn doku-inline-wide";
+    link.setAttribute("data-action", "link");
+    link.setAttribute("aria-label", "ลิงก์ (Mod+K)");
+    link.textContent = "ลิงก์";
+    link.addEventListener("click", () => openLinkPopover());
+    row.appendChild(link);
+    for (const color of MARK_COLORS) {
+      const swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.className = "doku-mark-swatch";
+      swatch.setAttribute("data-color", color);
+      swatch.setAttribute("aria-label", "ไฮไลต์: " + (MARK_COLOR_LABELS[color] || color));
+      swatch.addEventListener("click", () => {
+        if (writing.handle) writing.handle.setHighlight(color);
+      });
+      colors.appendChild(swatch);
+    }
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "doku-mark-clear";
+    clear.textContent = "ไม่ระบุสี";
+    clear.setAttribute("aria-label", "ไม่ระบุสี (ลบสีของไฮไลต์)");
+    clear.addEventListener("click", () => {
+      if (writing.handle) writing.handle.setHighlight(null);
+    });
+    colors.appendChild(clear);
+    el.appendChild(colors);
+    articleEl.appendChild(el);
+    inlineEl = el;
+    return el;
+  }
+
+  function renderInlineBar(info) {
+    if (!writing.handle) {
+      hideInlineBar();
+      return;
+    }
+    inlineInfo = info;
+    if (!info) {
+      hideInlineBar();
+      return;
+    }
+    // bubble แย่งพื้นที่กับ block strip / mark strip → แผงเฉพาะจุดชนะทั้งคู่
+    hideStrip();
+    hideMarkBar();
+    const el = inlineBarEl();
+    if (!el) return;
+    for (const button of el.querySelectorAll("[data-mark]")) {
+      const mark = button.getAttribute("data-mark");
+      button.setAttribute("aria-pressed", String(info.marks.indexOf(mark) !== -1));
+    }
+    el.hidden = false;
+    positionOverlay(el, info.rect, "above");
+    if (linkPopEl && !linkPopEl.hidden) {
+      // อย่าปิด popover ที่ผู้ใช้กำลังพิมพ์อยู่ — แค่ย้ายตาม selection ใหม่
+      if (linkPopEl.contains(document.activeElement)) {
+        positionOverlay(linkPopEl, info.rect, "below");
+      } else {
+        hideLinkPopover();
+      }
+    }
+  }
+
+  function linkPopoverEl() {
+    if (linkPopEl || !articleEl) return linkPopEl;
+    const el = document.createElement("form");
+    el.id = "doku-link-pop";
+    el.className = "doku-inline-link";
+    el.hidden = true;
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-label", "ลิงก์");
+    const input = document.createElement("input");
+    input.type = "url";
+    input.className = "doku-inline-link-input";
+    input.setAttribute("aria-label", "URL ของลิงก์");
+    input.placeholder = "https://…";
+    el.appendChild(input);
+    const apply = document.createElement("button");
+    apply.type = "submit";
+    apply.className = "doku-btn doku-btn-accent";
+    apply.textContent = "นำไปใช้";
+    el.appendChild(apply);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "doku-btn";
+    remove.textContent = "ลบ";
+    remove.setAttribute("aria-label", "ลบลิงก์ (เหลือข้อความ)");
+    remove.addEventListener("click", () => {
+      if (writing.handle) writing.handle.setLink("");
+      hideLinkPopover();
+    });
+    el.appendChild(remove);
+    el.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!writing.handle) return;
+      const value = input.value.trim();
+      if (value) writing.handle.setLink(value);
+      hideLinkPopover();
+    });
+    // input อยู่ใน overlay — ห้ามให้ global keydown (palette/Esc) แย่งคีย์
+    el.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      hideLinkPopover();
+      focusSurface();
+    });
+    articleEl.appendChild(el);
+    linkPopEl = el;
+    return el;
+  }
+
+  function openLinkPopover() {
+    if (!writing.handle) return;
+    const info = inlineInfo || writing.handle.inlineSelection();
+    if (!info) return;
+    const el = linkPopoverEl();
+    if (!el) return;
+    const input = el.querySelector("input");
+    input.value = (info.link && info.link.url) || "";
+    el.hidden = false;
+    positionOverlay(el, info.rect, "below");
+    input.focus();
+    input.select();
+  }
+
   /* ── command palette ─────────────────────────────────────────────────── */
 
   let paletteDocs = null;
@@ -2368,15 +2602,29 @@ ${INTERACTIONS_JS}
 
   /* ── keyboard ────────────────────────────────────────────────────────── */
 
+  /** โฟกัสอยู่ใน "ผิวเอกสาร" ไหม (editor หรือ overlay ของ Track D) — คีย์ของ Doku
+   *  เป็นเจ้าของเมื่อพิมพ์เอกสาร (docs/08 ข้อ 54/70) */
+  function inDocSurface() {
+    const active = document.activeElement;
+    if (!active) return false;
+    if (writing.mounted && writing.mounted.contains(active)) return true;
+    return !!((inlineEl && inlineEl.contains(active)) || (linkPopEl && linkPopEl.contains(active)));
+  }
+
   document.addEventListener("keydown", (event) => {
     const meta = event.metaKey || event.ctrlKey;
+    const inEditor = inDocSurface();
     if (meta && event.key.toLowerCase() === "k") {
+      // ในตัวเอกสาร CM6 เป็นเจ้าของ Mod+K = link popover (docs/09 §2.3)
+      if (inEditor) return;
       event.preventDefault();
       if (paletteEl.hidden) openPalette();
       else closePalette();
       return;
     }
     if (meta && event.key.toLowerCase() === "e") {
+      // ในตัวเอกสาร Mod+E = inline code (Track D) — อย่าแย่งไป focus surface
+      if (inEditor) return;
       if (currentDocPath()) {
         event.preventDefault();
         focusSurface();

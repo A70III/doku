@@ -181,11 +181,13 @@
 - [x] **C4** drag & drop: drop indicator · depth จากตำแหน่งแนวนอน · multi-block · long-press 150ms (touch) · pointer ≤ 1 งาน/frame
       (ยกเลิกได้: `pointercancel`/วางที่เดิมไม่แตะไฟล์)
 
-### Track D — inline layer
+### Track D — inline layer ✅
 
-- [ ] bubble toolbar เมื่อเลือกข้อความ (B · I · S · code · link · highlight) → เขียน markdown
-- [ ] `Cmd+B/I/E` + **override `Mod-i`/`Mod-/` ก่อน `defaultKeymap`** · link popover (`Cmd+K`)
-- [ ] paste URL ทับข้อความที่เลือก → link · smart paste HTML → markdown · `:emoji:`
+- [x] bubble toolbar เมื่อเลือกข้อความ (B · I · S · code · link · highlight) → เขียน markdown
+      (`web/editor/inline.ts` = pure md → md · bubble/link popover เป็น overlay ของ client — docs/08 ข้อ 73)
+- [x] `Cmd+B/I/E` + **override `Mod-i`/`Mod-/`** ก่อน `defaultKeymap` · link popover (`Cmd+K`) แก้/ลบ URL
+- [x] paste URL ทับข้อความที่เลือก → link · smart paste HTML → markdown (allowlist เดียวกับ sanitize)
+      · `:emoji:` — คีย์ในเอกสารชนะ chrome (docs/08 ข้อ 74/75)
 
 ### Track E — quality lock + asset charset (ข้อ 72)
 

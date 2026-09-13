@@ -57,6 +57,20 @@ import {
   type TurnInto,
   turnIntoBlock,
 } from "./editor/blocks.ts"
+import {
+  alignPaste,
+  applyLink,
+  detectMarks,
+  type HtmlNode,
+  htmlToMarkdown,
+  type InlineMark,
+  linkAt,
+  minimalChange,
+  replaceEmoji,
+  setHighlightColor,
+  type TextEdit,
+  toggleInlineMark,
+} from "./editor/inline.ts"
 
 export interface DokuEditorHandle {
   getDoc(): string
@@ -103,6 +117,27 @@ export interface DokuEditorHandle {
   patchMark(color: string | null): void
   /** ลบ directive block ที่カーอยู่ทั้ง block (รวม fence ปิด) */
   removeDirective(): void
+  /* ── inline layer (Track D) ── */
+  /** ข้อความที่เลือกอยู่ (null = ว่าง/เป็น block selection) — bubble toolbar */
+  inlineSelection(): InlineSelection | null
+  /** ครอบ/ถอด mark ที่ selection (bubble + `Mod+B/I/E`/`Mod+Shift+S`) */
+  toggleMark(kind: InlineMark, color?: string | null): void
+  /** ตั้งสีของ `==…==` ที่ selection (null = เอาเฉพาะ `{.color}` ออก) */
+  setHighlight(color: string | null): void
+  /** ใส่/แก้/ลบลิงก์ (`url` ว่าง = ถอดลิงก์เหลือข้อความ) */
+  setLink(url: string): void
+}
+
+/** ข้อมูลของข้อความที่เลือก — client ใช้เปิด bubble toolbar (Track D) */
+export interface InlineSelection {
+  from: number
+  to: number
+  /** พิกัดบนจอ (viewport) ของช่วงที่เลือก — ไม่รวม scroll */
+  rect: { left: number; right: number; top: number; bottom: number }
+  /** mark ที่ selection อยู่ในช่วงของมัน — client ตั้ง aria-pressed */
+  marks: InlineMark[]
+  /** ลิงก์ที่カー/selection อยู่ (null = ยังไม่มี) — popover แก้/ลบได้ */
+  link: { label: string; url: string } | null
 }
 
 export interface DokuEditorOptions {
@@ -128,6 +163,10 @@ export interface DokuEditorOptions {
   onDirective?: (info: DirectiveInfo | null) => void
   /** カ์อยู่ใน `==mark==` หรือไม่ — client ใช้โชว์แถบ swatch สี (docs/08 ข้อ 55) */
   onMark?: (info: MarkInfo | null) => void
+  /** มีข้อความถูกเลือก/カーในลิงก์ — client วาง bubble toolbar (null = ซ่อน) */
+  onInlineSelection?: (info: InlineSelection | null) => void
+  /** `Mod+K` → client เปิด popover แก้ URL ที่พิกัดนี้ (docs/09 §2.3) */
+  onLink?: (info: InlineSelection) => void
   onChange?: (value: string) => void
   onSave?: (value: string) => void
   /** カーออกจาก editor (คลิกนอกกล่อง) — ให้ client ปิดโหมดเขียน */
@@ -908,6 +947,106 @@ function selectBlockAtCursor(view: EditorView): boolean {
   return true
 }
 
+/* ── inline layer (M3.2 Track D — docs/09 §5 Track D) ────────────────────
+   ทุก action เขียนกลับเป็น markdown เสมอ (ไฟล์คือความจริง — docs/08 ข้อ 63)
+   · change ที่เล็กที่สุด (minimalChange) → カーไม่กระโดด/undo ละเอียด
+   · ห้ามแตะระหว่าง IME composition (docs/08 ข้อ 69) */
+
+/** HTML ที่มี "โครงสร้าง" จริง → ค่อยแปลงเป็น markdown (ไม่ทับ paste ข้อความธรรมดา) */
+const STRUCTURED_HTML = /<(h[1-6]|ul|ol|li|table|pre|blockquote|strong|b|em|i|a|img)\b/i
+
+/** html จาก clipboard → markdown (allowlist เดียวกับ sanitize — ไม่มี HTML ดิบหลุดเข้า vault) */
+function htmlToMarkdownBrowser(html: string): string {
+  return htmlToMarkdown(
+    html,
+    (source) =>
+      // DOMParser ของเบราว์เซอร์ — รูปร่างตรงกับ HtmlNode (docs/06: parse แบบ inert)
+      new DOMParser().parseFromString(source, "text/html") as unknown as HtmlNode,
+  )
+}
+
+/** dispatch edit ที่ได้จาก inline.ts — ยิง change/selection ชุดเดียว (userEvent สำหรับ undo) */
+function applyTextEdit(view: EditorView, edit: TextEdit, event: string): boolean {
+  if (!edit.changed) return false
+  const change = minimalChange(view.state.doc.toString(), edit.text)
+  if (!change) return false
+  view.dispatch({
+    changes: change,
+    selection: { anchor: edit.from, head: edit.to },
+    userEvent: event,
+    scrollIntoView: true,
+  })
+  return true
+}
+
+/** ครอบ/ถอด mark ที่ selection ปัจจุบัน (คีย์ลัด + bubble) */
+function toggleMarkAt(view: EditorView, kind: InlineMark, color: string | null = null): boolean {
+  const { from, to } = view.state.selection.main
+  return applyTextEdit(
+    view,
+    toggleInlineMark(view.state.doc.toString(), from, to, kind, color),
+    "doku.inline.mark",
+  )
+}
+
+/** ลิงก์ที่カー/selection สัมผัสอยู่ (ใช้ทั้ง popover และ setLink) */
+function linkAround(
+  view: EditorView,
+): { from: number; to: number; label: string; url: string } | null {
+  const { from, to } = view.state.selection.main
+  const text = view.state.doc.toString()
+  const hit = linkAt(text, from) ?? linkAt(text, to)
+  if (!hit) return null
+  return { from: hit.from, to: hit.to, label: hit.label, url: hit.url }
+}
+
+/** ใส่/แก้/ลบลิงก์ที่ selection (url ว่าง = ถอดลิงก์) */
+function setLinkAt(view: EditorView, url: string): boolean {
+  const { from, to } = view.state.selection.main
+  const existing = linkAround(view)
+  const target = existing ?? { from, to }
+  return applyTextEdit(
+    view,
+    applyLink(view.state.doc.toString(), target.from, target.to, url, target.from),
+    "doku.inline.link",
+  )
+}
+
+/** พิกัดบนจอของช่วงที่เลือก (สำหรับ bubble toolbar) */
+function selectionRect(view: EditorView, from: number, to: number): InlineSelection["rect"] | null {
+  const start = view.coordsAtPos(from, 1)
+  const end = view.coordsAtPos(Math.max(from, to - 1), -1)
+  if (!start || !end) return null
+  return {
+    left: Math.min(start.left, end.left),
+    right: Math.max(start.left, end.left, start.right, end.right),
+    top: Math.min(start.top, end.top),
+    bottom: Math.max(start.bottom, end.bottom),
+  }
+}
+
+/** ข้อมูล inline ของ selection — null = ไม่มีอะไรให้ bubble ทำ */
+function selectionInfo(view: EditorView): InlineSelection | null {
+  const { from, to } = view.state.selection.main
+  // block selection คือการเลือก "block" ไม่ใช่ข้อความ — bubble ต้องไม่โผล่ (docs/09 §4)
+  if (view.state.field(blockSelectionField, false)) return null
+  const existing = linkAround(view)
+  if (from === to) {
+    // カーในลิงก์ = ยังต้องมี popover (แก้/ลบ URL) แต่ไม่มี bubble จัดรูปแบบ
+    if (!existing) return null
+  }
+  const rect = selectionRect(view, from, to)
+  if (!rect) return null
+  const text = view.state.doc.toString()
+  return {
+    from,
+    to,
+    rect,
+    marks: from === to ? [] : detectMarks(text, from, to),
+    link: existing ? { label: existing.label, url: existing.url } : null,
+  }
+}
+
 /* ── slash menu (docs/08 ข้อ 55) ────────────────────────────────────────── */
 
 export interface SlashItem {
@@ -1219,6 +1358,21 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
     keymap.of([
       // คีย์ล็อกของ Doku มาก่อน defaultKeymap (docs/08 ข้อ 70)
       ...markdownKeymap,
+      // inline layer (Track D): Mod+i/Mod+Shift+s/Mod+e/Mod+b/Mod+k — Docs 09 §2.3
+      { key: "Mod-b", preventDefault: true, run: (view) => toggleMarkAt(view, "bold") },
+      { key: "Mod-i", preventDefault: true, run: (view) => toggleMarkAt(view, "italic") },
+      { key: "Mod-Shift-s", preventDefault: true, run: (view) => toggleMarkAt(view, "strike") },
+      { key: "Mod-e", preventDefault: true, run: (view) => toggleMarkAt(view, "code") },
+      {
+        key: "Mod-k",
+        preventDefault: true,
+        run: (view) => {
+          const info = selectionInfo(view)
+          if (!info || !options.onLink) return false
+          options.onLink(info)
+          return true
+        },
+      },
       {
         // ใช้ `shift:` แบบเดียวกับ indentWithTab ของ CM6 — "Shift-Tab" ตรง ๆ ไม่ถูก match
         key: "Tab",
@@ -1288,10 +1442,48 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
         },
       },
     ]),
+    // `:emoji:` — เขียนกลับเป็นอักขระจริงใน markdown (Track D · docs/09 §4)
+    // IME guard: ห้ามแทรกแซงระหว่าง composition (docs/08 ข้อ 69)
+    EditorView.inputHandler.of((view, from, to, text) => {
+      if (view.composing || from !== to) return false
+      if (text !== ":" && text !== " ") return false
+      const doc = view.state.doc.toString()
+      const trigger = text === ":" ? `${doc.slice(0, from)}:` : doc.slice(0, from)
+      const hit = replaceEmoji(trigger, trigger.length)
+      if (!hit) return false
+      const insert = text === ":" ? hit.insert : `${hit.insert} `
+      view.dispatch({
+        changes: { from: hit.from, to: from, insert },
+        selection: { anchor: hit.from + insert.length },
+        userEvent: "input.emoji",
+      })
+      return true
+    }),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) options.onChange?.(update.state.doc.toString())
     }),
     EditorView.domEventHandlers({
+      // smart paste (Track D): HTML จากเว็บ → markdown ผ่าน inline.ts
+      // ปล่อย paste ปกติ (plain text + markdown pasteURLAsLink) เมื่อไม่มี HTML/อยู่ในโค้ด
+      paste: (event, view) => {
+        const data = event.clipboardData
+        if (!data) return false
+        const html = data.getData("text/html")
+        if (!html || !STRUCTURED_HTML.test(html)) return false
+        const { from, to } = view.state.selection.main
+        if (insideCode(view, from, to)) return false
+        const md = htmlToMarkdownBrowser(html)
+        if (!md) return false
+        // カーอยู่กลางบรรทัด + paste เริ่ม block → ขึ้นบรรทัดใหม่ (ไม่งั้นโครงสร้างหาย)
+        const line = view.state.doc.lineAt(from)
+        const insert = alignPaste(line.text.slice(0, from - line.from), md)
+        view.dispatch({
+          changes: { from, to, insert },
+          userEvent: "input.paste",
+          scrollIntoView: true,
+        })
+        return true
+      },
       blur: () => {
         options.onBlur?.()
         return false
@@ -1323,6 +1515,15 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
         // รายงาน mark ก่อน directive — client ให้ mark (ตัวเฉพาะจุดกว่า) ชนะเมื่อทั้งคู่ active
         options.onMark?.(markAtCursor(update.view))
         options.onDirective?.(directiveAtCursor(update.view))
+      }),
+    )
+  }
+
+  if (options.onInlineSelection) {
+    extensions.push(
+      EditorView.updateListener.of((update) => {
+        if (!update.selectionSet && !update.docChanged) return
+        options.onInlineSelection?.(selectionInfo(update.view))
       }),
     )
   }
@@ -1494,6 +1695,25 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
         changes: { from: openLine.from, to: after, insert: "" },
         scrollIntoView: true,
       })
+      view.focus()
+    },
+    inlineSelection: () => selectionInfo(view),
+    toggleMark: (kind, color) => {
+      // bubble/ปุ่ม = โต้ตอบนอก CM → คืนโฟกัสให้พิมพ์ต่อได้ทันที (selection ยังอยู่)
+      toggleMarkAt(view, kind, color ?? null)
+      view.focus()
+    },
+    setHighlight: (color) => {
+      const { from, to } = view.state.selection.main
+      applyTextEdit(
+        view,
+        setHighlightColor(view.state.doc.toString(), from, to, color),
+        "doku.inline.highlight",
+      )
+      view.focus()
+    },
+    setLink: (url) => {
+      setLinkAt(view, url)
       view.focus()
     },
   }
