@@ -232,6 +232,12 @@ ${INTERACTIONS_JS}
     //   → ส่ง focus กลับ editor แทน (จิ้มพลาด = พิมพ์ต่อได้)
     // วงกลาง = พื้นหลังเปล่า (neutral gutter): ไม่ทำอะไร อยู่ต่อ
     // วงนอก = chrome ที่มีความหมาย (rail / TOC คอลัมน์+แผ่น / เมนู): ออกจริง
+    //   แต่ chrome มีทั้งลิงก์และปุ่ม — แยกตามเป้าหมาย (docs/08 ข้อ 52/54):
+    //   · ลิงก์ไปหน้าอื่น (sidebar/…): preventDefault + flush แล้ว navigate เอง — ห้ามปล่อย
+    //     default action เพราะมันเริ่ม navigation ทันที ทำให้ fetch ของ paintRendered
+    //     โดนยกเลิก → catch ยิง reload หน้าเดิม (navigation race ต้องคลิกซ้ำ)
+    //   · กด ctrl/shift/alt/meta หรือ middle-click: ไม่แตะ — ปล่อยพฤติกรรมเบราว์เซอร์ (แท็บใหม่)
+    //   · ลิงก์ #… (TOC) และปุ่มอื่น: ออกอยู่ในหน้า (exitWriting) + เลื่อนไปหัวข้อหลัง paint เสร็จ
     // วัดด้วยพิกัด event กับ rect เสมอ — กันเคส element ถูกแทนที่ระหว่างคลิก
     // (เดิมใช้ isConnected guard + contains → คลิกหลุดกรอบคอลัมน์นิดเดียวก็ออกทันที)
     if (!writing.editing || !articleEl || !articleEl.isConnected) return;
@@ -260,8 +266,34 @@ ${INTERACTIONS_JS}
     const chrome = event.target.closest
       ? event.target.closest(".doku-rail, .doku-toc-col, .doku-overlay, .doku-menu")
       : null;
-    if (chrome) void exitWriting();
     // นอกนั้น = พื้นหลังเปล่า → อยู่ต่อ ไม่ออกจากโหมดเขียน
+    if (!chrome) return;
+    const link = event.target.closest ? event.target.closest("a[href]") : null;
+    if (link) {
+      const href = link.getAttribute("href") || "";
+      if (href.charAt(0) !== "#") {
+        // กด modifier หรือ middle-click → ปล่อยเบราว์เซอร์จัดการ (เปิดแท็บใหม่)
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        // ลิงก์ไปหน้าอื่น — ยกเลิก default navigation แล้ว flush เองก่อนค่อยไป
+        event.preventDefault();
+        void (async () => {
+          await flushForNavigation();
+          window.location.href = href;
+        })();
+        return;
+      }
+      // anchor ในหน้า (TOC): ออกโหมดเขียนแล้วเลื่อนไปหัวข้อหลัง paint เสร็จ
+      // (id ใน href ถูก encode — decode ไม่ได้ก็ปล่อยผ่าน)
+      let anchorId = href.slice(1);
+      try {
+        anchorId = decodeURIComponent(anchorId);
+      } catch {}
+      void exitWriting().then(() => {
+        document.getElementById(anchorId)?.scrollIntoView();
+      });
+      return;
+    }
+    void exitWriting();
   });
   window.addEventListener("resize", closeMenu);
 
@@ -782,12 +814,35 @@ ${INTERACTIONS_JS}
     }
   }
 
-  async function exitWriting() {
-    if (!writing.editing) return;
+  /** flush + snapshot + teardown โดยไม่วาดผล — ใช้เป็นแกนของการออกโหมดเขียน */
+  async function flushAndTeardown() {
     clearTimeout(writing.timer);
     await flushSave(true);
     const md = writeSnapshot();
     teardownWriting();
+    return md;
+  }
+
+  /** flush ก่อน navigate ไปหน้าอื่น — flush + ทำลาย CM handle/timer (กัน onChange ยิงซ้ำ
+   *  ระหว่าง flush) แต่ “คง data-editing” ไว้จนหน้า unload: flush ที่สร้าง file change
+   *  จะยิง SSE "change" กลับมา และ listener ต้นไฟล์ guard ด้วย attribute นี้ — ถ้าลบก่อน
+   *  navigate จะโดน reload ยกเลิก navigation ที่กำลัง pending (navigation race) */
+  async function flushForNavigation() {
+    clearTimeout(writing.timer);
+    try {
+      // ต้อง await จน flush จบจริงก่อน navigate — flushSave ตั้ง dirty=false ตั้งแต่ก่อน await
+      await flushSave(true);
+    } catch (error) {
+      // flush พัง → toast error แล้ว navigate ต่ออยู่ดี (autosave รอบก่อนครอบงานส่วนใหญ่
+      // แล้ว + revision มีอยู่) — อย่าค้างอยู่หน้าเดิมเงียบ ๆ
+      fail(error);
+    }
+    writeSnapshot();
+  }
+
+  async function exitWriting() {
+    if (!writing.editing) return;
+    const md = await flushAndTeardown();
     try {
       await paintRendered(md);
     } catch (error) {
