@@ -39,7 +39,7 @@ export {
   checkVault,
   type DocCheck,
 } from "./check.ts"
-export { INTERACTIONS_JS } from "./client.ts"
+export { installInteractions } from "./client.ts"
 export { docEtag, etagHeader, matchesIfMatch } from "./etag.ts"
 export { type FrontmatterSplit, splitFrontmatter } from "./frontmatter.ts"
 export {

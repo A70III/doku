@@ -5,8 +5,8 @@ import { FragmentCache } from "../src/cache.ts"
 import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
-import { CLIENT_JS } from "../src/web/client.ts"
 import { parseAttrs } from "../src/web/editor/blocks.ts"
+import { CLIENT_SOURCE } from "./client-source.ts"
 import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 
 /**
@@ -77,7 +77,7 @@ describe("editor read-parity (Track B)", () => {
       "inlineBlocks:",
       'block.kind === "text"',
     ]) {
-      expect(CLIENT_JS).toContain(marker)
+      expect(CLIENT_SOURCE).toContain(marker)
     }
   })
 })

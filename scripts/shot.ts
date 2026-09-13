@@ -22,7 +22,7 @@
  * และ **scenario โต้ตอบจริง** (docs/09 §5 Track E): พิมพ์ไทย + IME guard (นับ decoration
  * rebuild ผ่าน `window.DokuEditor.perf`) · เลือก/ลาก block · bubble + link popover
  */
-import { spawn } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { cpSync, mkdirSync, rmSync } from "node:fs"
 import { mkdir, readdir } from "node:fs/promises"
 import { join, relative, resolve } from "node:path"
@@ -346,6 +346,12 @@ async function main(): Promise<void> {
   const outDir = resolve(flags.out)
   const base = `http://127.0.0.1:${flags.port}`
   await mkdir(outDir, { recursive: true })
+
+  // browser bundle (client.js/editor.js) ต้องมีจริงก่อน spawn server (docs/08 ข้อ 78)
+  for (const script of ["scripts/build-client.ts", "scripts/build-editor.ts"]) {
+    const built = spawnSync("bun", ["run", script], { stdio: "inherit" })
+    if (built.status !== 0) throw new Error(`${script} ล้มเหลว`)
+  }
 
   // สำเนา vault: scenario พิมพ์/ลาก block → autosave เขียนกลับ (ห้ามแตะ vault ต้นทาง)
   const workRoot = resolve("var/tmp/shot-vault")

@@ -5,7 +5,7 @@ import { FragmentCache } from "../src/cache.ts"
 import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
-import { CLIENT_JS } from "../src/web/client.ts"
+import { CLIENT_SOURCE } from "./client-source.ts"
 
 /**
  * Regression tests — one surface (docs/08 ข้อ 63/65 · docs/09 §3.1) ที่ test ชุดเดิมไม่จับ
@@ -34,17 +34,17 @@ function extractFunction(source: string, signature: string): string {
 
 const TICK = String.fromCharCode(96)
 
-/** ประกอบ heading pipeline จริงจาก CLIENT_JS แล้วรันบน markdown */
+/** ประกอบ heading pipeline จริงจาก CLIENT_SOURCE แล้วรันบน markdown */
 function makeHeadingTools(): {
   headingsInMarkdown: (md: string) => Array<{ depth: number; text: string; pos: number }>
   buildHeadingMap: (md: string, links: Array<{ id: string; text: string }>) => Map<string, number>
 } {
   const source = [
-    extractFunction(CLIENT_JS, "function normalizeHeading"),
-    extractFunction(CLIENT_JS, "function fenceMarker"),
-    extractFunction(CLIENT_JS, "function frontmatterLength"),
-    extractFunction(CLIENT_JS, "function headingsInMarkdown"),
-    extractFunction(CLIENT_JS, "function buildHeadingMap"),
+    extractFunction(CLIENT_SOURCE, "function normalizeHeading"),
+    extractFunction(CLIENT_SOURCE, "function fenceMarker"),
+    extractFunction(CLIENT_SOURCE, "function frontmatterLength"),
+    extractFunction(CLIENT_SOURCE, "function headingsInMarkdown"),
+    extractFunction(CLIENT_SOURCE, "function buildHeadingMap"),
   ].join("\n")
   const factory = new Function(
     "TICK",
@@ -170,9 +170,9 @@ describe("R2 data-title-in-body — ต้องตรงกับ dedupe ขอ
 })
 
 describe("R3 dirty lifecycle — ห้ามล้าง dirty ก่อน PUT ตอบกลับ (docs/08 ข้อ 54/65)", () => {
-  /** รัน flushSave จริงจาก CLIENT_JS บน state จำลอง */
+  /** รัน flushSave จริงจาก CLIENT_SOURCE บน state จำลอง */
   function makeFlush() {
-    const source = extractFunction(CLIENT_JS, "async function flushSave")
+    const source = extractFunction(CLIENT_SOURCE, "async function flushSave")
     const factory = new Function(
       "writing",
       "currentText",
@@ -249,7 +249,7 @@ describe("R3 dirty lifecycle — ห้ามล้าง dirty ก่อน PUT
       "encodePath",
       "fetch",
       "docEl",
-      `${extractFunction(CLIENT_JS, "function flushKeepalive")}; return flushKeepalive;`,
+      `${extractFunction(CLIENT_SOURCE, "function flushKeepalive")}; return flushKeepalive;`,
     )(
       writing,
       () => writing.handle.getDoc(),

@@ -28,7 +28,6 @@ import type { DocRenderer } from "./doc.ts"
 import { loadKatexCss } from "./katex.ts"
 import type { SseHub } from "./sse.ts"
 import type { VaultState } from "./tree.ts"
-import { CLIENT_JS } from "./web/client.ts"
 import { CONTENT_CSS } from "./web/content-css.ts"
 import { DocPage, HomePage, NotFoundPage, StyleGuidePage, TrashPage } from "./web/pages.tsx"
 import { buildPalette, buildStyleguide } from "./web/styleguide.ts"
@@ -172,10 +171,8 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
   app.get("/static/:name", async (context) => {
     const name = context.req.param("name")
     if (name === "client.js") {
-      return context.body(CLIENT_JS, 200, {
-        "content-type": "text/javascript; charset=utf-8",
-        "cache-control": "no-cache",
-      })
+      // bundle ของ browser client (bun run build:client) — ไม่มี = 404 → หน้าอ่านได้แต่ไม่มี progressive enhancement
+      return servePublic(context, "client.js", "text/javascript; charset=utf-8")
     }
     if (name === "content.css") {
       return context.body(CONTENT_CSS, 200, {

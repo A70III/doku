@@ -12,16 +12,19 @@ import { FragmentCache } from "../src/cache.ts"
 import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
-import { CLIENT_JS } from "../src/web/client.ts"
+import { CLIENT_SOURCE } from "./client-source.ts"
 import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 
-function setup(files: Record<string, string | Uint8Array>) {
+function setup(
+  files: Record<string, string | Uint8Array>,
+  readPublic?: (name: string) => Promise<string | null>,
+) {
   const fs = memoryVaultFs(files)
   const state = new VaultState(fs, "vault")
   const cache = new FragmentCache(null, RENDERER_VERSION)
   const renderer = new DocRenderer(fs, state, cache)
   const hub = new SseHub()
-  const app = createDokuApp({ fs, vaultName: "vault", state, renderer, hub })
+  const app = createDokuApp({ fs, vaultName: "vault", state, renderer, hub, readPublic })
   return { app, state, cache, renderer, fs }
 }
 
@@ -177,10 +180,19 @@ describe("routes", () => {
   })
 
   test("GET /static/client.js + content.css", async () => {
-    const { app } = setup({ "x.md": GOOD_DOC })
+    // client.js = bundle (bun run build:client) → server เสิร์ฟผ่าน readPublic เหมือน editor.js
+    const { app } = setup({ "x.md": GOOD_DOC }, async (name) =>
+      name === "client.js"
+        ? "window.addEventListener('load', () => new EventSource('/sse'));"
+        : null,
+    )
     const js = await app.request("/static/client.js")
     expect(js.headers.get("content-type")).toBe("text/javascript; charset=utf-8")
     expect(await js.text()).toContain("EventSource")
+
+    // ยังไม่มี artifact → 404 (ไม่ throw) · dev build ก่อนเสิร์ฟ
+    const missing = setup({ "x.md": GOOD_DOC })
+    expect((await missing.app.request("/static/client.js")).status).toBe(404)
 
     const css = await app.request("/static/content.css")
     expect(await css.text()).toContain(".doku-prose")
@@ -343,9 +355,8 @@ describe("M3 chrome (toolbar / palette / trash page)", () => {
 })
 
 describe("client.js", () => {
-  test("CLIENT_JS เป็น JS ที่ parse ได้ (ไม่มี syntax error) และมีฟีเจอร์ M3 ครบ", () => {
-    // new Function จะ throw ถ้า syntax ผิด — จับได้ก่อนเปิดเบราว์เซอร์
-    expect(() => new Function(CLIENT_JS)).not.toThrow()
+  test("ซอร์ส client มีฟีเจอร์ M3 ครบ", () => {
+    // parse/import จริงถูกตรวจที่ client-bundle.test.ts (Bun.build จริง) — ที่นี่ตรวจสัญญาระดับซอร์ส
     for (const marker of [
       "openPalette",
       "mountSurface",
@@ -361,7 +372,7 @@ describe("client.js", () => {
       "cycleTheme",
       "data-zen",
     ]) {
-      expect(CLIENT_JS).toContain(marker)
+      expect(CLIENT_SOURCE).toContain(marker)
     }
   })
 
@@ -382,7 +393,7 @@ describe("client.js", () => {
       "pointerdown", // คลิกนอกทั้ง CM และแผง → ซ่อน (วัดด้วยพิกัด)
       "inRect", // วัดด้วย getBoundingClientRect ไม่ใช่ contains อย่างเดียว
     ]) {
-      expect(CLIENT_JS).toContain(marker)
+      expect(CLIENT_SOURCE).toContain(marker)
     }
   })
 
@@ -420,40 +431,40 @@ describe("client.js", () => {
       "aria-pressed", // บอกสีปัจจุบันสำหรับ screen reader
       "สีไฮไลต์: ", // aria-label ชื่อสีไทย
     ]) {
-      expect(CLIENT_JS).toContain(marker)
+      expect(CLIENT_SOURCE).toContain(marker)
     }
   })
 
   test("one surface: ไม่มีการ swap/ออกโหมด — มีงานค้างต้อง flush ก่อน navigate (docs/08 ข้อ 65)", () => {
     // swap path ของ M3.1 ถูกถอดทั้งหมด: ไม่มี enterWriting/exitWriting/paintRendered
-    expect(CLIENT_JS).not.toContain("enterWriting")
-    expect(CLIENT_JS).not.toContain("exitWriting")
-    expect(CLIENT_JS).not.toContain("paintRendered")
-    expect(CLIENT_JS).not.toContain("offsetForElement")
-    expect(CLIENT_JS).not.toContain("data-editing")
-    expect(CLIENT_JS).not.toContain("/api/render") // หลัง mount ไม่มี re-render request อีก
+    expect(CLIENT_SOURCE).not.toContain("enterWriting")
+    expect(CLIENT_SOURCE).not.toContain("exitWriting")
+    expect(CLIENT_SOURCE).not.toContain("paintRendered")
+    expect(CLIENT_SOURCE).not.toContain("offsetForElement")
+    expect(CLIENT_SOURCE).not.toContain("data-editing")
+    expect(CLIENT_SOURCE).not.toContain("/api/render") // หลัง mount ไม่มี re-render request อีก
 
     // mount ครั้งเดียวตอน idle (progressive enhancement) + guard ด้วย data-dirty
-    expect(CLIENT_JS).toContain("requestIdleCallback")
-    expect(CLIENT_JS).toContain("function shouldReloadOnChange")
-    expect(CLIENT_JS).toContain('hasAttribute("data-dirty")')
+    expect(CLIENT_SOURCE).toContain("requestIdleCallback")
+    expect(CLIENT_SOURCE).toContain("function shouldReloadOnChange")
+    expect(CLIENT_SOURCE).toContain('hasAttribute("data-dirty")')
 
     // ทาง chrome-ลิงก์: preventDefault + flush (await) ก่อน navigate
-    const navFnAt = CLIENT_JS.indexOf("void (async () => {")
+    const navFnAt = CLIENT_SOURCE.indexOf("void (async () => {")
     expect(navFnAt).toBeGreaterThan(-1)
-    const navFnEnd = CLIENT_JS.indexOf("})();", navFnAt)
-    const navBlock = CLIENT_JS.slice(navFnAt, navFnEnd)
+    const navFnEnd = CLIENT_SOURCE.indexOf("})();", navFnAt)
+    const navBlock = CLIENT_SOURCE.slice(navFnAt, navFnEnd)
     expect(navBlock).toContain("await flushForNavigation();")
     expect(navBlock).toContain("window.location.href = link.href;")
 
     // guard คีย์: ctrl/shift/alt/meta หรือ middle-click → ปล่อยเบราว์เซอร์ (เปิดแท็บใหม่)
-    expect(CLIENT_JS).toContain(
+    expect(CLIENT_SOURCE).toContain(
       "event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey",
     )
 
     // TOC: ลิงก์ #… ต้องเลื่อนカーใน editor ได้ (CM6 ไม่มี id ใน DOM → heading map)
-    expect(CLIENT_JS).toContain("function scrollToHeading")
-    expect(CLIENT_JS).toContain("function buildHeadingMap")
+    expect(CLIENT_SOURCE).toContain("function scrollToHeading")
+    expect(CLIENT_SOURCE).toContain("function buildHeadingMap")
   })
 
   test("slash menu กรองตามที่พิมพ์ได้ทุกคีย์ + รวมสระ/วรรณยุกต์ไทย + จัดอันดับ (regression: พิมพ์ /vi ไม่กรอง / พิมพ์ /วิ เมนูหาย — docs/08 ข้อ 55)", () => {
@@ -496,15 +507,18 @@ describe("client.js", () => {
     // เดิม: renameDoc และ folder "เปลี่ยนชื่อ" ใช้ window.prompt — UX หลุดจากหน้า
     // สแกนเฉพาะช่วง renameDoc กับ folder rename ใน rowMenu (newDoc/newFolder/move
     // ยังใช้ prompt ได้ — เกินขอบเขตของการแก้นี้)
-    const renameAt = CLIENT_JS.indexOf("async function renameDoc")
+    const renameAt = CLIENT_SOURCE.indexOf("async function renameDoc")
     expect(renameAt).toBeGreaterThan(-1)
-    const renameBlock = CLIENT_JS.slice(renameAt, CLIENT_JS.indexOf("\n  }", renameAt))
+    const renameBlock = CLIENT_SOURCE.slice(renameAt, CLIENT_SOURCE.indexOf("\n  }", renameAt))
     expect(renameBlock).not.toContain("window.prompt")
     expect(renameBlock).toContain("startInlineRename(") // doc rename = inline
 
-    const rowMenuAt = CLIENT_JS.indexOf("function rowMenu")
+    const rowMenuAt = CLIENT_SOURCE.indexOf("function rowMenu")
     expect(rowMenuAt).toBeGreaterThan(-1)
-    const folderMenuBlock = CLIENT_JS.slice(rowMenuAt, CLIENT_JS.indexOf("\n  }", rowMenuAt))
+    const folderMenuBlock = CLIENT_SOURCE.slice(
+      rowMenuAt,
+      CLIENT_SOURCE.indexOf("\n  }", rowMenuAt),
+    )
     expect(folderMenuBlock).not.toContain("window.prompt")
     expect(folderMenuBlock).toContain("startInlineRename(") // folder rename = inline
 
@@ -516,25 +530,25 @@ describe("client.js", () => {
       "เปลี่ยนชื่อโฟลเดอร์",
       ".select()",
     ]) {
-      expect(CLIENT_JS).toContain(marker)
+      expect(CLIENT_SOURCE).toContain(marker)
     }
 
     // กัน # ในชื่อไฟล์ (ข้อ 56) — ต้องเช็คก่อนเรียก move แล้วค้างโหมดแก้
-    const inlineAt = CLIENT_JS.indexOf("function startInlineRename")
-    const inlineBlock = CLIENT_JS.slice(inlineAt, CLIENT_JS.indexOf("\n  }", inlineAt))
+    const inlineAt = CLIENT_SOURCE.indexOf("function startInlineRename")
+    const inlineBlock = CLIENT_SOURCE.slice(inlineAt, CLIENT_SOURCE.indexOf("\n  }", inlineAt))
     const hashAt = inlineBlock.indexOf("#")
     expect(hashAt).toBeGreaterThan(-1)
     const moveCallAt = inlineBlock.indexOf("moveDoc(path")
     expect(moveCallAt).toBeGreaterThan(hashAt) // เช็ค # ก่อนเรียก move
 
     // dblclick rename: เอกสาร active + โฟลเดอร์ (กัน toggle รอบที่สองด้วย event.detail)
-    expect(CLIENT_JS).toContain('addEventListener("dblclick"')
-    expect(CLIENT_JS).toContain("event.detail === 2")
-    expect(CLIENT_JS).toContain(".doku-folder-summary")
+    expect(CLIENT_SOURCE).toContain('addEventListener("dblclick"')
+    expect(CLIENT_SOURCE).toContain("event.detail === 2")
+    expect(CLIENT_SOURCE).toContain(".doku-folder-summary")
 
     // คลิกลิงก์เอกสาร active = ไม่ reload (เทียบ pathname + เมื่อหน้าปัจจุบันคือ /d/*)
-    expect(CLIENT_JS).toContain("new URL(link.href).pathname === window.location.pathname")
-    expect(CLIENT_JS).toContain("a[data-doc-link]")
+    expect(CLIENT_SOURCE).toContain("new URL(link.href).pathname === window.location.pathname")
+    expect(CLIENT_SOURCE).toContain("a[data-doc-link]")
 
     // CSS ของ inline input — border ตาม token (docs/03 §1.1)
     const appCss = readFileSync(new URL("../src/web/styles/app.css", import.meta.url), "utf8")

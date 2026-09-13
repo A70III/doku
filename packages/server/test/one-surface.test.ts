@@ -5,7 +5,7 @@ import { FragmentCache } from "../src/cache.ts"
 import { DocRenderer } from "../src/doc.ts"
 import { SseHub } from "../src/sse.ts"
 import { VaultState } from "../src/tree.ts"
-import { CLIENT_JS } from "../src/web/client.ts"
+import { CLIENT_SOURCE } from "./client-source.ts"
 
 /**
  * M3.2 Track A — one surface (docs/08 ข้อ 63/65 · docs/09 §3.1)
@@ -47,7 +47,7 @@ function extractFunction(source: string, signature: string): string {
 
 describe("one surface — live reload guard (docs/08 ข้อ 65)", () => {
   const shouldReloadOnChange = new Function(
-    `${extractFunction(CLIENT_JS, "function shouldReloadOnChange")}; return shouldReloadOnChange;`,
+    `${extractFunction(CLIENT_SOURCE, "function shouldReloadOnChange")}; return shouldReloadOnChange;`,
   )() as (dirty: boolean, suppressUntil: number, now: number) => boolean
 
   test("มีงานค้าง (data-dirty) → ห้าม reload ทุกกรณี", () => {
@@ -72,10 +72,10 @@ describe("one surface — live reload guard (docs/08 ข้อ 65)", () => {
 
 describe("heading map — TOC เลื่อนカーใน editor ได้ (docs/09 §3.1)", () => {
   const source = [
-    extractFunction(CLIENT_JS, "function normalizeHeading"),
-    extractFunction(CLIENT_JS, "function fenceMarker"),
-    extractFunction(CLIENT_JS, "function frontmatterLength"),
-    extractFunction(CLIENT_JS, "function headingsInMarkdown"),
+    extractFunction(CLIENT_SOURCE, "function normalizeHeading"),
+    extractFunction(CLIENT_SOURCE, "function fenceMarker"),
+    extractFunction(CLIENT_SOURCE, "function frontmatterLength"),
+    extractFunction(CLIENT_SOURCE, "function headingsInMarkdown"),
   ].join("\n")
   const headingsInMarkdown = new Function("TICK", `${source}; return headingsInMarkdown;`)(
     String.fromCharCode(96),

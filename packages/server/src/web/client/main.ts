@@ -1,21 +1,23 @@
+// @ts-nocheck — MIGRATION MARKER (ดูก่อนแก้)
+// biome-ignore-all lint: legacy body ระหว่าง migration (docs/08 ข้อ 78) — ยังไม่ย้ายออกเป็นโมดูล
+// biome-ignore-all format: คงรูปแบบเดิมของก้อนที่ย้ายมา → diff ของการย้ายรีวิวได้ (format แยกคอมมิต)
 /**
- * client JS ของเว็บแอป — serve ที่ `/static/client.js` (script-src 'self' ตาม CSP)
+ * client JS ของเว็บแอป — bundle entry (docs/08 ข้อ 78)
  *
- * ประกอบจาก:
- * - `INTERACTIONS_JS` จาก `@doku/core` — reading UX ของ block (progress/TOC/motion/tabs/zoom/copy)
- *   ตัวเดียวกับที่ CLI preview ใช้ (ไม่ให้ logic ซ้ำ)
- * - ส่วนของ server (M3): sidebar tree + drag-drop · REST actions (new/rename/move/delete/meta)
- *   · trash · revisions · CodeMirror editor + live preview · command palette · zen mode · theme
+ * ไฟล์นี้คือโค้ดเดิมของ `web/client.ts` ที่เคยอยู่ใน template literal ก้อนเดียว ย้ายมาเป็น
+ * module จริงแบบ **กลไก ไม่แก้ logic** เพื่อให้ bundle ได้ (`bun run build:client`) → import ได้ ·
+ * เทสต์ import ตรงได้ · build วิธีเดียวกับ `web/editor.ts`
  *
- * ทุกอย่างเป็น progressive enhancement — ปิด JS แล้วยังอ่านและนำทางได้
+ * `@ts-nocheck` = สถานะระหว่างทาง: เนื้อหาส่วนนี้ยังไม่ถูก type (443 error ถ้าเปิด) และจะหายไป
+ * ทีละ seam — แต่ละ seam ย้ายก้อนที่แยกได้ออกเป็นโมดูลที่ type ครบ (เริ่มจาก `./pure.ts`)
+ * **ห้ามเพิ่มโค้ดใหม่ในไฟล์นี้** · เป้าหมายคือไฟล์นี้ว่างแล้วลบ @ts-nocheck ออก
  */
+import { installInteractions } from "@doku/core/client"
 
-import { INTERACTIONS_JS } from "@doku/core"
-
-export const CLIENT_JS = `(() => {
+(() => {
   "use strict";
 
-${INTERACTIONS_JS}
+  installInteractions();
 
   // ── sidebar tree: จำ state การพับ (localStorage — ไม่แตะ vault, docs/01) ──
   const TREE_KEY = "doku.tree-state";
@@ -283,10 +285,10 @@ ${INTERACTIONS_JS}
     const suggestion = dir ? dir + "/" : "";
     const input = window.prompt("path ของเอกสารใหม่ (relative จาก vault, ไม่ต้องมี .md)", suggestion);
     if (!input) return;
-    const path = input.trim().replace(/^\\.?\\//, "").replace(/\\.md$/, "");
+    const path = input.trim().replace(/^\.?\//, "").replace(/\.md$/, "");
     if (!path) return;
     try {
-      await jsonRequest("POST", "/api/docs/" + encodePath(path), { md: "# " + basename(path) + "\\n\\n" });
+      await jsonRequest("POST", "/api/docs/" + encodePath(path), { md: "# " + basename(path) + "\n\n" });
       window.location.href = "/d/" + encodePath(path);
     } catch (error) {
       fail(error);
@@ -398,7 +400,7 @@ ${INTERACTIONS_JS}
   }
 
   async function deleteDoc(id) {
-    if (!window.confirm("ย้าย \\"" + id + "\\" ไป trash? (กู้คืนได้)")) return;
+    if (!window.confirm("ย้าย \"" + id + "\" ไป trash? (กู้คืนได้)")) return;
     try {
       await api("/api/docs/" + encodePath(id), { method: "DELETE" });
       toast("ย้ายไป trash แล้ว");
@@ -421,7 +423,7 @@ ${INTERACTIONS_JS}
   }
 
   async function deleteFolder(path) {
-    if (!window.confirm("ย้ายโฟลเดอร์ \\"" + path + "\\" ไป trash?")) return;
+    if (!window.confirm("ย้ายโฟลเดอร์ \"" + path + "\" ไป trash?")) return;
     try {
       await api("/api/folders/" + encodePath(path), { method: "DELETE" });
       toast("ย้ายไป trash แล้ว");
@@ -667,9 +669,9 @@ ${INTERACTIONS_JS}
   function makeAssetResolver(docPath) {
     const dir = dirname(docPath);
     return (src) => {
-      if (/^(https?:)?\\/\\//.test(src) || src.startsWith("data:")) return src;
+      if (/^(https?:)?\/\//.test(src) || src.startsWith("data:")) return src;
       if (src.startsWith("/assets/")) return src;
-      const clean = src.replace(/^\\.\\//, "");
+      const clean = src.replace(/^\.\//, "");
       if (src.startsWith("/")) return "/assets" + src;
       return "/assets/" + (dir ? dir + "/" : "") + clean;
     };
@@ -681,7 +683,7 @@ ${INTERACTIONS_JS}
    *  หมายเหตุ: normalize ถูกใช้ทั้งกับข้อความจาก markdown และ text ของ TOC (server)
    *  การตัดอักขระจึงสมมาตร · ยกเว้นลิงก์/รูปที่เป็นโครงสร้างของ markdown เท่านั้น */
   function normalizeHeading(text) {
-    const linked = String(text).replace(/!?\\[([^\\]]*)\\]\\([^)]*\\)/g, "$1");
+    const linked = String(text).replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
     let out = "";
     for (const ch of linked) {
       if ("*_~[](){}=".indexOf(ch) !== -1 || ch === TICK) continue;
@@ -705,9 +707,9 @@ ${INTERACTIONS_JS}
    *  ที่ editor เห็น (มี frontmatter) · ใช้สูตร md.length − body.length เท่านั้น
    *  (body ตัด newline หลัง block ออกหนึ่งตัว เหมือน core/frontmatter.ts) */
   function frontmatterLength(md) {
-    const match = /^(?:\\ufeff)?---[ \\t]*\\r?\\n[\\s\\S]*?\\r?\\n(?:---|\\.\\.\\.)[ \\t]*(?:\\r?\\n|$)/.exec(md);
+    const match = /^(?:\ufeff)?---[ \t]*\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(md);
     if (!match) return 0;
-    return md.length - md.slice(match[0].length).replace(/^\\r?\\n/, "").length;
+    return md.length - md.slice(match[0].length).replace(/^\r?\n/, "").length;
   }
 
   /** หัวข้อระดับ h2/h3 ตามลำดับในเอกสาร + offset (ข้าม code fence · รู้จัก setext)
@@ -721,7 +723,7 @@ ${INTERACTIONS_JS}
     let prevText = null;
     let prevOffset = 0;
     let prevIsParagraph = false;
-    for (const line of md.slice(start).split("\\n")) {
+    for (const line of md.slice(start).split("\n")) {
       const marker = fenceMarker(line);
       if (fence) {
         if (
@@ -746,7 +748,7 @@ ${INTERACTIONS_JS}
           prevIsParagraph = false;
         } else {
           // setext underline: ขีด = h2 · เท่ากับ = h1 · ต้องตามหลังย่อหน้าจริง (ไม่ใช่บรรทัดว่าง)
-          const setext = /^ {0,3}(-+|=+)[ \\t]*$/.exec(line);
+          const setext = /^ {0,3}(-+|=+)[ \t]*$/.exec(line);
           if (setext && prevIsParagraph) {
             const depth = setext[1].charAt(0) === "=" ? 1 : 2;
             if (depth === 2) {
@@ -874,7 +876,7 @@ ${INTERACTIONS_JS}
   function syncColophonWords(md) {
     const colophon = $(".doku-colophon");
     if (!colophon) return;
-    const words = md.trim().split(/\\s+/u).filter(Boolean).length;
+    const words = md.trim().split(/\s+/u).filter(Boolean).length;
     const node = colophon.querySelector("[data-part='colophon-words']");
     if (node) node.textContent = words.toLocaleString("th-TH") + " คำ";
     const minutes = colophon.querySelector("[data-part='colophon-minutes']");
@@ -2667,4 +2669,4 @@ ${INTERACTIONS_JS}
     }
   }
 })();
-`
+

@@ -3,7 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# bundle CodeMirror 6 → public/editor.js (docs/08 ข้อ 17) — ครั้งเดียวตอนเปิด
+# bundle ของ browser client + CodeMirror → public/{client.js,editor.js} (docs/08 ข้อ 37, 78) — ครั้งเดียวตอนเปิด
+bun run build:client
 bun run build:editor
 
 bunx @tailwindcss/cli \

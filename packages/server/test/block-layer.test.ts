@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
-import { CLIENT_JS } from "../src/web/client.ts"
+import { CLIENT_SOURCE } from "./client-source.ts"
 import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 
 /**
@@ -67,7 +67,7 @@ describe("Track C — gutter overlay + drag & drop (docs/08 ข้อ 66/67/71)"
       "blockAtPoint",
       "highlight(block.from, block.to)",
     ]) {
-      expect(CLIENT_JS).toContain(marker)
+      expect(CLIENT_SOURCE).toContain(marker)
     }
     expect(APP_CSS).toContain(".z-doku-gutter")
     expect(APP_CSS).toContain(".doku-gutter-btn")
@@ -82,23 +82,23 @@ describe("Track C — gutter overlay + drag & drop (docs/08 ข้อ 66/67/71)"
       "onDragCancel",
       "Math.round((x - rect.left - 24) / 24)",
     ]) {
-      expect(CLIENT_JS).toContain(marker)
+      expect(CLIENT_SOURCE).toContain(marker)
     }
     expect(APP_CSS).toContain(".doku-drop-indicator")
     expect(APP_CSS).toContain("--drop-depth")
   })
 
   test("touch = long-press 150ms (ไม่มี hover บนมือถือ — docs/08 ข้อ 71)", () => {
-    expect(CLIENT_JS).toContain("touchstart")
-    expect(CLIENT_JS).toContain("150")
-    expect(CLIENT_JS).toContain("longPressTimer")
+    expect(CLIENT_SOURCE).toContain("touchstart")
+    expect(CLIENT_SOURCE).toContain("150")
+    expect(CLIENT_SOURCE).toContain("longPressTimer")
   })
 
   test("ทุก action ในเมนูมีคีย์ลัดเทียบเท่า (DoD)", () => {
     for (const label of ["ย้ายขึ้น", "ย้ายลง", "ทำสำเนา", "ซ้อน (nest)", "ลบ block", "H1"]) {
-      expect(CLIENT_JS).toContain(label)
+      expect(CLIENT_SOURCE).toContain(label)
     }
-    expect(CLIENT_JS).toContain("Mod+Shift+↑")
-    expect(CLIENT_JS).toContain("Shift+Delete")
+    expect(CLIENT_SOURCE).toContain("Mod+Shift+↑")
+    expect(CLIENT_SOURCE).toContain("Shift+Delete")
   })
 })

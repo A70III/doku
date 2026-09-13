@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
-import { CLIENT_JS } from "../src/web/client.ts"
+import { CLIENT_SOURCE } from "./client-source.ts"
 import { EDITOR_SOURCE as EDITOR_LAYER_SOURCE } from "./editor-source.ts"
 
 /**
@@ -35,8 +35,8 @@ describe("Track D — keymap (docs/09 §2.3 · docs/08 ข้อ 70)", () => {
   })
 
   test("chrome ของ client คืน Mod+K ให้เอกสาร ไม่ใช่ command palette", () => {
-    expect(CLIENT_JS).toContain("const inEditor =")
-    expect(CLIENT_JS).toContain("if (inEditor) return;")
+    expect(CLIENT_SOURCE).toContain("const inEditor =")
+    expect(CLIENT_SOURCE).toContain("if (inEditor) return;")
   })
 })
 
@@ -51,10 +51,10 @@ describe("Track D — bubble toolbar + link popover (docs/09 §3.3)", () => {
       "positionOverlay(el, info.rect,",
       "renderInlineBar",
     ]) {
-      expect(CLIENT_JS).toContain(marker)
+      expect(CLIENT_SOURCE).toContain(marker)
     }
     // mark ที่ active → ปุ่มต้องรู้สถานะ (aria-pressed ไม่ใช่ class)
-    expect(CLIENT_JS).toContain("info.marks.indexOf(mark) !== -1")
+    expect(CLIENT_SOURCE).toContain("info.marks.indexOf(mark) !== -1")
   })
 
   test("link popover แก้/ลบ URL ได้ + Enter/Escape (docs/09 §4)", () => {
@@ -65,14 +65,14 @@ describe("Track D — bubble toolbar + link popover (docs/09 §3.3)", () => {
       "setLink(",
       "leadingkeydown",
     ]) {
-      expect(CLIENT_JS).toContain(marker.replace("leading", ""))
+      expect(CLIENT_SOURCE).toContain(marker.replace("leading", ""))
     }
-    expect(CLIENT_JS).toContain('input.type = "url"')
+    expect(CLIENT_SOURCE).toContain('input.type = "url"')
   })
 
   test("ไฮไลต์สีใช้ชุดสีเดียวกับ mark strip (BLOCK_COLORS — docs/08 ข้อ 30)", () => {
-    expect(CLIENT_JS).toContain("writing.handle.setHighlight(color)")
-    expect(CLIENT_JS).toContain("writing.handle.setHighlight(null)")
+    expect(CLIENT_SOURCE).toContain("writing.handle.setHighlight(color)")
+    expect(CLIENT_SOURCE).toContain("writing.handle.setHighlight(null)")
     expect(EDITOR_SOURCE).toContain("setHighlightColor(")
   })
 
