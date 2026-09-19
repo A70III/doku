@@ -81,7 +81,7 @@ examples/   ตัวอย่าง
 
 ## สถานะ
 
-**M0 + M1 + M2 เสร็จแล้ว (= MVP)** — render / validate / serve ได้จริง พร้อม custom block + design system:
+**M0 + M1 + M2 + M3 เสร็จแล้ว** — render / validate / serve / editor ได้จริง พร้อม custom block + design system + REST API:
 
 ```bash
 bun install
@@ -100,5 +100,5 @@ bun run gen:schema                          # Zod → schema/ (ไม่ commit)
   figure, gallery, video, card, section, grid/col, kv, progress, steps, timeline, margin-note, motion, details, tabs/tab
 - **design system**: tokens + prose + block CSS อยู่ที่ `@doku/core` ใช้ร่วม CLI/server · ดูทุก block ได้ที่ `/styleguide`
 - **ทิศทาง UI**: Digital Archivist / Editorial Minimalism (ดู [ทิศทาง UI](#ทิศทาง-ui--digital-archivist)) — รอบ UI pass เต็มรูปแบบอยู่ใน M3
-- ยังไม่มี: editor/trash/revision (M3) · REST ครบ + MCP (M4) · index/search (M5)
+- ยังไม่มี: REST ที่เหลือ + MCP (M4) · index/search (M5)
 - คำถามค้างดู [docs/08-decisions.md](docs/08-decisions.md) หัวข้อ "รอเคาะ"
