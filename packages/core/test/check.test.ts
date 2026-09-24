@@ -125,6 +125,40 @@ describe("checkVault", () => {
     const report = await checkVault(fs)
     expect(report.docs.map((doc) => doc.id)).toEqual(["ok"])
   })
+
+  test("ชื่อซ้ำ โฟลเดอร์ x/ + เอกสาร x.md → folder_file_name_clash (ticket 06)", async () => {
+    const fs = memoryVaultFs({
+      "x.md": "# X\n",
+      "x/inner.md": "# inner\n",
+    })
+    const report = await checkVault(fs)
+    const clashes = report.warnings.filter((item) => item.code === "folder_file_name_clash")
+    expect(clashes.map((item) => item.path)).toEqual(["x"])
+    expect(clashes[0]?.level).toBe("warning")
+    expect(report.ok).toBe(true) // warning ไม่ทำให้ exit code ≠ 0
+  })
+
+  test("มีแค่โฟลเดอร์หรือแค่เอกสาร (ไม่ซ้ำ) → ไม่เตือน folder_file_name_clash", async () => {
+    const fileOnly = await checkVault(memoryVaultFs({ "x.md": "# X\n" }))
+    expect(fileOnly.warnings.some((item) => item.code === "folder_file_name_clash")).toBe(false)
+
+    const folderOnly = await checkVault(memoryVaultFs({ "x/inner.md": "# inner\n" }))
+    expect(folderOnly.warnings.some((item) => item.code === "folder_file_name_clash")).toBe(false)
+  })
+
+  test("ชื่อซ้ำในโฟลเดอร์ย่อยก็จับ · ข้าม dotfolder/.trash (invariant 9)", async () => {
+    const fs = memoryVaultFs({
+      "a/b/x.md": "# X\n",
+      "a/b/x/inner.md": "# inner\n",
+      ".trash/x/x.md": "# trash\n",
+      ".trash/x/y/inner.md": "# trash\n",
+      ".hidden/x.md": "# hidden\n",
+      ".hidden/x/inner.md": "# hidden\n",
+    })
+    const report = await checkVault(fs)
+    const clashes = report.warnings.filter((item) => item.code === "folder_file_name_clash")
+    expect(clashes.map((item) => item.path)).toEqual(["a/b/x"])
+  })
 })
 
 describe("resolveDoc", () => {

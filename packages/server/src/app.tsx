@@ -29,6 +29,8 @@ import type { SseHub } from "./sse.ts"
 import type { VaultState } from "./tree.ts"
 import { CLIENT_JS } from "./web/client.ts"
 import { CONTENT_CSS } from "./web/content-css.ts"
+import { FolderPage, findFolderNode } from "./web/folder-page.tsx"
+import { parseSort } from "./web/listing.ts"
 import { DocPage, HomePage, NotFoundPage, StyleGuidePage, TrashPage } from "./web/pages.tsx"
 import { buildPalette, buildStyleguide } from "./web/styleguide.ts"
 
@@ -209,6 +211,7 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
         tree={tree}
         docs={docs}
         tag={tag}
+        sort={context.req.query("sort")}
         vaultName={deps.vaultName}
         trashCount={await trashCount()}
       />,
@@ -239,7 +242,7 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
   })
 
   app.get("/d/*", async (context) => {
-    const { tree } = await deps.state.get()
+    const { tree, docs } = await deps.state.get()
     const raw = tailPath(context.req.raw.url, "/d/")
     let docId: string
     try {
@@ -269,7 +272,7 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
       const currentEtag = markdown === null ? undefined : await docEtag(markdown, rawMeta)
       if (currentEtag) context.header("etag", etagHeader(currentEtag))
       // colophon ต้องรู้ "แก้ไขล่าสุด" + ขนาด — มาจาก listing เดียวกับ tree (ไม่ต้อง stat ซ้ำ)
-      const summary = (await deps.state.get()).docs.find((item) => item.id === docId)
+      const summary = docs.find((item) => item.id === docId)
       const words = markdown ? markdown.trim().split(/\s+/u).filter(Boolean).length : undefined
       return context.html(
         <DocPage
@@ -286,6 +289,22 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
       )
     } catch (error) {
       if (error instanceof DocNotFoundError) {
+        // ticket 06 ข้อ 8c (binding): `/d/x` เปิดเอกสารเสมอเมื่อมี `x.md` — ถ้ามาถึงจุดนี้
+        // แสดงว่าไม่มีไฟล์ → ถ้า path เป็นโฟลเดอร์จริง (node ใน tree ที่ walkVault ข้าม
+        // dotfolder/`.trash` แล้ว — invariant 9) → FolderPage · ไม่มีอะไรเลย = 404 เหมือนเดิม
+        const folder = findFolderNode(tree, docId)
+        if (folder) {
+          return context.html(
+            <FolderPage
+              folder={folder}
+              docs={docs}
+              tree={tree}
+              sort={parseSort(context.req.query("sort"))}
+              vaultName={deps.vaultName}
+              trashCount={await trashCount()}
+            />,
+          )
+        }
         return context.html(
           <NotFoundPage
             tree={tree}

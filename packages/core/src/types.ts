@@ -36,6 +36,7 @@ export type WarningCode =
   // vault level (doku check)
   | "orphan_asset"
   | "missing_title"
+  | "folder_file_name_clash"
 
 export type WarningLevel = "error" | "warning" | "info"
 
