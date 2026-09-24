@@ -7,6 +7,11 @@ mid-run questions; record decisions in `docs/08` at phase close (plan §8 docs s
 **How to use:** check a box the moment its sequence closes, with a one-line evidence note under it.
 A phase closes only through the 4 layers (gates green · CJK 0 · all verifiers PASS · DoD run for real).
 
+**Push rule (user 2026-09-24):** `feat/hub-browse` is published to `origin`
+(github.com/A70III/doku) — **push after EVERY controller commit** from now on
+(`git push`, branch already tracks origin), not just at phase close. M3.5's five commits
+were pushed together as the first push.
+
 ---
 
 ## Phase M3.5 — Hub browse (plan §5, items 3.5.1–3.5.6)
@@ -28,11 +33,15 @@ A phase closes only through the 4 layers (gates green · CJK 0 · all verifiers 
 
 ## Phase M4 — AI access (plan §5 M4)
 
-- [ ] **S1 extract-move-core** — `api.ts` move fns → `core` (pure) + test pair before refactor _(gate for S2/S4)_
-- [ ] **S2 rest-assets-context** — assets upload/delete + `GET /context/*path` + enforce docs/06 charset (closes docs/08 Q7) _(after S1)_
+- [x] **S1 extract-move-core** — `api.ts` move fns → `core` (pure) + test pair before refactor _(gate for S2/S4)_
+  ✓ 2026-09-24 — verifier **PASS** (0 findings; DoD curl on :7685: move → 200 `updated_links:1` + all 3 link forms rewritten + `moved_from` · dup dest 409 · missing src 404; core tests import no server; link-scan grep in api.ts = 0; gates 6 green + CJK 0) · committed+pushed `9cd333a` (api.ts/core-index wiring rides the server commit — hunks interleave with S2 in the same files)
+- [x] **S2 rest-assets-context** — assets upload/delete + `GET /context/*path` + enforce docs/06 charset (closes docs/08 Q7) _(after S1)_
+  ✓ 2026-09-24 — verifier round-2 **PASS** (round-1: 3 med + 1 low → fresh fixer: pre-write target-path + NAME_MAX 255 validation & no-500 write guard · DELETE scoped to exact `assets` segment so sidecars are 404-safe · `?h=` = full sha256 → immutable per ข้อ 58 · observable mime-parity test locks the 11-ext allowlist vs serve) · DoD 44/44 on DOKU_PORT=7686 · gates quoted green (`426 pass` · check rc0 · tsc ×5 rc0 · shot --port 7701 rc0 a11y ผ่านทุกข้อ · doku check 0/0) · CJK 0 · Q7 closed as docs/08 ข้อ 74
 - [ ] **S3 audit-log** — `var/audit.log` JSONL + `doku audit [--json]` _(after S2)_
-- [ ] **S4 cli-commands** — `new` `mkdir` `tree --json` `list --tag` `mv` (uses core from S1) _(after S1 · parallel S2)_
-- [ ] **S5 mcp-package** — `packages/mcp` stdio + tools per docs/05 §4 minus `doc_search` + `doku mcp` spawn _(parallel)_
+- [x] **S4 cli-commands** — `new` `mkdir` `tree --json` `list --tag` `mv` (uses core from S1) _(after S1 · parallel S2)_
+  ✓ 2026-09-24 — verifier round-2 FINDINGS→**resolved** (1 low = stale JSDoc above `emitJsonError` deleted by controller, comment-only; med fix + ONE flat `--json` error shape across dispatch/command layers verified via 6-case runtime matrix; all round-1 lows adjudicated) · DoD real on temp vault (mv link rewrite + `moved_from` + revision + 409/404 + `--json` success AND error + existing commands byte-unchanged) · gates 6 green (`426 pass` · build+shot --port 7702 a11y ผ่านทุกข้อ · `doku check` 0/0) + CJK 0 · AGENTS CLI list synced (ticket 07) · 4 pre-existing observations logged as follow-ups in ticket 10
+- [x] **S5 mcp-package** — `packages/mcp` stdio + tools per docs/05 §4 minus `doc_search` + `doku mcp` spawn _(parallel)_
+  ✓ 2026-09-24 — verifier **PASS with 2 lows**, both controller-ruled in ticket 11 (hand-written tool JSON Schema accepted as the docs/05 §4 contract transcription + Zod-derived follow-up noted · fence-message dup deferred to a future core-export follow-up) · DoD real: 27/27 checks × both entry points (initialize → tools/list = exactly docs/05 §4 minus `doc_search` → folder_create/doc_write/doc_read round-trip · doc_delete soft-only + revision saved · all purge-class tool names → -32602 · shutdown exit 0) · gates green on isolated shot `--port 7693` (lesson: concurrent verifiers use distinct shot ports) + CJK 0 · `doku mcp` dispatch hunk belongs to slice 10
 - [ ] **Phase M4 close** — 4 layers + DoD: create/edit/move/folders via MCP, soft-delete only · `doku audit` reads history · AGENTS.md CLI list matches reality · docs sync + commit
 
 ## Phase M5 — Index, search, deploy (plan §5 M5)
