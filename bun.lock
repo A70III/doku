@@ -62,6 +62,14 @@
         "@doku/core": "workspace:*",
       },
     },
+    "packages/mcp": {
+      "name": "@doku/mcp",
+      "version": "0.0.0",
+      "dependencies": {
+        "@doku/core": "workspace:*",
+        "@doku/fs-node": "workspace:*",
+      },
+    },
     "packages/server": {
       "name": "@doku/server",
       "version": "0.0.0",
@@ -130,6 +138,8 @@
     "@doku/core": ["@doku/core@workspace:packages/core"],
 
     "@doku/fs-node": ["@doku/fs-node@workspace:packages/fs-node"],
+
+    "@doku/mcp": ["@doku/mcp@workspace:packages/mcp"],
 
     "@doku/server": ["@doku/server@workspace:packages/server"],
 

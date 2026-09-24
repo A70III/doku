@@ -1,0 +1,13 @@
+{
+  "name": "@doku/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@doku/core": "workspace:*",
+    "@doku/fs-node": "workspace:*"
+  }
+}
