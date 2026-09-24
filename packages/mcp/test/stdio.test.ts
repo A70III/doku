@@ -2,7 +2,7 @@
  * S11 DoD (stdio) — spawn `bun run packages/mcp/src/index.ts` จริงบน temp vault (คัดลอก
  * examples/vault) แล้วขับ JSON-RPC ครบทั้ง session ตาม ticket:
  *
- *   initialize → notifications/initialized → tools/list (11 ตัวเป๊ะ) → folder_create →
+ *   initialize → notifications/initialized → tools/list (12 ตัวเป๊ะ รวม doc_search) → folder_create →
  *   doc_write → file จริงบน disk → doc_delete → ย้ายเข้า .trash/ (ไม่ถูก purge) →
  *   doc_read / doc_render / doc_validate smoke → shutdown → exit 0
  *
@@ -34,6 +34,7 @@ const EXPECTED_TOOL_NAMES = [
   "doc_delete",
   "folder_create",
   "folder_list",
+  "doc_search",
   "doc_render",
   "doc_validate",
   "asset_put",
@@ -92,7 +93,7 @@ interface RpcMessage {
 }
 
 describe("stdio session จริง (spawn process + DOKU_VAULT temp)", () => {
-  test("ครบตาม DoD: initialize → tools/list 11 ตัว → write/move-able → soft-delete → shutdown", async () => {
+  test("ครบตาม DoD: initialize → tools/list 12 ตัว → write/search-able → soft-delete → shutdown", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "doku-mcp-"))
     const vault = join(tmp, "vault")
     const varDir = join(tmp, "var")
@@ -142,11 +143,10 @@ describe("stdio session จริง (spawn process + DOKU_VAULT temp)", () => {
       const ping = await request("ping")
       expect(ping.result).toEqual({})
 
-      // 3) tools/list = 11 ตัวเป๊ะ ไม่มี doc_search
+      // 3) tools/list = 12 ตัวเป๊ะ (รวม doc_search — M5 S3)
       const list = await request("tools/list")
       const names = (list.result?.tools ?? []).map((tool) => tool.name)
       expect(names).toEqual(EXPECTED_TOOL_NAMES)
-      expect(names).not.toContain("doc_search")
       expect(names.some((name) => /purge|empty|restore/i.test(name))).toBe(false)
 
       // 4) folder_create a/b → มีโฟลเดอร์จริงบน disk
@@ -167,6 +167,20 @@ describe("stdio session จริง (spawn process + DOKU_VAULT temp)", () => {
       const read = await toolCall("doc_read", { path: "a/b/n", format: "md" })
       expect(read.md).toBe("# Hi")
       expect(read.etag).toMatch(/^[0-9a-f]{64}$/)
+
+      // 6b) doc_search — เขียน doc ใหม่ (FTS ≥3 อักขระ) แล้วค้นเจอ · miss = 0 (M5 S3)
+      const searchWrite = await toolCall("doc_write", {
+        path: "a/b/s",
+        md: "# Notes\n\npegasus activity log\n",
+        mode: "create",
+      })
+      expect(searchWrite.ok).toBe(true)
+      const found = await toolCall("doc_search", { q: "pegasus activity" })
+      expect(found.ok).toBe(true)
+      expect(found.count).toBe(1)
+      expect((found.hits as { path: string }[])[0]?.path).toBe("a/b/s")
+      const miss = await toolCall("doc_search", { q: "zzz-not-here" })
+      expect(miss.count).toBe(0)
 
       // 7) doc_delete = soft-delete → ไฟล์หายจากที่เดิม + ไปอยู่ใต้ .trash/
       const deleted = await toolCall("doc_delete", { path: "a/b/n" })

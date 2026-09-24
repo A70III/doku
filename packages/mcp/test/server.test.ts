@@ -1,7 +1,7 @@
 /**
  * S11 (M4) — test ของ `packages/mcp`
  *
- * 1) contract `tools/list` = ตาราง docs/05 §4 ยกเว้น `doc_search` — ชื่อ + key ของ input lock เป๊ะ
+ * 1) contract `tools/list` = ตาราง docs/05 §4 ครบ 12 ตัว (รวม `doc_search` — M5 S3) — ชื่อ + key เป๊ะ
  * 2) พฤติกรรม tool ทุกตัวด้วย `memoryVaultFs` (ไม่แตะ filesystem จริง)
  * 3) protocol JSON-RPC subset: initialize/ping/shutdown/notification/error codes
  *
@@ -10,6 +10,9 @@
  */
 
 import { describe, expect, test } from "bun:test"
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { BLOCKS, memoryRevisionStore, memoryVaultFs } from "@doku/core"
 import { createMcpServer, type McpServer } from "../src/server.ts"
 import { TOOL_SPECS } from "../src/tools.ts"
@@ -23,6 +26,7 @@ const EXPECTED_TOOLS: { name: string; properties: string[] }[] = [
   { name: "doc_delete", properties: ["path"] },
   { name: "folder_create", properties: ["path"] },
   { name: "folder_list", properties: ["path"] },
+  { name: "doc_search", properties: ["q", "limit"] },
   { name: "doc_render", properties: ["md", "meta"] },
   { name: "doc_validate", properties: ["path", "md", "meta"] },
   { name: "asset_put", properties: ["path", "filename", "content_base64"] },
@@ -146,15 +150,14 @@ describe("JSON-RPC 2.0 subset (stdio protocol)", () => {
 /* ── tools/list contract (docs/05 §4) ─────────────────────────────────── */
 
 describe("tools/list — contract docs/05 §4", () => {
-  test("มีครบ 11 ตัว ตามลำดับตาราง · ไม่มี doc_search · ไม่มี tool ลบถาวร", async () => {
+  test("มีครบ 12 ตัว ตามลำดับตาราง (รวม doc_search) · ไม่มี tool ลบถาวร", async () => {
     const { server } = makeServer()
     const reply = await request(server, "tools/list")
     const tools = reply.result?.tools ?? []
     const names = tools.map((tool) => tool.name)
 
     expect(names).toEqual(EXPECTED_TOOLS.map((tool) => tool.name))
-    expect(names).toHaveLength(11)
-    expect(names).not.toContain("doc_search")
+    expect(names).toHaveLength(12)
     // ห้ามมีช่องทางลบถาวร/กู้คืนถาวรสำหรับ agent (docs/06 · invariant 7)
     expect(names.some((name) => /purge|empty|restore|hard|forever/i.test(name))).toBe(false)
 
@@ -675,12 +678,53 @@ describe("doc_render / doc_validate / asset_put", () => {
 /* ── tool definitions ตรงกับ handler ──────────────────────────────────── */
 
 describe("TOOL_SPECS integrity", () => {
-  test("ทุก definition มี handler ชื่อเดียวกัน + ไม่มี doc_search ใน specs", () => {
+  test("ทุก definition มี handler ชื่อเดียวกัน (รวม doc_search)", () => {
     const names = TOOL_SPECS.map((spec) => spec.definition.name)
     expect(new Set(names).size).toBe(names.length)
-    expect(names).not.toContain("doc_search")
+    expect(names).toContain("doc_search")
     for (const spec of TOOL_SPECS) {
       expect(typeof spec.handle).toBe("function")
+    }
+  })
+})
+
+describe("doc_search (M5 S3 — FTS จาก var/index.db)", () => {
+  test("ค้นจากเนื้อหาจริง: hits + snippet · ไทยกลางประโยค · miss = 0 · limit ผิดชนิด = invalid_body", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "doku-mcp-search-"))
+    const savedVar = process.env.DOKU_VAR
+    process.env.DOKU_VAR = tmp
+    try {
+      const { server } = makeServer({
+        "design.md": "# Design\n\nเนื้อหา uniqueberry อยู่ตรงนี้\n",
+        "other.md": "# Other\n\nไม่มีคำนี้อยู่เลย\n",
+      })
+
+      const hit = await call(server, "doc_search", { q: "uniqueberry" })
+      expect(hit.isError).toBe(false)
+      expect(hit.payload.ok).toBe(true)
+      expect(hit.payload.count).toBe(1)
+      const hits = hit.payload.hits as { path: string; snippet: string }[]
+      expect(hits[0]?.path).toBe("design")
+      expect(hits[0]?.snippet).toContain("[uniqueberry]")
+
+      // substring ไทยกลางประโยค (trigram — unicode61 หาไม่เจอ)
+      const thai = await call(server, "doc_search", { q: "อยู่ตรงนี้" })
+      expect(thai.payload.count).toBe(1)
+
+      const miss = await call(server, "doc_search", { q: "zzz-not-here" })
+      expect(miss.payload.count).toBe(0)
+
+      const limited = await call(server, "doc_search", { q: "uniqueberry", limit: 1 })
+      expect(limited.payload.count).toBe(1)
+
+      // limit ผิดชนิด = error vocabulary เดิม (ไม่แต่ง code ใหม่ — docs/05 §3)
+      const bad = await call(server, "doc_search", { q: "unique", limit: "one" })
+      expect(bad.isError).toBe(true)
+      expect((bad.payload.error as { code: string }).code).toBe("invalid_body")
+    } finally {
+      if (savedVar === undefined) delete process.env.DOKU_VAR
+      else process.env.DOKU_VAR = savedVar
+      rmSync(tmp, { recursive: true, force: true })
     }
   })
 })

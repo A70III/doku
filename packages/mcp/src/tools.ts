@@ -1,5 +1,5 @@
 /**
- * เครื่องมือ MCP ทั้ง 11 ตัวของ doku — ตาราง docs/05 §4 ยกเว้น `doc_search` (รอ M5)
+ * เครื่องมือ MCP ทั้ง 12 ตัวของ doku — ครบตาราง docs/05 §4 (`doc_search` เติมตอน M5 S3)
  *
  * หลักการของ docs/05 §4: "tool น้อย, ชื่อตรง, input แบน" — ชื่อและ key ของ input ตรงกับ
  * ตารางเป๊ะ (lock ด้วย `test/server.test.ts`) · **ไม่มี tool ลบถาวร/purge/restore** เด็ดขาด
@@ -14,6 +14,7 @@
  * `isSafeAssetName`/`assetMimeOf` ตัวเดียวกับ REST (mirror `packages/server/src/api.ts` · plan §4 #4)
  */
 
+import { resolve as resolvePath } from "node:path"
 import {
   assetMimeOf,
   assetUrl,
@@ -41,6 +42,7 @@ import {
   walkVault,
   warning,
 } from "@doku/core"
+import { createSearchIndexStore } from "@doku/fs-node"
 import {
   currentEtag,
   docPath,
@@ -449,6 +451,43 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
 
   {
     definition: {
+      name: "doc_search",
+      description:
+        "ค้นเอกสารเต็มรูปแบบ (FTS trigram จาก var/index.db — substring ไทย/อังกฤษ ทั้งชื่อและเนื้อหา) คืน hits พร้อม snippet",
+      inputSchema: {
+        type: "object",
+        properties: {
+          q: { type: "string", description: "คำค้น" },
+          limit: { type: "number", description: "จำนวนผลสูงสุด (default 20 · cap 100)" },
+        },
+        required: ["q"],
+        additionalProperties: false,
+      },
+    },
+    async handle(deps, args) {
+      const q = requireString(args, "q").trim()
+      if (q === "") return { ok: true, query: q, count: 0, hits: [] }
+      let limit: number | undefined
+      if (args.limit !== undefined) {
+        if (typeof args.limit !== "number" || !Number.isFinite(args.limit)) {
+          throw new ToolError("invalid_body", "limit ต้องเป็นตัวเลข")
+        }
+        limit = Math.trunc(args.limit)
+      }
+      // sync incremental ก่อนค้น (เทียบ hash — ไฟล์เดิมถูกข้าม) — server ไม่ได้เปิดก็ค้นได้
+      const store = createSearchIndexStore(resolvePath(process.env.DOKU_VAR ?? "var"))
+      try {
+        await store.syncFull(deps.fs)
+        const hits = store.search(q, { limit })
+        return { ok: true, query: q, count: hits.length, hits }
+      } finally {
+        store.close()
+      }
+    },
+  },
+
+  {
+    definition: {
       name: "doc_render",
       description:
         "render markdown เป็น HTML fragment (stateless — ยัง resolve wikilink/asset กับ vault ได้) + warnings · meta ที่ส่งมาใช้แทน frontmatter",
@@ -741,7 +780,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   },
 ]
 
-/** ชื่อ tool ตามลำดับที่ `tools/list` ตอบ — เฉพาะ 11 ตัวในตาราง docs/05 §4 */
+/** ชื่อ tool ตามลำดับที่ `tools/list` ตอบ — ครบ 12 ตัวตามตาราง docs/05 §4 */
 export function toolDefinitions(): ToolDefinition[] {
   return TOOL_SPECS.map((spec) => spec.definition)
 }
