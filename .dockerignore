@@ -1,0 +1,9 @@
+# docker build ไม่ต้องเอาอะไรเข้า image (source ถูก COPY ใน Dockerfile ทีหลัง)
+node_modules
+.git
+var
+vault
+dist
+packages/server/public
+*.log
+.scratch

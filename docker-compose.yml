@@ -1,0 +1,21 @@
+# doku — โครง deploy (M5 S5) · **ยังไม่เปิดใช้จริง**: docker มาหลัง M4 นิ่ง (docs/08 ข้อ 3)
+# ใช้จริงเมื่อพร้อม: docker compose up --build
+services:
+  doku:
+    build: .
+    image: doku:local
+    ports:
+      - "7667:7667"
+    environment:
+      DOKU_VAULT: /data/vault
+      DOKU_VAR: /data/var
+      DOKU_PORT: "7667"
+      DOKU_HOST: 0.0.0.0
+    volumes:
+      # vault = source of truth (host เห็น/แก้ได้ — "ไฟล์คือความจริง") · var = cache/index/revisions
+      - ./vault:/data/vault
+      - doku-var:/data/var
+    restart: unless-stopped
+
+volumes:
+  doku-var:
