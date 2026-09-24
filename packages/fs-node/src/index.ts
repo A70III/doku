@@ -35,6 +35,16 @@ import {
   type WritableVaultFs,
 } from "@doku/core"
 
+export {
+  type Backlink,
+  type ChangeResult,
+  createSearchIndexStore,
+  type IndexSyncStats,
+  type SearchHit,
+  type SearchIndexStore,
+  type SearchOptions,
+} from "./search-index.ts"
+
 export interface NodeVaultFs extends WritableVaultFs {
   /** absolute path ของ vault root (ผ่าน realpath แล้ว) */
   readonly root: string
