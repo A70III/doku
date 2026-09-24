@@ -1,5 +1,7 @@
-# doku — โครง deploy (M5 S5) · **ยังไม่เปิดใช้จริง**: docker มาหลัง M4 นิ่ง (docs/08 ข้อ 3)
-# ใช้จริงเมื่อพร้อม: docker compose up --build
+# doku — deploy บน home server (M5 · ผ่าน build+run ทดสอบแล้ว · docker มาหลัง M4 นิ่ง docs/08 ข้อ 3)
+# ใช้จริง: docker compose up -d --build   · สถานะ: docker compose ps (healthy = /health ตอบ)
+# vault อยู่ที่ ./vault บน host (source of truth — แก้/git ได้จาก host ตรง ๆ)
+# var (cache/index/revisions/audit) อยู่ใน named volume `doku-var`
 services:
   doku:
     build: .
@@ -12,9 +14,15 @@ services:
       DOKU_PORT: "7667"
       DOKU_HOST: 0.0.0.0
     volumes:
-      # vault = source of truth (host เห็น/แก้ได้ — "ไฟล์คือความจริง") · var = cache/index/revisions
+      # vault = source of truth (host เห็น/แก้ได้ — "ไฟล์คือความจริง")
       - ./vault:/data/vault
       - doku-var:/data/var
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:7667/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
 
 volumes:

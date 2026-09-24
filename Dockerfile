@@ -1,5 +1,5 @@
-# doku — โครง deploy (M5 S5) · **ยังไม่ใช้จริง**: docker มาหลัง M4 นิ่ง (docs/08 ข้อ 3)
-# build: docker build -t doku . · run: docker compose up (ดู docker-compose.yml)
+# doku — image สำหรับ deploy บน home server (M5 · ผ่าน build+run ทดสอบแล้ว · docs/08 ข้อ 3: docker มาหลัง M4 นิ่ง)
+# build: docker build -t doku:local . · run: docker compose up -d (ดู docker-compose.yml)
 FROM oven/bun:1-alpine
 WORKDIR /app
 
@@ -14,13 +14,22 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
-# vault = source of truth อยู่บน volume (/data/vault) · var = cache/index/revisions (อายุสั้น)
+# app.css + editor.js = gitignored artifacts (.dockerignore ตัด packages/server/public/ ออก)
+# → build ตอนสร้าง image เลย ไม่ build ตอน runtime (ข้อ 73: ขาด CSS = a11y แดง ·
+#   ข้อ 37: ขาด editor.js = fallback textarea) — และ container รันเป็น non-root จะเขียน /app ไม่ได้
+RUN bun run build:css && bun run build:editor
+
+# รันเป็น uid 1000 (`bun` user ที่ image มีอยู่แล้ว = user บน home server) — ไฟล์ที่เขียนลง
+# bind mount `/data/vault` จึงเป็นของ user เดียวกับ host จัดการต่อได้ตามปกติ
+# · /data/var (named volume: cache/index/revisions/audit) ต้องเขียนได้ตั้งแต่ volume ถูก initialize
+RUN mkdir -p /data/var && chown -R bun:bun /data
+USER bun
+
+# vault = source of truth อยู่บน volume (host bind) · var = cache/index/revisions/audit (อายุสั้น)
 ENV DOKU_VAULT=/data/vault \
     DOKU_VAR=/data/var \
     DOKU_PORT=7667 \
     DOKU_HOST=0.0.0.0
 EXPOSE 7667
 
-# app.css เป็น gitignored artifact → build ก่อนเสมอ (บทเรียน docs/08 ข้อ 73: ขาด CSS = a11y แดง)
-# editor.js ก็เป็น gitignored artifact (และ .dockerignore ตัด packages/server/public/ ออก) → build ใน image เหมือนกัน (ข้อ 37: ขาด = fallback textarea)
-CMD ["sh", "-c", "bun run build:css && bun run build:editor && exec bun run packages/server/src/index.ts"]
+CMD ["bun", "run", "packages/server/src/index.ts"]
