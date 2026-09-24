@@ -1697,13 +1697,17 @@ ${INTERACTIONS_JS}
     const docs = (paletteDocs || []).map((doc) => ({
       label: doc.title,
       hint: doc.id,
+      tags: Array.isArray(doc.tags) ? doc.tags.join(" ") : "",
       run: () => {
         window.location.href = "/d/" + encodePath(doc.id);
       },
     }));
     const all = commands.concat(docs);
     paletteItems = needle
-      ? all.filter((item) => (item.label + " " + item.hint).toLowerCase().indexOf(needle) !== -1)
+      ? all.filter(
+          (item) =>
+            (item.label + " " + item.hint + " " + (item.tags || "")).toLowerCase().indexOf(needle) !== -1,
+        )
       : all;
     paletteItems = paletteItems.slice(0, 40);
     paletteIndex = 0;
