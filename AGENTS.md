@@ -24,8 +24,8 @@ bun run gen:icons    # generate Lucide subset → packages/core/src/icons/lucide
 bun run shot         # playwright: screenshot 2 ธีม + a11y check → var/shots/current/ (ไม่ commit)
 ```
 
-CLI `doku` — **ใช้ได้จริงตอนนี้**: `render` `check` `serve` `restore` (ทุกตัวมี `--json`)
-· **วางแผน (M4–M5, spec ที่ `docs/05`)**: `new` `mkdir` `tree --json` `list --tag` `search` `mv` `build --out` `audit` `mcp`
+CLI `doku` — **ใช้ได้จริงตอนนี้**: `render` `check` `serve` `restore` · `new` `mkdir` `tree --json` `list --tag` `mv` (ทุกคำสั่งมี `--json`)
+· `mcp` = stdio MCP spawn subprocess (docs/08 ข้อ 25) · **วางแผน (M4–M5, spec ที่ `docs/05`)**: `audit` (M4 S3) · `search` `build --out` (M5)
 
 ## โครง repo + ทิศทาง dependency
 
