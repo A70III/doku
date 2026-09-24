@@ -81,6 +81,7 @@ AI agent ครบ CLI + MCP โดย **format vault และ architecture ข
 | 3.5.6 | Design pass + verify | `bun run shot` 2 ธีม + a11y + rhythm · CJK scan |
 
 - **DoD:** สร้างโฟลเดอร์ซ้อน 3 ชั้นบนสุด → browse ได้ครบจากหน้าแรก/หน้าหมวด · date group + sort ทำงาน · Ctrl+K หาเจอจาก tag · gates เขียว
+- **สถานะ 2026-09-24: เสร็จแล้ว** — 3.5.1–3.5.6 done · verifier ทุก slice PASS (S1–S6, S2/S6 ผ่าน round 2/3) · gates 5 + CJK 0 · DoD รันจริง 15/15 (`var/m35-dod.ts`: browse 3 ชั้น · `?sort=` ทั้งสองหน้า · Ctrl+K หา tag) · decision ใหม่ docs/08 ข้อ 72–73 · build fix: `bun x` แทน `bunx` (package.json + scripts/dev.sh)
 - **Design note:** หน้า FolderPage ต้องแก้ edge `x/` vs `x.md` (ticket 06)
 
 ### M4 — AI access: ปิดงานค้าง + ช่องทาง agent (~1.5–2 วัน · ตาม docs/07 + ขยาย)

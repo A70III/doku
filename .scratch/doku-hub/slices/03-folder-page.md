@@ -1,6 +1,6 @@
 # S3 — folder-page
 
-Status: open
+Status: done
 Phase: M3.5
 Files I may touch: `packages/server/src/app.tsx` (route branch) · new `packages/server/src/web/folder-page.tsx` · `packages/core/src/check.ts` + `packages/core` warning-code/type files (duplicate-name check) · a test under `packages/core/test/` or `packages/server/test/`
 Plan item: plan.md §5 → 3.5.2 (FolderPage + duplicate-name `x/` vs `x.md` check — ticket 06 decision)

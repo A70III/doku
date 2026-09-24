@@ -124,6 +124,13 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - container downgrade ของ block (section/stats/kv/details/tabs/… เลิกเป็นกล่อง) · แก้ `==…==` ที่เคยเป็นพื้นเหลืองทึบ
   - correctness lock ข้อ 56–61 (path `#` · sanitize protocol/attribute · asset `?h=` · `width` · `render.math=false` · wikilink)
   - verify: `bun run shot` ถ่าย 2 ธีม + **a11y smoke check** (ชื่อคอนโทรล · focus ring · 200% zoom · reduced motion · 360px)
+- **M3.5 (Hub browse) เสร็จแล้ว** — home แบ่ง section ต่อ top-level folder (นับจำนวน · tint ไอคอนจากสีโฟลเดอร์)
+  + flat list จัดกลุ่มตามวัน + `?sort=` SSR (ทั้ง home และ FolderPage) · **FolderPage**: `/d/*path` ที่เป็นโฟลเดอร์ →
+  masthead + ปักหมุด → โฟลเดอร์ย่อย → เอกสาร (เดิม 404) · `x/`+`x.md` = doc wins + `doku check` เตือน `folder_file_name_clash`
+  · palette (Ctrl+K) ค้นจาก tag ได้
+  - verify: gates 5 + CJK 0 · verifier ทุก slice PASS (S1–S6) · DoD รันจริง 15/15 (`var/m35-dod.ts`) · decision docs/08 ข้อ 72–73
+  - **build: ใช้ `bun x` ไม่ใช่ `bunx`** (`package.json` + `scripts/dev.sh`) — **ต้อง `bun run build:css` + `build:editor`
+    ก่อน `bun run shot`** (`public/` เป็น gitignored artifact · ขาด = a11y แดง 5 ข้อ — ข้อ 73)
 - ล็อกเพิ่มตอนแก้บั๊ก katex (หลัง M3.1): `katex.css` (~380KB ฝังฟอนต์) โหลด**เฉพาะหน้าที่มีสมการ** —
   SSR ส่ง `math` ให้ `Layout` + client `ensureKatexCss()` หลัง repaint (กดพิมพ์สมการใหม่ตอนโหมดเขียน) (ข้อ 70)
 - ล็อกเพิ่มตอนแก้บั๊ก soft break (หลัง M3.1): **บรรทัดใหม่เดี่ยวในย่อหน้า = บรรทัดจริง** (`<br>`)

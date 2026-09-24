@@ -142,6 +142,14 @@
 
 ---
 
+## M3.5 — Hub browse: หมวดไม่จำกัด (2026-09-24 — เสร็จแล้ว)
+
+หน้าแรกแบ่ง section ต่อ top-level folder (นับจำนวนเอกสาร · tint ไอคอนจากสีโฟลเดอร์ · "ดูทั้งหมด →") + flat list จัดกลุ่มตามวัน (วันนี้/เมื่อวานนี้/≤7 วัน/≤30 วัน/เก่ากว่า) · `?sort=` (mtime/name/size) render ฝั่ง server ทั้งหน้าแรกและหน้าโฟลเดอร์ (มี `bytes` ใน `DocSummary`) · **FolderPage**: `GET /d/*path` ที่เป็นโฟลเดอร์ → masthead (breadcrumb + title + stats · ไม่มีปุ่ม) + ปักหมุด → โฟลเดอร์ย่อย → เอกสาร (เดิม = 404) · `x/` + `x.md` → **doc wins** + `doku check` เตือน `folder_file_name_clash` · palette (Ctrl+K) ค้นจาก tag ได้
+
+- **DoD (รันจริง 15/15 — `var/m35-dod.ts`):** browse โฟลเดอร์ซ้อน 3 ชั้นจากหน้าแรกและหน้าโฟลเดอร์ · date group + `?sort=` ทั้งสองหน้า · Ctrl+K หาเจอจาก tag
+- verify: gates 5 + CJK 0 · verifier ทุก slice PASS (S1–S6) · decision ใหม่ที่ [08](08-decisions.md) ข้อ 72–73
+- build: **`bun x` แทน `bunx`** — ต้อง `bun run build:css` (+ `build:editor`) ก่อน gate `bun run shot` (`public/app.css` เป็น gitignored artifact)
+
 ## M4 — AI access
 
 - [ ] REST ครบ (docs/folders/assets/render/tree/trash)
