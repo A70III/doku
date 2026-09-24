@@ -33,7 +33,12 @@ import {
   type Warning,
   walkVault,
 } from "@doku/core"
-import { createNodeRevisionStore, createNodeVaultFs, createSearchIndexStore } from "@doku/fs-node"
+import {
+  createNodeRevisionStore,
+  createNodeVaultFs,
+  createSearchIndexStore,
+  logAudit,
+} from "@doku/fs-node"
 import { loadKatexCss } from "./preview/katex-css.ts"
 import { renderPreviewPage } from "./preview/page.ts"
 
@@ -457,6 +462,7 @@ async function commandRestore(args: ParsedArgs): Promise<number> {
 
   if (snapshot.md !== null) await vault.fs.writeText(`${id}.md`, snapshot.md)
   if (snapshot.meta !== null) await vault.fs.writeText(`${id}.meta.json`, snapshot.meta)
+  logAudit({ actor: "cli", action: "doc.revision_restore", path: id }, varDirOf(args))
 
   if (args.flags.has("json")) {
     process.stdout.write(
@@ -555,6 +561,12 @@ function emitOk(args: ParsedArgs, payload: Record<string, unknown>, human: strin
   }
 }
 
+/** var root ของคำสั่ง (`--var` หรือ `DOKU_VAR ?? "var"`) — audit log ของ CLI ใช้ที่เดียวกับ server */
+function varDirOf(args: ParsedArgs): string {
+  const flag = args.flags.get("var")
+  return resolvePath(typeof flag === "string" ? flag : (process.env.DOKU_VAR ?? "var"))
+}
+
 /**
  * `doku new <path> [--title <ชื่อ>]` — สร้างเอกสารใหม่
  * เขียนผ่าน fs adapter ตัวเดิมทั้งคู่ (safeJoin + atomic write — plan §4 #4 ห้ามเขียนตรง)
@@ -584,6 +596,7 @@ async function commandNew(args: ParsedArgs): Promise<number> {
     await vault.fs.writeText(`${id}.meta.json`, `${JSON.stringify({ title }, null, 2)}\n`)
   }
 
+  logAudit({ actor: "cli", action: "doc.create", path: id }, varDirOf(args))
   emitOk(args, { ok: true, path: id, title, md: `${id}.md` }, `สร้างแล้ว: ${id}.md`)
   return 0
 }
@@ -598,6 +611,7 @@ async function commandMkdir(args: ParsedArgs): Promise<number> {
     throw new CommandFailure("already_exists", `มีอยู่แล้ว: ${path}`)
   }
   await vault.fs.mkdir(path)
+  logAudit({ actor: "cli", action: "folder.create", path }, varDirOf(args))
   emitOk(args, { ok: true, path }, `สร้างโฟลเดอร์แล้ว: ${path}/`)
   return 0
 }
@@ -791,6 +805,15 @@ async function commandMv(args: ParsedArgs): Promise<number> {
     const result = isDoc
       ? await moveDoc(vault.fs, from, to, { beforeMove })
       : await moveFolder(vault.fs, from, to, { beforeMove })
+    logAudit(
+      {
+        actor: "cli",
+        action: isDoc ? "doc.move" : "folder.move",
+        path: result.from,
+        to: result.to,
+      },
+      varDirOf(args),
+    )
     emitOk(
       args,
       {

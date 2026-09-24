@@ -8,7 +8,7 @@
 import { describe, expect, test } from "bun:test"
 // node:child_process แทน Bun.spawn — เหตุผลเดียวกับ cli-m4.test.ts (บั๊ก Bun 1.4.x อ่าน stdout จาก subprocess แล้ว truncate บางครั้ง)
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 
@@ -200,5 +200,48 @@ describe("doku audit — READ-ONLY อ่าน JSONL (docs/06)", () => {
     // มีแค่ case "audit" เดียว ที่ dispatch ไป commandAudit
     expect(source.match(/case "audit":/g)).toHaveLength(1)
     expect(source.match(/async function commandAudit\(/g)).toHaveLength(1)
+  })
+})
+
+describe("CLI write channel (actor=cli · docs/06)", () => {
+  testCli("new/mkdir/mv/restore คนละ 1 บรรทัด · คำสั่งอ่านไม่เขียนเพิ่ม", () => {
+    const root = mkdtempSync(join(tmpdir(), "doku-audit-cli-write-"))
+    const vault = join(root, "vault")
+    mkdirSync(vault, { recursive: true })
+    const varDir = join(root, "var")
+    const file = join(varDir, "audit.log")
+
+    expect(
+      doku(["new", "r", "--title", "R", "--vault", vault, "--var", varDir, "--json"]).code,
+    ).toBe(0)
+    expect(doku(["mkdir", "z", "--vault", vault, "--var", varDir, "--json"]).code).toBe(0)
+    expect(doku(["mv", "r", "r2", "--vault", vault, "--var", varDir, "--json"]).code).toBe(0)
+    expect(doku(["mv", "r2", "r3", "--vault", vault, "--var", varDir, "--json"]).code).toBe(0)
+    // กู้จาก revision ของ r2 ที่ถูกเก็บตอน mv ครั้งแรก (r2 ยังไม่มีไฟล์ → restore สร้างกลับ)
+    expect(doku(["restore", "r2", "--vault", vault, "--var", varDir, "--json"]).code).toBe(0)
+
+    const entries = readFileSync(file, "utf8")
+      .split("\n")
+      .filter((line) => line.trim() !== "")
+      .map(
+        (line) => JSON.parse(line) as { actor: string; action: string; path: string; to?: string },
+      )
+    expect(entries.map((entry) => entry.action)).toEqual([
+      "doc.create",
+      "folder.create",
+      "doc.move",
+      "doc.move",
+      "doc.revision_restore",
+    ])
+    expect(entries.every((entry) => entry.actor === "cli")).toBe(true)
+    expect(entries[2]?.path).toBe("r")
+    expect(entries[2]?.to).toBe("r2")
+
+    // `doku audit` ยัง read-only — รันแล้วไฟล์ bytes เดิมเป๊ะ
+    const beforeAudit = readFileSync(file, "utf8")
+    const auditRun = doku(["audit", "--json", "--var", varDir])
+    expect(auditRun.code).toBe(0)
+    expect((JSON.parse(auditRun.stdout) as { count: number }).count).toBe(5)
+    expect(readFileSync(file, "utf8")).toBe(beforeAudit)
   })
 })

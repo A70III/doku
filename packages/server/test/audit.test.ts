@@ -273,10 +273,16 @@ describe("append-only — ไม่มีทาง truncate/ล้าง log ไ
     for (const name of names) {
       expect(name).not.toMatch(/truncate|purge|clear|reset|rotate|wipe|delete|remove|empty/i)
     }
-    // source ของ module แตะไฟล์ด้วย append เท่านั้น — ไม่มี call ที่ลบ/ตัดไฟล์
+    // audit.ts ห่อ writer ของ fs-node — ตัวมันเองไม่แตะ fs เลย
     const source = readFileSync(new URL("../src/audit.ts", import.meta.url), "utf8")
-    expect(source).toMatch(/appendFileSync\(/)
-    expect(source).not.toMatch(/(unlink|truncate|rmSync|rmdirSync|writeFileSync)\s*\(/)
+    expect(source).toMatch(/logAudit\(/)
+    expect(source).not.toMatch(
+      /(appendFileSync|writeFileSync|unlink|truncate|rmSync|rmdirSync)\s*\(/,
+    )
+    // writer จริง (fs-node) มีแค่ append — ไม่มี call ที่ลบ/ตัดไฟล์ (append-only ทุก channel)
+    const writer = readFileSync(new URL("../../fs-node/src/audit-log.ts", import.meta.url), "utf8")
+    expect(writer).toMatch(/appendFileSync\(/)
+    expect(writer).not.toMatch(/(unlink|truncate|rmSync|rmdirSync|writeFileSync)\s*\(/)
   })
 
   test("ไม่มี HTTP route ที่ชื่อมี audit — อ่าน log ไม่ใช่เรื่องของ server", () => {
@@ -287,19 +293,48 @@ describe("append-only — ไม่มีทาง truncate/ล้าง log ไ
     expect(routes.some((route) => route.path.includes("/trash/empty"))).toBe(true)
   })
 
+  test("ครบทุก write op — revision restore กับ trash purge ก็ถูกบันทึก", async () => {
+    const { app } = setup({})
+    const created = await postJson(app, "/api/docs/audit/x", { md: "# v1\n" })
+    expect(created.status).toBe(201)
+    const updated = await app.request("/api/docs/audit/x", {
+      method: "PUT",
+      headers: { ...AGENT, "if-match": created.headers.get("etag") ?? "" },
+      body: JSON.stringify({ md: "# v2\n" }),
+    })
+    expect(updated.status).toBe(200)
+
+    // กู้จาก revision ล่าสุด (revision ของ v1 ถูกเก็บตอน PUT)
+    const restored = await postJson(app, "/api/revisions/audit/x", {})
+    expect(restored.status).toBe(200)
+
+    const deleted = await app.request("/api/docs/audit/x", { method: "DELETE", headers: AGENT })
+    expect(deleted.status).toBe(200)
+    const emptied = await app.request("/api/trash/empty", { method: "POST" })
+    expect(emptied.status).toBe(200)
+
+    const entries = lines()
+    expect(entries.map((entry) => entry.action)).toEqual([
+      "doc.create",
+      "doc.update",
+      "doc.revision_restore",
+      "doc.delete",
+      "doc.purge",
+    ])
+    expect(entries[4]?.path).toBe("audit/x")
+  })
+
   test("api.ts แตะ audit เฉพาะผ่าน auditLog(...) — ไม่เขียน/ลบไฟล์เอง", () => {
     const source = readFileSync(new URL("../src/api.ts", import.meta.url), "utf8")
     const touched = source
       .split("\n")
       .map((line, index) => (line.toLowerCase().includes("audit") ? `${index + 1}: ${line}` : null))
       .filter((line): line is string => line !== null)
-    // มีทั้ง import + hook call — ทุกบรรที่ต้องเป็น `auditLog(` หรือ import เท่านั้น
+    // มีทั้ง import + hook call — ทุกบรรที่ต้องเป็น import ของ audit หรือเรียก `auditLog(context` เท่านั้น
     expect(touched.length).toBeGreaterThanOrEqual(12)
     for (const line of touched) {
       const code = line.slice(line.indexOf(":") + 1).trim()
-      expect(code).toMatch(
-        /^(import \{ auditLog \} from "\.\/audit\.ts"|auditLog\()|^\/\/|^\*|^\/\*/,
-      )
+      expect(code).toMatch(/^(import \{ auditLog \} from "\.\/audit\.ts")|auditLog\(context/)
     }
     // ไม่มีชื่อไฟล์/การเขียนไฟล์ audit ตรง ๆ ใน api.ts
     expect(source).not.toContain("audit.log")

@@ -35,6 +35,7 @@ import {
   type WritableVaultFs,
 } from "@doku/core"
 
+export { type AuditRecord, auditLogPath, logAudit } from "./audit-log.ts"
 export {
   type Backlink,
   type ChangeResult,

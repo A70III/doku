@@ -944,7 +944,10 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
 
   api.post("/trash/empty", async (context) => {
     // ลบถาวร = คนเท่านั้น — ไม่มี MCP tool นี้ (docs/06) · เว็บยืนยัน 2 ชั้นฝั่ง UI
+    const items = await deps.trash.list()
     const removed = await deps.trash.empty()
+    // ทำลายข้อมูล = ต้องมีร่องรอย — ล็อกต่อ item (path จริงของแต่ละรายการที่ถูก purge)
+    for (const item of items) auditLog(context, `${item.kind}.purge`, item.label)
     return context.json({ ok: true, removed })
   })
 
@@ -992,6 +995,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     if (snapshot.md !== null) await writable?.writeText(`${id}.md`, snapshot.md)
     if (snapshot.meta !== null) await writable?.writeText(`${id}.meta.json`, snapshot.meta)
     touch()
+    auditLog(context, "doc.revision_restore", id)
     return context.json({ ok: true, path: id, ts: target })
   })
 

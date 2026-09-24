@@ -9,8 +9,8 @@
  * ลบถาวร/purge/restore** (docs/06 — ลบถาวร = คนเท่านั้น)
  */
 
-import { describe, expect, test } from "bun:test"
-import { mkdtempSync, rmSync } from "node:fs"
+import { afterAll, describe, expect, test } from "bun:test"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { BLOCKS, memoryRevisionStore, memoryVaultFs } from "@doku/core"
@@ -50,9 +50,18 @@ interface ToolResult {
   payload: Record<string, unknown>
 }
 
+/** var ของไฟล์ test นี้ — audit log ของ MCP write channel เขียนลงตรงนี้ (ไม่แตะ var จริง) */
+const TEST_VAR = mkdtempSync(join(tmpdir(), "doku-mcp-var-"))
+afterAll(() => rmSync(TEST_VAR, { recursive: true, force: true }))
+
 function makeServer(files: Record<string, string | Uint8Array> = {}) {
   const fs = memoryVaultFs(files)
-  const deps: McpDeps = { fs, vaultName: "vault", revisions: memoryRevisionStore() }
+  const deps: McpDeps = {
+    fs,
+    vaultName: "vault",
+    revisions: memoryRevisionStore(),
+    varDir: TEST_VAR,
+  }
   return { fs, deps, server: createMcpServer(deps) }
 }
 
@@ -726,5 +735,69 @@ describe("doc_search (M5 S3 — FTS จาก var/index.db)", () => {
       else process.env.DOKU_VAR = savedVar
       rmSync(tmp, { recursive: true, force: true })
     }
+  })
+})
+
+describe("audit log — MCP write channel (docs/06)", () => {
+  test("ทุก write tool ทิ้ง 1 บรรทัด (actor=mcp) · read tool ไม่เขียน · ไม่มี channel ไหน purge log", async () => {
+    const { server } = makeServer({ "a.md": "# A\n" })
+    const file = join(TEST_VAR, "audit.log")
+    const before = existsSync(file)
+      ? readFileSync(file, "utf8")
+          .split("\n")
+          .filter((line) => line.trim() !== "").length
+      : 0
+
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
+    const wroteCreate = await call(server, "doc_write", { path: "b", md: "# B\n", mode: "create" })
+    expect(wroteCreate.isError).toBe(false)
+    expect(
+      (await call(server, "doc_write", { path: "a", md: "# A2\n", mode: "replace" })).isError,
+    ).toBe(false)
+    expect((await call(server, "doc_move", { from: "a", to: "c" })).isError).toBe(false)
+    expect((await call(server, "folder_create", { path: "f" })).isError).toBe(false)
+    expect(
+      (
+        await call(server, "asset_put", {
+          path: "b",
+          filename: "pic.png",
+          content_base64: png.toString("base64"),
+        })
+      ).isError,
+    ).toBe(false)
+    expect((await call(server, "doc_delete", { path: "c" })).isError).toBe(false)
+    // read tool = ไม่เขียนเพิ่ม
+    expect((await call(server, "doc_read", { path: "b", format: "md" })).isError).toBe(false)
+    expect((await call(server, "doc_list", {})).isError).toBe(false)
+
+    const lines = existsSync(file)
+      ? readFileSync(file, "utf8")
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .slice(before)
+      : []
+    expect(lines).toHaveLength(6)
+    const entries = lines.map(
+      (line) =>
+        JSON.parse(line) as {
+          actor: string
+          action: string
+          path: string
+          to?: string
+        },
+    )
+    expect(entries.every((entry) => entry.actor === "mcp")).toBe(true)
+    expect(entries.map((entry) => entry.action)).toEqual([
+      "doc.create",
+      "doc.update",
+      "doc.move",
+      "folder.create",
+      "asset.upload",
+      "doc.delete",
+    ])
+    expect(entries[2]?.path).toBe("a")
+    expect(entries[2]?.to).toBe("c")
+    expect(entries[4]?.path).toContain("assets/pic.png")
+    expect(entries[5]?.path).toBe("c")
   })
 })

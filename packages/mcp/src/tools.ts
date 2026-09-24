@@ -42,7 +42,7 @@ import {
   walkVault,
   warning,
 } from "@doku/core"
-import { createSearchIndexStore } from "@doku/fs-node"
+import { createSearchIndexStore, logAudit } from "@doku/fs-node"
 import {
   currentEtag,
   docPath,
@@ -338,6 +338,15 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
       if (sidecar !== null) await deps.fs.writeText(`${id}.meta.json`, sidecar)
 
       const next = await currentEtag(deps, id)
+      logAudit(
+        {
+          actor: "mcp",
+          action: mode === "create" ? "doc.create" : "doc.update",
+          path: id,
+          etag: next?.etag,
+        },
+        deps.varDir,
+      )
       return { ok: true, path: id, mode, etag: next?.etag ?? "" }
     },
   },
@@ -369,6 +378,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
         updateLinks,
         beforeMove: (ids) => saveRevisions(deps, ids),
       })
+      logAudit({ actor: "mcp", action: "doc.move", path: result.from, to: result.to }, deps.varDir)
       return { ok: true, ...result }
     },
   },
@@ -397,6 +407,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
         label: id,
         kind: "doc",
       })
+      logAudit({ actor: "mcp", action: "doc.delete", path: id }, deps.varDir)
       return { ok: true, path: id, trash: item }
     },
   },
@@ -420,6 +431,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
         throw new ToolError("already_exists", `มีอยู่แล้ว: ${path}`)
       }
       await deps.fs.mkdir(path)
+      logAudit({ actor: "mcp", action: "folder.create", path }, deps.varDir)
       return { ok: true, path }
     },
   },
@@ -734,6 +746,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
       if (!isSafeVaultPath(target)) throw new ToolError("path_invalid", `path ไม่ปลอดภัย: ${target}`)
 
       await deps.fs.writeBytes(target, bytes)
+      logAudit({ actor: "mcp", action: "asset.upload", path: target }, deps.varDir)
       return {
         ok: true,
         path: id,

@@ -65,6 +65,8 @@ export interface McpDeps {
   /** ชื่อโฟลเดอร์ vault — ใช้ตัด prefix ตอนผู้ใช้พิมพ์ `vault/x` มา */
   vaultName: string
   revisions: RevisionStore
+  /** var root (`DOKU_VAR ?? "var"`) — audit log ของ MCP ใช้ตำแหน่งเดียวกับ server/CLI */
+  varDir: string
 }
 
 export interface OpenedMcpVault extends McpDeps {
@@ -76,9 +78,10 @@ export interface OpenedMcpVault extends McpDeps {
 /** เปิด vault จาก env — แบบเดียวกับ CLI: `DOKU_VAULT` (default `vault`) · `DOKU_VAR` (default `var`) */
 export async function openMcpVault(env: NodeJS.ProcessEnv = process.env): Promise<OpenedMcpVault> {
   const root = resolvePath(env.DOKU_VAULT ?? "vault")
+  const varDir = resolvePath(env.DOKU_VAR ?? "var")
   const fs = await createNodeVaultFs(root)
-  const revisions = await createNodeRevisionStore(resolvePath(env.DOKU_VAR ?? "var"))
-  return { fs, vaultName: basename(root), revisions, root }
+  const revisions = await createNodeRevisionStore(varDir)
+  return { fs, vaultName: basename(root), revisions, varDir, root }
 }
 
 /* ── argument helpers (flat inputs ตาม docs/05 §4) ────────────────────── */
