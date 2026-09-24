@@ -51,10 +51,12 @@ mono repo, server-render, custom block ผ่าน remark-directive
 ```
 packages/
   core/              render, resolve, validate, sanitize, blocks
-  fs-node/           VaultFs adapter (node:fs) — ใช้ร่วม cli/server
-  server/            Hono + JSX + Tailwind + SSE      (M1)
-  cli/               doku binary
-  mcp/               MCP stdio server                  (M4)
+  fs-node/           VaultFs adapter (node:fs) — ใช้ร่วม cli/server/mcp
+                     (+ revisions · search-index FTS5 · audit-log)
+  server/            Hono + JSX + Tailwind + SSE + REST        (M1–M4)
+  cli/               doku binary (render/check/new/mkdir/mv/list/tree/
+                     restore/search/audit/build)
+  mcp/               MCP stdio server — 12 tools                (M4+M5)
 vault/      เนื้อหา (default vault, mount เป็น volume)
 docs/       เอกสารออกแบบ
 examples/   ตัวอย่าง
@@ -71,7 +73,7 @@ examples/   ตัวอย่าง
 | [docs/03-blocks-and-design-system.md](docs/03-blocks-and-design-system.md) | block syntax ทั้งหมด + design tokens, layout, styleguide |
 | [docs/04-tech-stack.md](docs/04-tech-stack.md) | stack แบบ TypeScript-first + monorepo |
 | [docs/05-api-and-agent-access.md](docs/05-api-and-agent-access.md) | REST, CLI, MCP, folder ops |
-| [docs/06-security.md](docs/06-security.md) | sanitize, path, token, revision |
+| [docs/06-security.md](docs/06-security.md) | sanitize, path, token, revision, audit |
 | [docs/07-roadmap.md](docs/07-roadmap.md) | M0–M5 + ประมาณการ |
 | [docs/08-decisions.md](docs/08-decisions.md) | decisions ที่ล็อกแล้ว |
 
@@ -79,26 +81,47 @@ examples/   ตัวอย่าง
 
 [examples/](examples/) — vault ตัวอย่าง
 
+## Deploy บน home server (Docker)
+
+```bash
+docker compose up -d --build      # build image + ขึ้น container (port 7667)
+docker compose ps                 # healthy = /health ตอบผ่าน healthcheck
+```
+
+- `./vault` (host) = source of truth — mount เป็น `/data/vault` แก้/git ตรง ๆ จาก host ได้ตามปกติ
+- named volume `doku-var` = `var/` (cache · index · revisions · audit) — อายุสั้น ลบได้ด้วย `down -v`
+- container รันเป็น **uid 1000** (user เดียวกับ host) → ไฟล์ที่เขียนลง vault ไม่ใช่ root-owned
+- `app.css` + `editor.js` build **ตอนสร้าง image** (ไม่ build ตอน runtime — container เป็น non-root)
+- ทดสอบ function ครบวงจรแล้ว (pages · REST · search · watcher · MCP · CLI · audit) — ดู [docs/08](docs/08-decisions.md) ข้อ 82
+
 ## สถานะ
 
-**M0 + M1 + M2 + M3 เสร็จแล้ว** — render / validate / serve / editor ได้จริง พร้อม custom block + design system + REST API:
+**M0–M5 เสร็จแล้ว** — render / validate / serve / editor / REST / MCP / search + backlinks / audit log / static export
+ได้จริง ผ่าน gates ครบ (461 tests · typecheck · Biome · shot a11y · doku check):
 
 ```bash
 bun install
-bun test                                    # 128 tests
+bun test                                    # 461 tests ผ่าน
 bun run typecheck && bun run check          # tsc + Biome
-bun run doku -- render --vault examples/vault projects/doku/design > out.html
-bun run doku -- check  --vault examples/vault --json
+bun run build:css && bun run build:editor   # artifacts (gitignored) — build ก่อนรัน gate
+bun run shot                                # ถ่ายหน้า + a11y gate
+bun run doku check --vault examples/vault   # 0 errors / 0 warnings
 bun run dev                                 # server + Tailwind → localhost:7667
-bun run build:css                           # generate app.css สำหรับ production
 bun run gen:schema                          # Zod → schema/ (ไม่ commit)
 ```
 
-- **CLI**: `doku render` · `doku check` · `doku serve` (server + sidebar tree + SSE live-reload)
-- **route**: `/` · `/d/*path` · [`/styleguide`] · `/assets/*` · `/static/*` · `/sse` · `/health`
+- **CLI** (ทุกตัวรองรับ `--json`): `render` · `check` · `serve` · `new` · `mkdir` · `mv` · `list` · `tree` ·
+  `restore` · `search` · `audit` (read-only) · `build --out`
+- **route**: `/` · `/d/*path` · `/trash` · `/styleguide` · `/assets/*` · `/static/*` · `/sse` · `/health` · REST `/api/*`
+- **MCP** (stdio · `doku mcp`): 12 tools ครบตาม [docs/05](docs/05-api-and-agent-access.md) §4 — มี `doc_search` ด้วย
+- **search + backlinks**: FTS5 trigram (ค้นไทย substring กลางประโยคได้) ที่ `var/index.db` · watcher อัปเดตเอง ·
+  ลิงก์ย้อนใต้หน้าอ่าน · ค้นผ่าน palette (`Ctrl+K`) / `GET /api/search` / `doku search` / MCP `doc_search`
+- **audit log**: `var/audit.log` append-only — ทุก write channel (REST/MCP/CLI) ทิ้ง 1 บรรทัด/1 write ·
+  `doku audit --json [--path] [--limit]` read-only (ไม่มีทาง truncate — ดู [docs/06](docs/06-security.md))
 - **custom block ครบตาม [docs/03](docs/03-blocks-and-design-system.md)**: callout (7 type), mark, badge, stat/stats,
   figure, gallery, video, card, section, grid/col, kv, progress, steps, timeline, margin-note, motion, details, tabs/tab
 - **design system**: tokens + prose + block CSS อยู่ที่ `@doku/core` ใช้ร่วม CLI/server · ดูทุก block ได้ที่ `/styleguide`
-- **ทิศทาง UI**: Digital Archivist / Editorial Minimalism (ดู [ทิศทาง UI](#ทิศทาง-ui--digital-archivist)) — รอบ UI pass เต็มรูปแบบอยู่ใน M3
-- ยังไม่มี: REST ที่เหลือ + MCP (M4) · index/search (M5)
+- **ทิศทาง UI**: Digital Archivist / Editorial Minimalism (ดู [ทิศทาง UI](#ทิศทาง-ui--digital-archivist))
+- ยังไม่ทำ (ตาม [docs/07](docs/07-roadmap.md)): content intelligence · graph view · comments · kanban ·
+  semantic search · token auth (ยังไม่เปิดออกนอก LAN)
 - คำถามค้างดู [docs/08-decisions.md](docs/08-decisions.md) หัวข้อ "รอเคาะ"

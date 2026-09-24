@@ -140,7 +140,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   (tools ครบ docs/05 §4 รวม `doc_search`)
 - **M5 (index/search/deploy) เสร็จแล้ว** — FTS5 trigram ที่ `var/index.db` (Drizzle + bun:sqlite ·
   incremental ตาม hash · watcher trigger) · `GET /api/search` + palette เต็มรูปแบบ · backlinks
-  ท้ายเอกสาร · `doku build --out` · โครง docker + `scripts/backup.sh` (docs/08 ข้อ 75–80)
+  ท้ายเอกสาร · `doku build --out` · docker deploy ทดสอบครบ + `scripts/backup.sh` (docs/08 ข้อ 75–83)
 - ถัดไป: ของหลัง v1 ตาม `docs/07` §หลัง v1 เท่านั้น (D2 · graph view · semantic search · token auth)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)

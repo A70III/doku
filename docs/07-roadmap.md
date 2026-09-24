@@ -171,7 +171,7 @@
 - [x] `/api/search` + palette full-text + MCP `doc_search` ("หน้า search" = palette ตาม plan §5 — [08 ข้อ 79](08-decisions.md))
 - [x] backlinks + wikilink resolve
 - [x] `doku build` export offline
-- [x] **วางโครง docker** (`Dockerfile` + `docker-compose.yml` + volume) — ยังไม่ build
+- [x] **docker deploy** (`Dockerfile` + `docker-compose.yml` + volume) — build+รันทดสอบครบแล้ว (54 checks · uid 1000 · healthcheck — ดู [08](08-decisions.md) ข้อ 82)
 - [x] backup script (auto-git vault)
 
 **เสร็จ:** ค้นหาเร็ว, backlinks ทำงาน, โครง deploy พร้อมค่อยเปิดใช้
