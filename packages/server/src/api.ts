@@ -9,14 +9,20 @@
  */
 
 import {
+  assetMimeOf,
+  assetUrl,
   BLOCK_COLORS,
   BLOCKS,
+  basenameOf,
   buildDocIndex,
   CALLOUT_TYPES,
+  dirnameOf,
   docEtag,
   etagHeader,
   FOLDER_META_KEYS,
   FolderMetaSchema,
+  isSafeAssetName,
+  isSafeVaultPath,
   isTrashId,
   isWritableVaultFs,
   loadMeta,
@@ -24,15 +30,16 @@ import {
   META_KNOWN_KEYS,
   type Meta,
   MetaSchema,
-  type MovePlan,
+  MoveError,
   matchesIfMatch,
+  moveDoc,
+  moveFolder,
   normalizeVaultPath,
   PathError,
-  planMove,
   type RevisionStore,
   renderMarkdown,
   resolveInline,
-  rewriteMarkdownLinks,
+  sha256Hex,
   type TrashStore,
   type VaultFs,
   type WritableVaultFs,
@@ -63,6 +70,7 @@ export type ApiErrorCode =
   | "meta_invalid"
   | "too_large"
   | "conflict"
+  | "asset_type_rejected"
   | "folder_not_empty"
   | "path_invalid"
   | "precondition_required"
@@ -84,6 +92,15 @@ export function apiError(
   const error: { code: ApiErrorCode; message: string; fields?: string[] } = { code, message }
   if (fields && fields.length > 0) error.fields = fields
   return context.json({ ok: false, error }, status)
+}
+
+/** map `MoveError` ของ core → HTTP (docs/05 §3: ต้นทางไม่มี = 404 · ปลายทางซ้ำ = 409) */
+function moveErrorResponse(context: Context, error: MoveError): Response {
+  if (error.code === "not_found") return apiError(context, 404, "not_found", error.message)
+  if (error.code === "already_exists") {
+    return apiError(context, 409, "already_exists", error.message)
+  }
+  return apiError(context, 400, "invalid_body", error.message)
 }
 
 /* ── rate limit (docs/06) — in-memory, ไม่ต้อง Redis ──────────────────── */
@@ -112,6 +129,12 @@ export class RateLimiter {
 
 /** limit ตาม docs/06 — write 60/min · render 120/min */
 export const RATE_LIMITS = { write: 60, render: 120 } as const
+
+/** ลิมิต asset ตาม docs/05 Agent policy — 25 MB/ไฟล์ · ≤ 20 ไฟล์/คำขอ */
+export const ASSET_MAX_BYTES = 25 * 1024 * 1024
+export const ASSET_MAX_FILES = 20
+/** `NAME_MAX` ของ filesystem (bytes) — ชื่อไฟล์ยาวกว่านี้ validate ผ่านแต่เขียนลง disk จริงไม่ได้ (ENAMETOOLONG) */
+const ASSET_NAME_MAX_BYTES = 255
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 
@@ -260,6 +283,11 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     await deps.revisions.save(id, { md, meta })
   }
 
+  /** เก็บ revision ก่อน move จริง — ส่งเข้า core ผ่าน `beforeMove` hook (plan §4 #4) */
+  const saveRevisions = async (ids: readonly string[]): Promise<void> => {
+    for (const id of ids) await saveRevision(id)
+  }
+
   /** `If-Match` gate ของ PUT/PATCH — คืน Response เมื่อไม่ผ่าน */
   const checkPrecondition = async (
     context: Context,
@@ -284,42 +312,9 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     return { current }
   }
 
-  const appendMovedFrom = async (id: string, from: string): Promise<void> => {
-    const existing = parseJsonObject(await fs.readText(`${id}.meta.json`))
-    const relations = (existing.relations ?? {}) as Record<string, unknown>
-    const list = Array.isArray(relations.moved_from) ? (relations.moved_from as string[]) : []
-    if (list.includes(from)) return
-    await writable?.writeText(
-      `${id}.meta.json`,
-      jsonSidecar(
-        mergeShallowObjects(existing, { relations: { ...relations, moved_from: [...list, from] } }),
-      ),
-    )
-  }
-
   const docsUnder = async (path: string): Promise<string[]> => {
     const { docs } = await walkVault(fs)
     return docs.filter((id) => id.startsWith(`${path}/`))
-  }
-
-  /** rewrite ลิงก์ใน vault ทั้งหมดตามแผนการย้าย — คืนจำนวนไฟล์ที่แก้ */
-  const applyLinkUpdates = async (plan: MovePlan): Promise<number> => {
-    if (!writable) return 0
-    const listing = await walkVault(fs)
-    const index = buildDocIndex(listing.docs)
-    const reverse = new Map([...plan.docs].map(([oldId, newId]) => [newId, oldId]))
-    let changed = 0
-    for (const newId of listing.docs) {
-      const body = await fs.readText(`${newId}.md`)
-      if (body === null) continue
-      const oldId = reverse.get(newId) ?? newId
-      const next = rewriteMarkdownLinks(body, oldId, plan, index, { newDocId: newId })
-      if (next !== body) {
-        await writable.writeText(`${newId}.md`, next)
-        changed += 1
-      }
-    }
-    return changed
   }
 
   /* ── documents ─────────────────────────────────────────────────────── */
@@ -377,12 +372,22 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     })
   })
 
+  /** upload asset — `POST /docs/*path/assets` (docs/05 §3) ต้อง register **ก่อน** generic `POST /docs/*`:
+   *  Hono รัน handler ตามลำดับ และตัวล่าง return Response ทันที (ไม่ผ่าน next) */
+  api.post("/docs/*", async (context, next) => {
+    const raw = tailAfter(context.req.url, "/api/docs/") ?? ""
+    if (!raw.endsWith("/assets")) return next()
+    const id = parseVaultPath(raw.slice(0, -"/assets".length), deps.vaultName)
+    if (!id) return apiError(context, 400, "path_invalid", `path ไม่ปลอดภัย: ${raw}`)
+    return uploadAssets(context, id)
+  })
+
   api.post("/docs/*", async (context) => {
     const raw = tailAfter(context.req.url, "/api/docs/") ?? ""
     if (raw.endsWith("/move")) {
       const id = parseVaultPath(raw.slice(0, -"/move".length), deps.vaultName)
       if (!id) return apiError(context, 400, "path_invalid", `path ไม่ปลอดภัย: ${raw}`)
-      return moveDoc(context, id)
+      return moveDocRoute(context, id)
     }
 
     const blocked = guardWrite(context)
@@ -526,9 +531,10 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     return context.json({ ok: true, path: id, trash: item })
   })
 
-  async function moveDoc(context: Context, id: string) {
+  async function moveDocRoute(context: Context, id: string) {
     const blocked = guardWrite(context)
     if (blocked) return blocked
+    if (!writable) return apiError(context, 503, "read_only", "vault นี้เปิดแบบอ่านอย่างเดียว")
 
     const body = await readJson(context)
     if (!body) return apiError(context, 400, "invalid_json", "body ต้องเป็น JSON object")
@@ -537,29 +543,23 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     }
     const to = parseVaultPath(body.to, deps.vaultName)
     if (!to) return apiError(context, 400, "path_invalid", `path ปลายทางไม่ปลอดภัย: ${body.to}`)
-    if (to === id) return apiError(context, 400, "invalid_body", "ปลายทางเหมือนต้นทาง")
-    if (!(await exists(`${id}.md`))) {
-      return apiError(context, 404, "not_found", `ไม่พบเอกสาร: ${id}`)
-    }
-    if ((await exists(`${to}.md`)) || (await exists(`${to}.meta.json`)) || (await exists(to))) {
-      return apiError(context, 409, "already_exists", `ปลายทางมีอยู่แล้ว: ${to}`)
-    }
 
-    await saveRevision(id)
-    const listing = await walkVault(fs)
-    const plan = planMove(`${id}.md`, `${to}.md`, listing)
-
-    await writable?.move(`${id}.md`, `${to}.md`)
-    if (await exists(`${id}.meta.json`)) {
-      await writable?.move(`${id}.meta.json`, `${to}.meta.json`)
-      await appendMovedFrom(to, id)
-    } else {
-      await writable?.writeText(`${to}.meta.json`, jsonSidecar({ relations: { moved_from: [id] } }))
+    try {
+      const result = await moveDoc(writable, id, to, {
+        updateLinks: body.update_links !== false,
+        beforeMove: saveRevisions,
+      })
+      touch()
+      return context.json({
+        ok: true,
+        from: result.from,
+        to: result.to,
+        updated_links: result.updated_links,
+      })
+    } catch (error) {
+      if (error instanceof MoveError) return moveErrorResponse(context, error)
+      throw error
     }
-
-    const updatedLinks = body.update_links === false ? 0 : await applyLinkUpdates(plan)
-    touch()
-    return context.json({ ok: true, from: id, to, updated_links: updatedLinks })
   }
 
   /* ── folders ───────────────────────────────────────────────────────── */
@@ -569,7 +569,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     if (raw.endsWith("/move")) {
       const path = parseVaultPath(raw.slice(0, -"/move".length), deps.vaultName, false)
       if (!path) return apiError(context, 400, "path_invalid", `path ไม่ปลอดภัย: ${raw}`)
-      return moveFolder(context, path)
+      return moveFolderRoute(context, path)
     }
 
     const blocked = guardWrite(context)
@@ -653,9 +653,10 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     return context.json({ ok: true, path, trash: item })
   })
 
-  async function moveFolder(context: Context, from: string) {
+  async function moveFolderRoute(context: Context, from: string) {
     const blocked = guardWrite(context)
     if (blocked) return blocked
+    if (!writable) return apiError(context, 503, "read_only", "vault นี้เปิดแบบอ่านอย่างเดียว")
 
     const body = await readJson(context)
     if (!body) return apiError(context, 400, "invalid_json", "body ต้องเป็น JSON object")
@@ -664,25 +665,187 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     }
     const to = parseVaultPath(body.to, deps.vaultName, false)
     if (!to) return apiError(context, 400, "path_invalid", `path ปลายทางไม่ปลอดภัย: ${body.to}`)
-    if (to === from || to.startsWith(`${from}/`)) {
-      return apiError(context, 400, "invalid_body", "ปลายทางไม่ถูกต้อง")
+
+    try {
+      const result = await moveFolder(writable, from, to, {
+        updateLinks: body.update_links !== false,
+        beforeMove: saveRevisions,
+      })
+      touch()
+      return context.json({
+        ok: true,
+        from: result.from,
+        to: result.to,
+        updated_links: result.updated_links,
+      })
+    } catch (error) {
+      if (error instanceof MoveError) return moveErrorResponse(context, error)
+      throw error
     }
-    if (!(await exists(from))) return apiError(context, 404, "not_found", `ไม่พบโฟลเดอร์: ${from}`)
-    if ((await exists(to)) || (await exists(`${to}.md`))) {
-      return apiError(context, 409, "already_exists", `ปลายทางมีอยู่แล้ว: ${to}`)
-    }
-
-    for (const id of await docsUnder(from)) await saveRevision(id)
-
-    const listing = await walkVault(fs)
-    const plan = planMove(from, to, listing)
-    await writable?.move(from, to)
-    for (const [oldId, newId] of plan.docs) await appendMovedFrom(newId, oldId)
-
-    const updatedLinks = body.update_links === false ? 0 : await applyLinkUpdates(plan)
-    touch()
-    return context.json({ ok: true, from, to, updated_links: updatedLinks })
   }
+
+  /* ── assets upload / delete + context (M4 · docs/05 §3) ─────────────── */
+
+  /** อัปโหลด asset (multipart) ที่ dispatch มาจาก `POST /docs/*path/assets`
+   *
+   * - filename ทุกไฟล์ต้องผ่าน charset ของ docs/06 (Q7 → docs/08 ข้อ 74) + ความยาวชื่อ ≤ 255 bytes (NAME_MAX)
+   *   + path safety ของ path เต็ม (จับ dotfile อย่าง `.hidden.png`) + mime allowlist ชุดเดียวกับ route serve
+   *   `/assets/*` — validate **ครบก่อน**เขียนไฟล์แรก (พลาด = ไม่มีไฟล์หลุดลง disk) · fs error ตอนเขียน = 400 ไม่ใช่ 500
+   * - ตำแหน่งเขียน: `<โฟลเดอร์ของเอกสาร>/assets/<filename>` (docs/05 §1)
+   * - เขียนทับไฟล์เดิมได้ (put semantics — ตรงกับ MCP `asset_put`) · ผ่าน adapter เดิม (safeJoin + atomic)
+   * - ไม่เช็คว่าเอกสารปลายทางมีอยู่ — upload ได้ก่อนเขียนเอกสาร */
+  async function uploadAssets(context: Context, id: string): Promise<Response> {
+    const blocked = guardWrite(context)
+    if (blocked) return blocked
+
+    let form: FormData
+    try {
+      form = await context.req.formData()
+    } catch {
+      return apiError(context, 400, "invalid_body", "body ต้องเป็น multipart/form-data")
+    }
+
+    const files: File[] = []
+    // type ของ `FormData.values()` ในโปรเจกต์นี้ประกาศเป็น `string` อย่างเดียว — ค่าจริงเป็น `string | File` (web standard)
+    for (const value of form.values() as Iterable<string | File>) {
+      if (typeof value !== "string") files.push(value)
+    }
+    if (files.length === 0) {
+      return apiError(context, 400, "invalid_body", "ไม่มีไฟล์ในคำขอ — ส่งไฟล์ผ่าน multipart field ใดก็ได้")
+    }
+    if (files.length > ASSET_MAX_FILES) {
+      return apiError(context, 400, "invalid_body", `เกินลิมิต ${ASSET_MAX_FILES} ไฟล์/คำขอ (docs/05)`)
+    }
+
+    const dir = dirnameOf(id)
+    const encoder = new TextEncoder()
+    const planned: { file: File; target: string; mime: string }[] = []
+    for (const file of files) {
+      const name = file.name
+      if (!isSafeAssetName(name)) {
+        return apiError(
+          context,
+          400,
+          "path_invalid",
+          `ชื่อไฟล์ไม่ผ่าน charset ของ asset (docs/06): ${name}`,
+        )
+      }
+      // NAME_MAX ของ filesystem = 255 bytes/ชื่อไฟล์ — ยาวกว่านี้ validate ผ่านได้แต่ตอนเขียนจะโยน ENAMETOOLONG
+      if (encoder.encode(name).byteLength > ASSET_NAME_MAX_BYTES) {
+        return apiError(
+          context,
+          400,
+          "path_invalid",
+          `ชื่อไฟล์ยาวเกิน ${ASSET_NAME_MAX_BYTES} bytes (NAME_MAX ของ filesystem): ${name}`,
+        )
+      }
+      const mime = assetMimeOf(name)
+      if (!mime) {
+        return apiError(context, 400, "asset_type_rejected", `นามสกุลไม่อยู่ใน allowlist: ${name}`)
+      }
+      if (file.size > ASSET_MAX_BYTES) {
+        return apiError(context, 413, "too_large", `ไฟล์ใหญ่กว่า limit ${ASSET_MAX_BYTES} bytes`)
+      }
+      const target = dir ? `${dir}/assets/${name}` : `assets/${name}`
+      // path เต็มต้องผ่าน path safety ด้วย — ชื่ออย่าง `.hidden.png` ผ่าน charset แต่เป็น dotfile ที่
+      // `isSafeVaultPath` ปฏิเสธ → จับตรงนี้ **ก่อนเขียนไฟล์แรก** (plan §4: validate ครบก่อนเขียนเสมอ)
+      if (!isSafeVaultPath(target)) {
+        return apiError(
+          context,
+          400,
+          "path_invalid",
+          `path เป้าหมายไม่ผ่าน path safety (docs/06): ${target}`,
+        )
+      }
+      planned.push({ file, target, mime })
+    }
+
+    const assets: { path: string; url: string; bytes: number; content_type: string }[] = []
+    try {
+      for (const item of planned) {
+        const bytes = new Uint8Array(await item.file.arrayBuffer())
+        await writable?.writeBytes(item.target, bytes)
+        assets.push({
+          path: item.target,
+          // `?h=` ต้องเป็น sha256 เต็ม (64 hex) — serve เทียบกับ hash เต็มของไฟล์จริงก่อนให้ immutable (docs/08 ข้อ 58)
+          url: assetUrl(item.target, await sha256Hex(bytes)),
+          bytes: bytes.byteLength,
+          content_type: item.mime,
+        })
+      }
+    } catch {
+      // fs error ที่ validation ไม่ครอบคลุม — route นี้ห้ามยิง 500 → map เป็น 400 ให้ client เห็นสาเหตุ
+      return apiError(
+        context,
+        400,
+        "path_invalid",
+        "เขียนไฟล์ไม่สำเร็จ — path/ชื่อไฟล์ไม่ถูกต้องบน filesystem",
+      )
+    }
+    touch()
+    return context.json({ ok: true, path: id, assets }, 201)
+  }
+
+  /** ลบ asset — soft-delete เข้า `.trash/` (`kind: "asset"`) เหมือน doc/folder — invariant 7 ไม่มี route ลบถาวร */
+  api.delete("/assets/*", async (context) => {
+    const blocked = guardWrite(context)
+    if (blocked) return blocked
+    const raw = tailAfter(context.req.url, "/api/assets/") ?? ""
+    const path = parseVaultPath(raw, deps.vaultName, false)
+    if (!path) return apiError(context, 400, "path_invalid", `path ไม่ปลอดภัย: ${raw}`)
+    // เฉพาะ path ที่มี segment `assets` ตรง ๆ = asset store (`<โฟลเดอร์>/assets/<file>` รวม `assets/<file>` ระดับ root —
+    // ตรงกับตำแหน่งที่ upload เขียน) · อื่น ๆ (sidecar `*.meta.json` / `_folder.meta.json`) ไม่ใช่ asset
+    // → เทียบเท่า GET /assets/* = 404 **ก่อนแตะ fs** (ห้ามลบ meta ของเอกสาร/โฟลเดอร์ผ่าน route นี้)
+    if (!path.split("/").includes("assets")) {
+      return apiError(context, 404, "not_found", `ไม่พบ asset: ${path}`)
+    }
+    const name = basenameOf(path)
+    if (!isSafeAssetName(name)) {
+      return apiError(
+        context,
+        400,
+        "path_invalid",
+        `ชื่อไฟล์ไม่ผ่าน charset ของ asset (docs/06): ${name}`,
+      )
+    }
+    // ไม่ใช่ชนิดที่ serve ได้ = ไม่ใช่ asset (รวมโฟลเดอร์/path ที่ไม่มี extension) — เทียบเท่า GET /assets/* → 404
+    if (!assetMimeOf(name)) return apiError(context, 404, "not_found", `ไม่พบ asset: ${path}`)
+    if (!(await exists(path))) return apiError(context, 404, "not_found", `ไม่พบ asset: ${path}`)
+
+    const item = await deps.trash.put([path], { label: path, kind: "asset" })
+    touch()
+    return context.json({ ok: true, path, trash: item })
+  })
+
+  /** `GET /context/*path` — md + meta สรุปสั้นสำหรับใส่ prompt (docs/05 §3) · อ่านอย่างเดียว ไม่ใช้ write limit */
+  api.get("/context/*", async (context) => {
+    const raw = tailAfter(context.req.url, "/api/context/") ?? ""
+    const id = parseVaultPath(raw, deps.vaultName)
+    if (!id) return apiError(context, 400, "path_invalid", `path ไม่ปลอดภัย: ${raw}`)
+    const md = await fs.readText(`${id}.md`)
+    if (md === null) return apiError(context, 404, "not_found", `ไม่พบเอกสาร: ${id}`)
+    const { meta } = await loadMeta(fs, id, null)
+    const text = md.trim()
+    return context.json({
+      ok: true,
+      path: id,
+      md,
+      // meta สรุป: ตัดค่า config ที่ไม่เกี่ยวกับเนื้อหา (theme/render) ออก — prompt ไม่ต้องการ
+      meta: {
+        title: meta.title,
+        summary: meta.summary,
+        tags: meta.tags,
+        status: meta.status,
+        created: meta.created,
+        pinned: meta.pinned,
+        authors: meta.authors,
+        agent: meta.agent,
+        relations: meta.relations,
+      },
+      words: text ? text.split(/\s+/u).filter(Boolean).length : 0,
+      bytes: new TextEncoder().encode(md).byteLength,
+    })
+  })
 
   /* ── tree / render / trash / revisions ─────────────────────────────── */
 
