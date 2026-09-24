@@ -1,5 +1,6 @@
 # 16 — build-docker-backup
-Status: open
+Status: done
+Verified: 2026-09-24 — round-2 **PASS** after 1-fix-round (low: Dockerfile CMD now builds editor.js in-image too) · build export = 0 root-absolute URLs · backup 4/4 live · commit 7589f0d
 Phase: M5
 Files I may touch: `packages/cli/src/index.ts` (บล็อก `build` เท่านั้น — ไฟล์ร่วมกับ ticket 09/14 ที่ sequential) · `packages/cli/test/build.test.ts` (new) · `Dockerfile` (new) · `docker-compose.yml` (new) · `.dockerignore` (new) · `scripts/backup.sh` (new)
 Plan item: plan.md §5 M5 — `doku build --out` + Dockerfile/compose skeleton + backup script (auto-git vault)

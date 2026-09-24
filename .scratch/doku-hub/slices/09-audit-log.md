@@ -1,6 +1,7 @@
 # 09 — audit-log
 
-Status: open
+Status: done
+Verified: 2026-09-24 — batch cross-verify **PASS** (round-2; round-1's 12 scope-creep highs = controller mis-attribution of sibling M5 files, corrected by batch tickets 12–16) · live DoD: 6 writes → 6 lines (verifier: 5 → 5), fields ts/actor/action/path + honest etag/ip, `audit --json --path` exit 0, no-purge sha-identical · 2 lows ruled follow-up: revision-restore + trash-empty hooks outside this ticket's enumerated list (MCP/CLI direct-fs writes likewise unaudited — open follow-up) · commit 36558db
 Phase: M4
 Files I may touch: new `packages/server/src/audit.ts` (+ minimal hook lines inside `packages/server/src/api.ts` write handlers) · `packages/cli/src/index.ts` (the `doku audit` command ONLY) · tests under `packages/server/test/` and `packages/cli/test/`
 Plan item: plan.md §5 M4 — audit log `var/audit.log` JSONL + `doku audit [--path] [--json]` (docs/06)

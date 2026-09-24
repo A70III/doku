@@ -1,5 +1,6 @@
 # 14 — search-facets
-Status: open
+Status: done
+Verified: 2026-09-24 — batch cross-verify **PASS** · tools/list = exact 12-row docs/05 table · 23 mcp + 3 cli tests · live stdio session (create/edit/move/folder/soft-delete) · commit 15b47f2
 Phase: M5
 Files I may touch: `packages/mcp/src/tools.ts` · `packages/mcp/test/server.test.ts` · `packages/mcp/test/stdio.test.ts` · `packages/cli/src/index.ts` (บล็อก `search` เท่านั้น — ไฟล์นี้ร่วมกับ ticket 09 audit และ ticket 16 build ที่ sequential) · `packages/cli/test/search.test.ts` (new)
 Plan item: plan.md §5 M5 — MCP `doc_search` + CLI `search` / `list --tag`

@@ -152,26 +152,32 @@
 
 ## M4 — AI access
 
-- [ ] REST ครบ (docs/folders/assets/render/tree/trash)
-- [ ] `/context/*path`, `/schema` (จาก Zod)
-- [ ] audit log
-- [ ] `doku mcp` (stdio) tools ตาม [05](05-api-and-agent-access.md) — ยกเว้น `doc_search` (รอ index ที่ M5)
+- [x] REST ครบ (docs/folders/assets/render/tree/trash)
+- [x] `/context/*path`, `/schema` (จาก Zod)
+- [x] audit log
+- [x] `doku mcp` (stdio) tools ตาม [05](05-api-and-agent-access.md) ครบ 12 ตัว (รวม `doc_search` — เติมตอน M5)
 
 **เสร็จ:** Hermes สร้าง/แก้/จัดโฟลเดอร์ผ่าน MCP ได้ (ลบได้แค่ soft)
+- **สถานะ 2026-09-24: เสร็จแล้ว** — verifier PASS ทุก slice · DoD รันจริง (MCP stdio session 12 tools
+  soft-delete เท่านั้น · 1 write = 1 บรรทัดของ `var/audit.log` · ไม่มี route/CLI purge — log byte-identical)
+  · gates 5 เขียว + CJK 0
 
 ---
 
 ## M5 — Index, search, deploy structure
 
-- [ ] **Drizzle** schema + migration (bun:sqlite) + FTS5
-- [ ] incremental index ตาม file hash
-- [ ] `/api/search` + หน้า search + MCP `doc_search`
-- [ ] backlinks + wikilink resolve
-- [ ] `doku build` export offline
-- [ ] **วางโครง docker** (`Dockerfile` + `docker-compose.yml` + volume) — ยังไม่ build
-- [ ] backup script (auto-git vault)
+- [x] **Drizzle** schema + migration (bun:sqlite) + FTS5
+- [x] incremental index ตาม file hash
+- [x] `/api/search` + palette full-text + MCP `doc_search` ("หน้า search" = palette ตาม plan §5 — [08 ข้อ 79](08-decisions.md))
+- [x] backlinks + wikilink resolve
+- [x] `doku build` export offline
+- [x] **วางโครง docker** (`Dockerfile` + `docker-compose.yml` + volume) — ยังไม่ build
+- [x] backup script (auto-git vault)
 
 **เสร็จ:** ค้นหาเร็ว, backlinks ทำงาน, โครง deploy พร้อมค่อยเปิดใช้
+- **สถานะ 2026-09-24: เสร็จแล้ว** — S1–S5 verifier PASS (round-2 หลัง fix 2 low) · DoD รันจริง: FTS ค้น
+  substring ไทยกลางประโยค + watcher-trigger · backlinks สดบนหน้าเอกสาร · `doku build` export = 0
+  root-absolute URL · backup 4/4 · gates 5 เขียว + CJK 0 · decision [08 ข้อ 75–80](08-decisions.md)
 
 ---
 

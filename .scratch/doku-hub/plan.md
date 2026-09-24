@@ -89,11 +89,12 @@ AI agent ครบ CLI + MCP โดย **format vault และ architecture ข
 - REST: `POST /api/docs/*path/assets` · `DELETE /api/assets/*path` · `GET /api/context/*path`
 - **Q7 (asset filename charset) เคาะทิ้งตอนนี้** — enforce regex ของ docs/06 ตอน upload API เกิด
 - audit log: `var/audit.log` JSONL (schema ตาม docs/06) + `doku audit --path [--json]`
-- **`packages/mcp` (`@doku/mcp`)** — tools ตาม docs/05 §4 ยกเว้น `doc_search` (รอ M5) · dep = `core` + `fs-node` เท่านั้น
+- **`packages/mcp` (`@doku/mcp`)** — tools ตาม docs/05 §4 ครบ 12 ตัว (รวม `doc_search` ที่เติมตอน M5 S3) · dep = `core` + `fs-node` เท่านั้น
 - CLI เพิ่ม: `new` `mkdir` `tree --json` `list --tag` `mv` `audit` `mcp` (`search` แล้วแต่ ticket 04) — **หมายเหตุ architecture:** logic `move` + auto-update links ตอนนี้อยู่ใน `api.ts` (server) → ต้องสกัดลง `core` ในรูปแบบ pure ก่อน CLI ใช้ได้ · มี test คู่ก่อน refactor
 - `doku mcp` = spawn subprocess (ห้าม `cli` import `mcp` — ทิศทาง dependency)
 - sync `AGENTS.md` ในคอมมิตเดียวกับที่คำสั่งเป็นจริง (ticket 07)
 - **DoD (จาก docs/07):** Hermes สร้าง/แก้/ย้าย/จัดโฟลเดอร์ผ่าน MCP ได้ (ลบได้แค่ soft — ไม่มี tool ลบถาวร) · audit อ่านย้อนหลังได้ · gates เขียว
+- **สถานะ 2026-09-24: เสร็จแล้ว** — S1–S5 done · verifier PASS ทุก slice (audit-log = batch round-2 · fix 1 รอบสำหรับ 2 low) · DoD รันจริง · gates 5 เขียว + CJK 0 · decision docs/08 ข้อ 74 + 75–80 · AGENTS/docs sync อยู่ในคอมมิต close
 
 ### M5 — Index, search, deploy (~2 วัน · ตาม docs/07)
 
@@ -101,6 +102,7 @@ AI agent ครบ CLI + MCP โดย **format vault และ architecture ข
 - `GET /api/search` + palette upgrade (full-text) + MCP `doc_search` + CLI `search`/`list --tag` (ถ้ายังไม่ได้ทำ)
 - backlinks + wikilink resolve (link table)
 - `doku build --out dist/` · วางโครง `Dockerfile` + `docker-compose.yml` (decision 3: หลัง M4 นิ่ง) · backup script
+- **สถานะ 2026-09-24: เสร็จแล้ว** — S1 drizzle-index · S2 search-api · S3 search-facets · S4 backlinks · S5 build-docker-backup ทุก slice verifier PASS (round-2 หลัง fix 2 low) · DoD รันจริง (FTS ไทย+watcher · backlinks สด · build 0 root-absolute URL · backup 4/4) · gates 5 เขียว + CJK 0 · decision docs/08 ข้อ 75–80
 
 ### Content migration — OUT OF SCOPE (เคาะแล้ว: ticket 03)
 

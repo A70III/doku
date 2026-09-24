@@ -24,8 +24,8 @@ bun run gen:icons    # generate Lucide subset → packages/core/src/icons/lucide
 bun run shot         # playwright: screenshot 2 ธีม + a11y check → var/shots/current/ (ไม่ commit)
 ```
 
-CLI `doku` — **ใช้ได้จริงตอนนี้**: `render` `check` `serve` `restore` · `new` `mkdir` `tree --json` `list --tag` `mv` (ทุกคำสั่งมี `--json`)
-· `mcp` = stdio MCP spawn subprocess (docs/08 ข้อ 25) · **วางแผน (M4–M5, spec ที่ `docs/05`)**: `audit` (M4 S3) · `search` `build --out` (M5)
+CLI `doku` — **ใช้ได้จริงตอนนี้**: `render` `check` `serve` `restore` · `new` `mkdir` `tree --json` `list --tag` `mv`
+· `audit` `search` `build --out` (M4–M5 · ทุกคำสั่งมี `--json`) · `mcp` = stdio MCP spawn subprocess (docs/08 ข้อ 25 · tools ครบ docs/05 §4 รวม `doc_search`)
 
 ## โครง repo + ทิศทาง dependency
 
@@ -135,8 +135,13 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   SSR ส่ง `math` ให้ `Layout` + client `ensureKatexCss()` หลัง repaint (กดพิมพ์สมการใหม่ตอนโหมดเขียน) (ข้อ 70)
 - ล็อกเพิ่มตอนแก้บั๊ก soft break (หลัง M3.1): **บรรทัดใหม่เดี่ยวในย่อหน้า = บรรทัดจริง** (`<br>`)
   — `packages/core/src/plugins/breaks.ts` + `mdastText()` คืน `"\n"` ให้ `break` node (ข้อ 71)
-- **ถัดไป: M4** — REST ที่เหลือ (assets/context) + audit log + `doku mcp`
-- ยังไม่มี: MCP (M4), index/search (M5)
+- **M4 (AI access) เสร็จแล้ว** — REST assets/context (Q7 → docs/08 ข้อ 74) · audit log `var/audit.log`
+  append-only + `doku audit` (ไม่มี route/CLI ตัด-ล้าง log ได้) · `packages/mcp` stdio + `doku mcp`
+  (tools ครบ docs/05 §4 รวม `doc_search`)
+- **M5 (index/search/deploy) เสร็จแล้ว** — FTS5 trigram ที่ `var/index.db` (Drizzle + bun:sqlite ·
+  incremental ตาม hash · watcher trigger) · `GET /api/search` + palette เต็มรูปแบบ · backlinks
+  ท้ายเอกสาร · `doku build --out` · โครง docker + `scripts/backup.sh` (docs/08 ข้อ 75–80)
+- ถัดไป: ของหลัง v1 ตาม `docs/07` §หลัง v1 เท่านั้น (D2 · graph view · semantic search · token auth)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)
 - ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#2b5fc4`

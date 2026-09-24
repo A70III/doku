@@ -1,5 +1,6 @@
 # 12 — drizzle-index
-Status: open
+Status: done
+Verified: 2026-09-24 — round-2 **PASS** after 1-fix-round (low: hash comment said NUL, code uses space → comment aligned) · gates 5 + CJK 0 · commit fd6fb64
 Phase: M5
 Files I may touch: `packages/fs-node/src/search-index.ts` (new) · `packages/fs-node/src/index.ts` · `packages/fs-node/package.json` · `bun.lock` · `packages/server/src/index-db.ts` (new) · `packages/fs-node/test/search-index.test.ts` (new)
 Plan item: plan.md §5 M5 — Drizzle schema + migration (bun:sqlite) + FTS5 + incremental index ตาม file hash

@@ -1,5 +1,6 @@
 # 15 — backlinks
-Status: open
+Status: done
+Verified: 2026-09-24 — batch cross-verify **PASS** (design rules PASS: hairline/token-only/Thai-first) · live `/d/<doc>` shows doku-backlinks, unlinked doc shows none · commit 02f468d
 Phase: M5
 Files I may touch: `packages/fs-node/src/search-index.ts` (ตาราง `links` + `extractLinks` + `backlinks()` — ต่อยอดจาก slice 12) · `packages/server/src/index-db.ts` (`SearchIndex.backlinks`) · `packages/server/src/app.tsx` (`/d/*` คำนวณ backlinks) · `packages/server/src/web/pages.tsx` (section `doku-backlinks`) · `packages/core/src/styles/prose.ts` (CSS ข้าง colophon) · `packages/server/test/search.test.ts` (ส่วน render test)
 Plan item: plan.md §5 M5 — backlinks + wikilink resolve (link table)

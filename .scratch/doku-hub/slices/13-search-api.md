@@ -1,5 +1,6 @@
 # 13 — search-api
-Status: open
+Status: done
+Verified: 2026-09-24 — batch cross-verify **PASS** · live: /api/search EN+Thai substring + watcher-triggered doc searchable within ~1.5s · 4/4 tests · commit 02f468d
 Phase: M5
 Files I may touch: `packages/server/src/api.ts` (route `GET /api/search` + `ApiDeps.searchIndex` เท่านั้น — ส่วน audit hooks ในไฟล์เดียวกันเป็นของ ticket 09) · `packages/server/src/app.tsx` · `packages/server/src/index.ts` · `packages/server/src/web/client.ts` · `packages/server/test/search.test.ts` (new)
 Plan item: plan.md §5 M5 — `GET /api/search` + palette upgrade (full-text)
