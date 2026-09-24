@@ -24,6 +24,7 @@ import { streamSSE } from "hono/streaming"
 import { createApi } from "./api.ts"
 import { AssetHasher } from "./asset-hash.ts"
 import type { DocRenderer } from "./doc.ts"
+import type { SearchIndex } from "./index-db.ts"
 import { loadKatexCss } from "./katex.ts"
 import type { SseHub } from "./sse.ts"
 import type { VaultState } from "./tree.ts"
@@ -55,6 +56,8 @@ export interface DokuAppDeps {
   readOnly?: boolean
   /** M3.1: ตรวจ `?h=<hash>` ของ asset ก่อนให้ immutable (docs/08 ข้อ 58) */
   assetHasher?: AssetHasher
+  /** M5: search index (`var/index.db`) — ไม่ส่ง = `/api/search` ตอบ 503 (test เก่าไม่ mount) */
+  searchIndex?: SearchIndex
 }
 
 /** MIME allowlist (docs/06) — ไม่อยู่ในนี้ = ไม่ serve */
@@ -115,6 +118,7 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
         trash: deps.trash,
         revisions: deps.revisions,
         readOnly: deps.readOnly,
+        searchIndex: deps.searchIndex,
       }),
     )
   }
@@ -274,9 +278,14 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
       // colophon ต้องรู้ "แก้ไขล่าสุด" + ขนาด — มาจาก listing เดียวกับ tree (ไม่ต้อง stat ซ้ำ)
       const summary = docs.find((item) => item.id === docId)
       const words = markdown ? markdown.trim().split(/\s+/u).filter(Boolean).length : undefined
+      // backlinks (M5 S4) — ตกแต่งเสริม: index พัง/ยังไม่พร้อม = ไม่โชว์ section (หน้าอ่านต้องไม่พัง)
+      const backlinks = deps.searchIndex
+        ? await deps.searchIndex.backlinks(docId).catch(() => [])
+        : []
       return context.html(
         <DocPage
           doc={doc}
+          backlinks={backlinks}
           path={docId}
           tree={tree}
           vaultName={deps.vaultName}

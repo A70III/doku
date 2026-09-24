@@ -490,7 +490,9 @@ export const DocPage: FC<{
   /** markdown ต้นฉบับ + ETag — ฝังลงหน้าเพื่อให้แก้ไขได้ทันทีโดยไม่ต้อง fetch (docs/08 ข้อ 52) */
   markdown?: string
   etag?: string
-}> = ({ doc, path, tree, vaultName, trashCount, mtimeMs, words, markdown, etag }) => {
+  /** backlinks (M5 S4) — เอกสารที่อ้างอิงเอกสารนี้ · ไม่ส่ง = ไม่โชว์ section */
+  backlinks?: { path: string; title: string }[]
+}> = ({ doc, path, tree, vaultName, trashCount, mtimeMs, words, markdown, etag, backlinks }) => {
   const meta = doc.meta
   const toc = meta.render.toc ? doc.toc : []
   // `<` ต้อง escape ไม่งั้น `</script>` ใน markdown จะปิด tag ก่อนเวลา
@@ -584,6 +586,21 @@ export const DocPage: FC<{
               class="doku-prose"
               dangerouslySetInnerHTML={{ __html: doc.fragment }}
             />
+            {backlinks && backlinks.length > 0 ? (
+              <nav class="doku-backlinks" aria-label="เอกสารที่อ้างอิงเอกสารนี้">
+                <h2>เชื่อมโยงมาจาก</h2>
+                <ul>
+                  {backlinks.map((item) => (
+                    <li key={item.path}>
+                      <a href={`/d/${item.path.split("/").map(encodeURIComponent).join("/")}`}>
+                        {item.title}
+                      </a>
+                      <code>{item.path}</code>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ) : null}
             <Colophon path={path} meta={meta} mtimeMs={mtimeMs} words={words} />
           </article>
         </main>
