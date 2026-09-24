@@ -46,7 +46,9 @@ import {
   walkVault,
 } from "@doku/core"
 import { type Context, Hono } from "hono"
+import { auditLog } from "./audit.ts"
 import type { DocRenderer } from "./doc.ts"
+import type { SearchIndex } from "./index-db.ts"
 import type { SseHub } from "./sse.ts"
 import { clampTreeDepth, type VaultState } from "./tree.ts"
 
@@ -60,6 +62,8 @@ export interface ApiDeps {
   revisions: RevisionStore
   /** ปิด write ทั้งหมด (ใช้ใน test/โหมดอ่านอย่างเดียว) */
   readOnly?: boolean
+  /** M5: search index สำหรับ `GET /api/search` — ไม่ส่ง = route ตอบ 503 */
+  searchIndex?: SearchIndex
 }
 
 /* ── errors ──────────────────────────────────────────────────────────── */
@@ -424,6 +428,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     if (metaPatch) await writable?.writeText(`${id}.meta.json`, jsonSidecar(metaPatch))
     touch()
     const created = await currentEtag(id)
+    auditLog(context, "doc.create", id, { etag: created?.etag })
     context.header("etag", etagHeader(created?.etag ?? ""))
     return context.json({ ok: true, path: id, etag: created?.etag ?? "" }, 201)
   })
@@ -472,6 +477,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
 
     touch()
     const next = await currentEtag(id)
+    auditLog(context, "doc.update", id, { etag: next?.etag })
     context.header("etag", etagHeader(next?.etag ?? ""))
     return context.json({ ok: true, path: id, etag: next?.etag ?? "" })
   })
@@ -511,6 +517,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
 
     touch()
     const next = await currentEtag(id)
+    auditLog(context, "doc.update", id, { etag: next?.etag })
     context.header("etag", etagHeader(next?.etag ?? ""))
     return context.json({ ok: true, path: id, etag: next?.etag ?? "" })
   })
@@ -528,6 +535,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     await saveRevision(id)
     const item = await deps.trash.put([`${id}.md`, `${id}.meta.json`], { label: id, kind: "doc" })
     touch()
+    auditLog(context, "doc.delete", id)
     return context.json({ ok: true, path: id, trash: item })
   })
 
@@ -550,6 +558,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
         beforeMove: saveRevisions,
       })
       touch()
+      auditLog(context, "doc.move", result.from, { to: result.to })
       return context.json({
         ok: true,
         from: result.from,
@@ -596,6 +605,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
       )
     }
     touch()
+    auditLog(context, "folder.create", path)
     return context.json({ ok: true, path }, 201)
   })
 
@@ -621,6 +631,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     }
     await writable?.writeText(`${path}/_folder.meta.json`, jsonSidecar(merged))
     touch()
+    auditLog(context, "folder.update", path)
     return context.json({ ok: true, path, meta: merged })
   })
 
@@ -650,6 +661,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     for (const id of await docsUnder(path)) await saveRevision(id)
     const item = await deps.trash.put([path], { label: path, kind: "folder" })
     touch()
+    auditLog(context, "folder.delete", path)
     return context.json({ ok: true, path, trash: item })
   })
 
@@ -672,6 +684,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
         beforeMove: saveRevisions,
       })
       touch()
+      auditLog(context, "folder.move", result.from, { to: result.to })
       return context.json({
         ok: true,
         from: result.from,
@@ -765,6 +778,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
       for (const item of planned) {
         const bytes = new Uint8Array(await item.file.arrayBuffer())
         await writable?.writeBytes(item.target, bytes)
+        auditLog(context, "asset.upload", item.target)
         assets.push({
           path: item.target,
           // `?h=` ต้องเป็น sha256 เต็ม (64 hex) — serve เทียบกับ hash เต็มของไฟล์จริงก่อนให้ immutable (docs/08 ข้อ 58)
@@ -814,6 +828,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
 
     const item = await deps.trash.put([path], { label: path, kind: "asset" })
     touch()
+    auditLog(context, "asset.delete", path)
     return context.json({ ok: true, path, trash: item })
   })
 
@@ -845,6 +860,21 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
       words: text ? text.split(/\s+/u).filter(Boolean).length : 0,
       bytes: new TextEncoder().encode(md).byteLength,
     })
+  })
+
+  /** `GET /api/search?q=&limit=&tag=` — FTS จาก `var/index.db` (M5 · docs/05 §3) · อ่านอย่างเดียว */
+  api.get("/search", (context) => {
+    if (!deps.searchIndex) {
+      return apiError(context, 503, "internal_error", "search index ยังไม่พร้อม")
+    }
+    const q = context.req.query("q") ?? ""
+    const limit = Number.parseInt(context.req.query("limit") ?? "", 10)
+    const tag = context.req.query("tag") || undefined
+    const hits = deps.searchIndex.search(q, {
+      limit: Number.isFinite(limit) && limit > 0 ? limit : undefined,
+      tag,
+    })
+    return context.json({ ok: true, query: q, count: hits.length, hits })
   })
 
   /* ── tree / render / trash / revisions ─────────────────────────────── */
@@ -932,6 +962,7 @@ export function createApi(deps: ApiDeps, limiter = new RateLimiter()): Hono {
     }
     await deps.trash.restore(id)
     touch()
+    auditLog(context, `${item.kind}.restore`, item.label)
     return context.json({ ok: true, item })
   })
 

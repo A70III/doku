@@ -7,7 +7,7 @@
  */
 
 import { existsSync } from "node:fs"
-import { basename, resolve as resolvePath } from "node:path"
+import { basename, dirname, join, relative, resolve as resolvePath } from "node:path"
 import { fileURLToPath } from "node:url"
 import {
   basenameOf,
@@ -33,12 +33,23 @@ import {
   type Warning,
   walkVault,
 } from "@doku/core"
-import { createNodeRevisionStore, createNodeVaultFs } from "@doku/fs-node"
+import { createNodeRevisionStore, createNodeVaultFs, createSearchIndexStore } from "@doku/fs-node"
 import { loadKatexCss } from "./preview/katex-css.ts"
 import { renderPreviewPage } from "./preview/page.ts"
 
 const VERSION = "0.0.0"
-const VALUE_FLAGS = new Set(["vault", "out", "meta", "port", "host", "var", "title", "tag"])
+const VALUE_FLAGS = new Set([
+  "vault",
+  "out",
+  "meta",
+  "port",
+  "host",
+  "var",
+  "title",
+  "tag",
+  "path",
+  "limit",
+])
 
 export interface ParsedArgs {
   command: string
@@ -136,6 +147,11 @@ export function usage(): string {
   doku mcp                      spawn MCP server ทาง stdio (ต้องมี packages/mcp)
   doku restore <path> [ts]      กู้เอกสารจาก revision (ไม่ระบุ ts = ล่าสุด)
                                 ใช้ --list เพื่อดู revision ที่มี
+  doku audit [--path <p>]       อ่าน audit log (var/audit.log, JSONL) — อ่านอย่างเดียว
+                                กรองตาม path ด้วย --path <p> · เอา n รายการหลังสุดด้วย --limit <n>
+  doku search <q> [--tag <t>]   ค้นเอกสารแบบ FTS (var/index.db — เนื้อหา+ชื่อ ไทย/อังกฤษ)
+                                หลายคำ = AND · เพิ่ม --limit <n> จำกัดจำนวนผล
+  doku build --out <dir>        export vault → HTML อ่าน offline (docs + assets + index.html)
 
 ตัวเลือก:
   --vault <dir>     vault root (default: $DOKU_VAULT หรือ ./vault)
@@ -212,6 +228,12 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         return await commandMcp(args)
       case "restore":
         return await commandRestore(args)
+      case "audit":
+        return await commandAudit(args)
+      case "search":
+        return await commandSearch(args)
+      case "build":
+        return await commandBuild(args)
       default:
         if (jsonMode) emitJsonError("unknown_command", `ไม่รู้จักคำสั่ง: ${args.command}`)
         else process.stderr.write(`ไม่รู้จักคำสั่ง: ${args.command}\n\n${usage()}`)
@@ -809,6 +831,283 @@ async function commandMcp(args: ParsedArgs): Promise<number> {
   process.on("SIGINT", () => child.kill("SIGINT"))
   const exit = await child.exited
   return exit === 0 ? 0 : exit === null ? 0 : exit
+}
+
+/** 1 บรรทัดของ `var/audit.log` (JSONL, docs/06) — field ตามที่ server เขียน */
+interface AuditLine {
+  ts?: string
+  actor?: string
+  action?: string
+  path?: string
+  etag?: string
+  ip?: string
+  to?: string
+}
+
+/**
+ * `doku audit [--path <p>] [--limit <n>]` — อ่าน `var/audit.log` (JSONL, docs/06)
+ *
+ * READ-ONLY เท่านั้น: อ่านไฟล์แล้ว print — **ไม่มี flag หรือ branch ไหนเขียน/ตัด/ล้าง log ได้**
+ * (append มีเฉพาะฝั่ง server · การลบไฟล์ = คนจัดการเองข้างนอก ไม่ผ่าน CLI)
+ * var root = `--var` หรือ `DOKU_VAR ?? "var"` — ตำแหน่งเดียวกับที่ server เขียน
+ */
+async function commandAudit(args: ParsedArgs): Promise<number> {
+  const varFlag = args.flags.get("var")
+  const varDir = resolvePath(
+    typeof varFlag === "string" ? varFlag : (process.env.DOKU_VAR ?? "var"),
+  )
+  const file = resolvePath(varDir, "audit.log")
+
+  const pathFlag = args.flags.get("path")
+  const filter = typeof pathFlag === "string" ? pathFlag : null
+  const limitFlag = args.flags.get("limit")
+  let limit = Number.NaN
+  if (typeof limitFlag === "string") {
+    limit = Number.parseInt(limitFlag, 10)
+    if (!Number.isFinite(limit) || limit <= 0) {
+      throw new CommandFailure("usage", `--limit ต้องเป็นจำนวนเต็มบวก: ${limitFlag}`, 2)
+    }
+  }
+
+  let raw = ""
+  try {
+    const fileHandle = Bun.file(file)
+    if (await fileHandle.exists()) raw = await fileHandle.text()
+  } catch (error) {
+    throw new CommandFailure(
+      "internal_error",
+      `อ่าน audit log ไม่สำเร็จ: ${file} (${error instanceof Error ? error.message : String(error)})`,
+    )
+  }
+
+  const entries: AuditLine[] = []
+  for (const line of raw.split("\n")) {
+    if (line.trim() === "") continue
+    try {
+      const parsed: unknown = JSON.parse(line)
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        entries.push(parsed as AuditLine)
+      }
+    } catch {
+      // บรรทัดไม่ครบ/เสีย — ข้ามแล้วอ่านต่อ (อ่านอย่างเดียว ห้ามแก้ไฟล์)
+    }
+  }
+
+  const matched = filter === null ? entries : entries.filter((entry) => entry.path === filter)
+  const shown = Number.isFinite(limit) ? matched.slice(-limit) : matched
+
+  if (args.flags.has("json")) {
+    process.stdout.write(
+      `${JSON.stringify({ ok: true, file, path: filter, count: shown.length, entries: shown })}\n`,
+    )
+    return 0
+  }
+  if (shown.length === 0) {
+    process.stdout.write(filter === null ? "ไม่มี audit entry\n" : `ไม่มี audit entry ของ ${filter}\n`)
+    return 0
+  }
+  for (const entry of shown) {
+    const fields = [
+      entry.ts ?? "-",
+      entry.action ?? "-",
+      entry.path ?? "-",
+      `actor=${entry.actor ?? "-"}`,
+    ]
+    if (entry.etag) fields.push(`etag=${entry.etag}`)
+    if (entry.ip) fields.push(`ip=${entry.ip}`)
+    if (entry.to) fields.push(`to=${entry.to}`)
+    process.stdout.write(`${fields.join("  ")}\n`)
+  }
+  return 0
+}
+
+/**
+ * `doku search <q> [--limit <n>] [--tag <tag>]` — ค้น FTS จาก `var/index.db` (M5 · docs/05 §2)
+ *
+ * ก่อนค้น = sync incremental (เทียบ hash — ไฟล์เดิมถูกข้าม) → server ไม่ได้เปิดก็ค้นได้
+ * · engine ตัวเดียวกับ server/MCP (`@doku/fs-node`) · vault ไม่ถูกเขียน (index อยู่ฝั่ง var)
+ */
+async function commandSearch(args: ParsedArgs): Promise<number> {
+  const query = args.positional.join(" ").trim()
+  if (!query) {
+    throw new CommandFailure("usage", "ต้องระบุคำค้น: doku search <q> [--limit <n>] [--tag <tag>]", 2)
+  }
+  const vault = await openVault(args.flags.get("vault"))
+  const varFlag = args.flags.get("var")
+  const varDir = resolvePath(
+    typeof varFlag === "string" ? varFlag : (process.env.DOKU_VAR ?? "var"),
+  )
+
+  const limitFlag = args.flags.get("limit")
+  let limit: number | undefined
+  if (typeof limitFlag === "string") {
+    limit = Number.parseInt(limitFlag, 10)
+    if (!Number.isFinite(limit) || limit <= 0) {
+      throw new CommandFailure("usage", `--limit ต้องเป็นจำนวนเต็มบวก: ${limitFlag}`, 2)
+    }
+  }
+  const tagFlag = args.flags.get("tag")
+  const tag = typeof tagFlag === "string" ? tagFlag : undefined
+
+  const store = createSearchIndexStore(varDir)
+  try {
+    await store.syncFull(vault.fs)
+    const hits = store.search(query, { limit, tag })
+    if (args.flags.has("json")) {
+      process.stdout.write(`${JSON.stringify({ ok: true, query, count: hits.length, hits })}\n`)
+      return 0
+    }
+    if (hits.length === 0) {
+      process.stdout.write(`ไม่พบผลลัพธ์สำหรับ: ${query}\n`)
+      return 0
+    }
+    for (const hit of hits) {
+      const snippet = hit.snippet ? `\t${hit.snippet}` : ""
+      process.stdout.write(`${hit.path}\t${hit.title}${snippet}\n`)
+    }
+    return 0
+  } finally {
+    store.close()
+  }
+}
+
+/** escape สำหรับ index ที่ build สร้างเอง (title มาจาก meta ที่ AI เขียนได้ — ห้าม raw เข้า HTML) */
+function escapeHtmlText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+}
+
+/** URL ภายในของ export = relative เสมอ (`file://` ไม่เข้าใจ path ราก absolute) */
+function relativeTo(pageDir: string, targetRel: string): string {
+  const rel = relative(pageDir || ".", targetRel)
+  return rel === "" ? targetRel : rel
+}
+
+/**
+ * rewrite URL ฝั่ง server → ไฟล์ export:
+ * `/d/<id>(#anchor)` → `<relative>.html#anchor` · `/assets/<path>?h=…` → ไฟล์จริง (ตัด query —
+ * offline ไม่เช็ค hash) · URL ภายนอก (`http:`/`//`) ไม่แตะ (pattern ลงตัวที่ prefix สองตัวนี้)
+ */
+function rewriteOffline(html: string, pageDir: string): string {
+  const withDocs = html.replace(
+    /href="\/d\/([^"#?]+)((?:#[^"]*)?)"/g,
+    (_match, rawPath: string, anchor: string) => {
+      let id = rawPath
+      try {
+        id = decodeURIComponent(rawPath)
+      } catch {
+        // decode ไม่ได้ = ใช้ raw ตามเดิม
+      }
+      return `href="${relativeTo(pageDir, `${id}.html`)}${anchor ?? ""}"`
+    },
+  )
+  return withDocs.replace(
+    /(href|src|poster)="\/assets\/([^"?]+)(?:\?[^"]*)?"/g,
+    (_match, attr: string, rawPath: string) => {
+      let asset = rawPath
+      try {
+        asset = decodeURIComponent(rawPath)
+      } catch {
+        // ใช้ raw
+      }
+      return `${attr}="${relativeTo(pageDir, asset)}"`
+    },
+  )
+}
+
+/**
+ * `doku build --out <dir>` — export vault → HTML อ่าน offline (M5 · docs/01 §Static export)
+ *
+ * ทุก doc ผ่าน pipeline เดียวกับ `doku render` (resolve → sanitize → asset rewrite → …) แล้ว rewrite
+ * URL ภายในให้ relative · คัดลอก asset ทั้งหมดตาม path เดิม · เขียน `index.html` รายการเอกสาร ·
+ * **ไม่ลบไฟล์เดิมใน `--out`** (เขียนทับเฉพาะไฟล์ที่ generate เอง — ไม่มีคำสั่งลบจาก CLI)
+ */
+async function commandBuild(args: ParsedArgs): Promise<number> {
+  const outFlag = args.flags.get("out")
+  if (typeof outFlag !== "string" || outFlag.trim() === "") {
+    throw new CommandFailure(
+      "usage",
+      "ต้องระบุโฟลเดอร์ output: doku build --out <dir> [--vault <dir>]",
+      2,
+    )
+  }
+  const outRoot = resolvePath(outFlag)
+  const vault = await openVault(args.flags.get("vault"))
+  const listing = await walkVault(vault.fs)
+  const index = buildDocIndex(listing.docs)
+  const known = new Set(listing.docs)
+
+  const built: { id: string; title: string }[] = []
+  for (const id of listing.docs) {
+    const resolved = await resolveDoc(id, vault.fs, { vaultName: vault.vaultName })
+    const result = await renderMarkdown(resolved.body, {
+      docId: resolved.id,
+      meta: resolved.meta,
+      vault: { fs: vault.fs, index, hasDoc: (doc) => known.has(doc) },
+      warnings: resolved.warnings,
+    })
+    const dir = dirname(resolved.id)
+    const html = rewriteOffline(result.html, dir === "." ? "" : dir)
+    const page = renderPreviewPage({
+      title: result.meta.title ?? resolved.id,
+      docId: resolved.id,
+      meta: result.meta,
+      html,
+      toc: result.toc,
+      warnings: result.warnings,
+    })
+    await Bun.write(join(outRoot, `${resolved.id}.html`), page)
+    built.push({ id: resolved.id, title: result.meta.title ?? resolved.id })
+  }
+
+  // asset = คัดลอก bytes ตาม path เดิม (หลัง rewriteURL ชี้แบบ relative มาที่ไฟล์เหล่านี้)
+  let copied = 0
+  for (const asset of listing.assets) {
+    const bytes = await vault.fs.readBytes(asset)
+    if (!bytes) continue
+    await Bun.write(join(outRoot, asset), bytes)
+    copied += 1
+  }
+
+  const items = [...built]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map(
+      (item) =>
+        `<li><a href="${escapeHtmlText(item.id)}.html">${escapeHtmlText(item.title)}</a>` +
+        ` <code>${escapeHtmlText(item.id)}</code></li>`,
+    )
+    .join("")
+  const indexHtml = `<h1>doku export</h1><ul>${items}</ul>`
+  const indexPage = renderPreviewPage({
+    title: "doku export",
+    docId: "index",
+    meta: defaultMeta("index"),
+    html: indexHtml,
+    toc: [],
+    warnings: [],
+  })
+  const indexFile = join(outRoot, "index.html")
+  await Bun.write(indexFile, indexPage)
+
+  if (args.flags.has("json")) {
+    process.stdout.write(
+      `${JSON.stringify({
+        ok: true,
+        out: outRoot,
+        docs: built.length,
+        assets: copied,
+        index: indexFile,
+      })}\n`,
+    )
+    return 0
+  }
+  process.stdout.write(
+    `export แล้ว: ${outRoot} (${built.length} เอกสาร · ${copied} assets · เปิด ${indexFile})\n`,
+  )
+  return 0
 }
 
 if (import.meta.main) {
