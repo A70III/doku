@@ -24,8 +24,8 @@ bun run gen:icons    # generate Lucide subset → packages/core/src/icons/lucide
 bun run shot         # playwright: screenshot 2 ธีม + a11y check → var/shots/current/ (ไม่ commit)
 ```
 
-CLI `doku` (รายละเอียดครบใน `docs/05`): `new` `mkdir` `render` `check` `tree --json`
-`list --tag` `search` `mv` `serve` `build --out` `restore` `audit` `mcp` — ทุกคำสั่งสำคัญมี `--json` ให้ agent parse
+CLI `doku` — **ใช้ได้จริงตอนนี้**: `render` `check` `serve` `restore` (ทุกตัวมี `--json`)
+· **วางแผน (M4–M5, spec ที่ `docs/05`)**: `new` `mkdir` `tree --json` `list --tag` `search` `mv` `build --out` `audit` `mcp`
 
 ## โครง repo + ทิศทาง dependency
 
@@ -170,3 +170,24 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - publish / visibility / auth — LAN only (เผื่อโครง token ไว้ทีหลังเท่านั้น)
 - Mermaid → ใช้ Excalidraw SVG + ASCII (D2 หลัง v1)
 - post-it block · Obsidian plugin · field `category`
+
+## Profile
+
+### invariants
+- see the Hard invariants (หลักการที่ห้ามละเมิด) + Conventions sections above
+
+### hotspots
+- `packages/server/src/web/client.ts` — client ใหญ่สุด (palette · autosave · SSE · block strip) — แก้พลาด = โหมดเขียนค้าง / autosave ชน `If-Match` / interaction ตายหลัง repaint (docs/08 ข้อ 62–64)
+- `packages/server/src/web/pages.tsx` — layout SSR ทุกหน้า + colophon/toolbar — แก้พลาด = โครงหน้า/rhythm เพี้ยน หรือ markdown ไม่ถูก escape (XSS)
+- `packages/server/src/api.ts` — REST + ETag/`If-Match` + rate limit — แก้พลาด = สูญเขียนเงียบ หรือ 428/409 ผิดสัญญา (agent พัง)
+- `packages/fs-node/src/index.ts` — `safeJoin`/realpath/trash guard — แก้พลาด = path escape ออกจาก vault (security)
+- `packages/core/src/blocks/` + `packages/core/src/styles/` — block renderer + tokens — แก้พลาด = เนื้อหาหายจาก block (ข้อ 67–68) / contrast+rhythm test แดง
+- `packages/cli/src/index.ts` — สัญญา `--json` ต่อ agent — แก้พลาด = output format หัก = ทุก flow ของ AI agent พัง
+- `packages/core/src/check.ts` — validator ของ `doku check` — แก้พลาด = เอกสารพังหลุดเข้า vault/CI
+
+### gates
+- `bun test` — unit + regression (blocks · render · contrast · rhythm · editor)
+- `bun run check` — Biome lint + format (ไม่มี ESLint/Prettier)
+- `bun run typecheck` — `tsc --noEmit` ครบทุก package
+- `bun run shot` — playwright: screenshot 2 ธีม + a11y smoke + rhythm check
+- `bun run doku check --vault examples/vault` — content validator = 0 errors
