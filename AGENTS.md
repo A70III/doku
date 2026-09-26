@@ -141,6 +141,9 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - **M5 (index/search/deploy) เสร็จแล้ว** — FTS5 trigram ที่ `var/index.db` (Drizzle + bun:sqlite ·
   incremental ตาม hash · watcher trigger) · `GET /api/search` + palette เต็มรูปแบบ · backlinks
   ท้ายเอกสาร · `doku build --out` · docker deploy ทดสอบครบ + `scripts/backup.sh` (docs/08 ข้อ 75–83)
+- ล็อกเพิ่มตอนแก้บั๊ก rail tree (หลัง M5): **tree ยาวไม่ทับ foot อีก** — `.doku-rail-tree` เป็น
+  scroll container ของตัวเอง (`overflow-y: auto`) + `min-height` floor `var(--d-space-24)` ·
+  head+ค้นหา คงอยู่บน · foot ตรึงท้าย rail · จอเตี้ยปล่อย `.doku-rail` เลื่อนเป็น fallback (ข้อ 84)
 - ถัดไป: ของหลัง v1 ตาม `docs/07` §หลัง v1 เท่านั้น (D2 · graph view · semantic search · token auth)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)
