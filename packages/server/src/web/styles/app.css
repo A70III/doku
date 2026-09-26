@@ -145,7 +145,15 @@
 }
 .doku-rail-tree {
   flex: 1;
-  min-height: 0;
+  /* floor ของ scroll area — จอเตี้ยมาก (head+foot กินพื้นที่เกิน) จะไม่ยอมให้ tree ยุบจนถึง 0
+     ให้ tree คงความสูงใช้งานได้แล้วปล่อยให้ .doku-rail (overflow-y: auto) เลื่อนเป็น fallback */
+  min-height: var(--d-space-24);
+  /* tree เป็น scroll container ของตัวเอง — เดิมไม่มี overflow → กล่องถูก flex บีบเหลือ
+     ตามพื้นที่ที่เหลือ แต่เนื้อในล้นออกมานอกกล่อง (visible) ทับ .doku-rail-foot
+     และ .doku-rail เลื่อนทั้งก้อนจน foot หลุดจอ (วัดจริง: แถวลายื่นเลย foot 1,973px)
+     · แยก header / scroll-area / footer ชัดเจน — head+ค้นหา คงอยู่บน · tree เลื่อนในกล่อง ·
+     foot ตรึงท้าย rail 100vh (docs/08 ข้อ 84) */
+  overflow-y: auto;
 }
 .doku-rail-empty {
   font-size: var(--d-text-sm);
@@ -255,7 +263,10 @@
   color: var(--k-text);
 }
 .doku-row-link.is-active {
-  margin-inline-start: -1px;
+  /* ห้ามยื่นซ้ายด้วย margin ลบ — tree เป็น scroll container แล้ว กล่องถูก clip ที่ padding box
+     → แถบ accent ที่เคยยื่นเลยขอบ 1px จะหดเหลือ 1px · ชดเชยตำแหน่งข้อความด้วย padding
+     ให้เท่าเดิมเป๊ะ: 24(ขอบ) − 1 + 2(border) + 12(pad) = 37 → 24 + 2 + 11 = 37 (docs/08 ข้อ 84) */
+  padding-inline-start: calc(var(--d-space-3) - 1px);
   border-inline-start: 2px solid var(--d-accent);
   color: var(--d-accent);
   font-weight: 500;

@@ -16,6 +16,8 @@
    source of truth       disposable            disposable (FTS5)
 ```
 
+`var/` ยังมี `revisions/` (สำเนาก่อนเขียนทับ) · `audit.log` (append-only ทุก write — [06](06-security.md))
+
 3 interface, 1 core — ไม่มี logic ซ้ำ
 `core` ไม่รู้จัก HTTP และไม่ผูก filesystem ตรงๆ — รับ fs adapter เข้ามา (ดู [04](04-tech-stack.md))
 → render ได้ทั้งใน test, CLI, server
@@ -42,7 +44,8 @@ doku/
       src/web/            layout templates + css/js
     cli/                  @doku/cli     (dep: core)
     mcp/                  @doku/mcp     (dep: core)
-    fs-node/              @doku/fs-node VaultFs adapter (node:fs) — ใช้ร่วม cli/server
+    fs-node/              @doku/fs-node VaultFs adapter (node:fs) — ใช้ร่วม cli/server/mcp
+                          (+ revisions · search-index FTS5 · audit-log)
   vault/                  เนื้อหา (default, mount volume)
   docs/
   examples/

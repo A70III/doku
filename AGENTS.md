@@ -24,8 +24,8 @@ bun run gen:icons    # generate Lucide subset → packages/core/src/icons/lucide
 bun run shot         # playwright: screenshot 2 ธีม + a11y check → var/shots/current/ (ไม่ commit)
 ```
 
-CLI `doku` (รายละเอียดครบใน `docs/05`): `new` `mkdir` `render` `check` `tree --json`
-`list --tag` `search` `mv` `serve` `build --out` `restore` `audit` `mcp` — ทุกคำสั่งสำคัญมี `--json` ให้ agent parse
+CLI `doku` — **ใช้ได้จริงตอนนี้**: `render` `check` `serve` `restore` · `new` `mkdir` `tree --json` `list --tag` `mv`
+· `audit` `search` `build --out` (M4–M5 · ทุกคำสั่งมี `--json`) · `mcp` = stdio MCP spawn subprocess (docs/08 ข้อ 25 · tools ครบ docs/05 §4 รวม `doc_search`)
 
 ## โครง repo + ทิศทาง dependency
 
@@ -124,12 +124,27 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   - container downgrade ของ block (section/stats/kv/details/tabs/… เลิกเป็นกล่อง) · แก้ `==…==` ที่เคยเป็นพื้นเหลืองทึบ
   - correctness lock ข้อ 56–61 (path `#` · sanitize protocol/attribute · asset `?h=` · `width` · `render.math=false` · wikilink)
   - verify: `bun run shot` ถ่าย 2 ธีม + **a11y smoke check** (ชื่อคอนโทรล · focus ring · 200% zoom · reduced motion · 360px)
+- **M3.5 (Hub browse) เสร็จแล้ว** — home แบ่ง section ต่อ top-level folder (นับจำนวน · tint ไอคอนจากสีโฟลเดอร์)
+  + flat list จัดกลุ่มตามวัน + `?sort=` SSR (ทั้ง home และ FolderPage) · **FolderPage**: `/d/*path` ที่เป็นโฟลเดอร์ →
+  masthead + ปักหมุด → โฟลเดอร์ย่อย → เอกสาร (เดิม 404) · `x/`+`x.md` = doc wins + `doku check` เตือน `folder_file_name_clash`
+  · palette (Ctrl+K) ค้นจาก tag ได้
+  - verify: gates 5 + CJK 0 · verifier ทุก slice PASS (S1–S6) · DoD รันจริง 15/15 (`var/m35-dod.ts`) · decision docs/08 ข้อ 72–73
+  - **build: ใช้ `bun x` ไม่ใช่ `bunx`** (`package.json` + `scripts/dev.sh`) — **ต้อง `bun run build:css` + `build:editor`
+    ก่อน `bun run shot`** (`public/` เป็น gitignored artifact · ขาด = a11y แดง 5 ข้อ — ข้อ 73)
 - ล็อกเพิ่มตอนแก้บั๊ก katex (หลัง M3.1): `katex.css` (~380KB ฝังฟอนต์) โหลด**เฉพาะหน้าที่มีสมการ** —
   SSR ส่ง `math` ให้ `Layout` + client `ensureKatexCss()` หลัง repaint (กดพิมพ์สมการใหม่ตอนโหมดเขียน) (ข้อ 70)
 - ล็อกเพิ่มตอนแก้บั๊ก soft break (หลัง M3.1): **บรรทัดใหม่เดี่ยวในย่อหน้า = บรรทัดจริง** (`<br>`)
   — `packages/core/src/plugins/breaks.ts` + `mdastText()` คืน `"\n"` ให้ `break` node (ข้อ 71)
-- **ถัดไป: M4** — REST ที่เหลือ (assets/context) + audit log + `doku mcp`
-- ยังไม่มี: MCP (M4), index/search (M5)
+- **M4 (AI access) เสร็จแล้ว** — REST assets/context (Q7 → docs/08 ข้อ 74) · audit log `var/audit.log`
+  append-only + `doku audit` (ไม่มี route/CLI ตัด-ล้าง log ได้) · `packages/mcp` stdio + `doku mcp`
+  (tools ครบ docs/05 §4 รวม `doc_search`)
+- **M5 (index/search/deploy) เสร็จแล้ว** — FTS5 trigram ที่ `var/index.db` (Drizzle + bun:sqlite ·
+  incremental ตาม hash · watcher trigger) · `GET /api/search` + palette เต็มรูปแบบ · backlinks
+  ท้ายเอกสาร · `doku build --out` · docker deploy ทดสอบครบ + `scripts/backup.sh` (docs/08 ข้อ 75–83)
+- ล็อกเพิ่มตอนแก้บั๊ก rail tree (หลัง M5): **tree ยาวไม่ทับ foot อีก** — `.doku-rail-tree` เป็น
+  scroll container ของตัวเอง (`overflow-y: auto`) + `min-height` floor `var(--d-space-24)` ·
+  head+ค้นหา คงอยู่บน · foot ตรึงท้าย rail · จอเตี้ยปล่อย `.doku-rail` เลื่อนเป็น fallback (ข้อ 84)
+- ถัดไป: ของหลัง v1 ตาม `docs/07` §หลัง v1 เท่านั้น (D2 · graph view · semantic search · token auth)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)
 - ล็อกแล้ว: meta sidecar ข้างไฟล์ · trash auto 30 วัน · Inter + Noto Sans Thai · accent `#2b5fc4`
@@ -170,3 +185,24 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - publish / visibility / auth — LAN only (เผื่อโครง token ไว้ทีหลังเท่านั้น)
 - Mermaid → ใช้ Excalidraw SVG + ASCII (D2 หลัง v1)
 - post-it block · Obsidian plugin · field `category`
+
+## Profile
+
+### invariants
+- see the Hard invariants (หลักการที่ห้ามละเมิด) + Conventions sections above
+
+### hotspots
+- `packages/server/src/web/client.ts` — client ใหญ่สุด (palette · autosave · SSE · block strip) — แก้พลาด = โหมดเขียนค้าง / autosave ชน `If-Match` / interaction ตายหลัง repaint (docs/08 ข้อ 62–64)
+- `packages/server/src/web/pages.tsx` — layout SSR ทุกหน้า + colophon/toolbar — แก้พลาด = โครงหน้า/rhythm เพี้ยน หรือ markdown ไม่ถูก escape (XSS)
+- `packages/server/src/api.ts` — REST + ETag/`If-Match` + rate limit — แก้พลาด = สูญเขียนเงียบ หรือ 428/409 ผิดสัญญา (agent พัง)
+- `packages/fs-node/src/index.ts` — `safeJoin`/realpath/trash guard — แก้พลาด = path escape ออกจาก vault (security)
+- `packages/core/src/blocks/` + `packages/core/src/styles/` — block renderer + tokens — แก้พลาด = เนื้อหาหายจาก block (ข้อ 67–68) / contrast+rhythm test แดง
+- `packages/cli/src/index.ts` — สัญญา `--json` ต่อ agent — แก้พลาด = output format หัก = ทุก flow ของ AI agent พัง
+- `packages/core/src/check.ts` — validator ของ `doku check` — แก้พลาด = เอกสารพังหลุดเข้า vault/CI
+
+### gates
+- `bun test` — unit + regression (blocks · render · contrast · rhythm · editor)
+- `bun run check` — Biome lint + format (ไม่มี ESLint/Prettier)
+- `bun run typecheck` — `tsc --noEmit` ครบทุก package
+- `bun run shot` — playwright: screenshot 2 ธีม + a11y smoke + rhythm check
+- `bun run doku check --vault examples/vault` — content validator = 0 errors

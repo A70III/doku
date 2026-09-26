@@ -39,6 +39,7 @@ doku search "คำค้น"
 doku mv old/path new/path                    # ย้าย (เขียน moved_from ให้)
 doku restore <path> [ts]                     # กู้จาก revision (ไม่ระบุ ts = ล่าสุด)
 doku restore <path> --list                    # ดู revision ที่มี
+doku audit --path <path> --json                # อ่าน var/audit.log (append-only · เขียนที่ server)
 doku serve --port 7667
 doku build --out dist/                       # export ไว้อ่าน offline
 ```
