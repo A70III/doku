@@ -666,7 +666,7 @@ const DocRow: FC<{ doc: DocSummary; showPin?: boolean }> = ({ doc, showPin }) =>
           {doc.status !== "active" ? (
             <span class="text-(--d-text-subtle)">{doc.status}</span>
           ) : null}
-          <span data-row-tags>
+          <span data-row-tags class="flex flex-wrap gap-x-4">
             {doc.tags.map((tag) => (
               <span key={tag}>#{tag}</span>
             ))}
