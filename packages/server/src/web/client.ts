@@ -148,6 +148,7 @@ ${INTERACTIONS_JS}
 
   const THEME_KEY = "doku.theme";
   const ZEN_KEY = "doku.zen";
+  const TAGS_KEY = "doku.tags";
   const THEMES = ["auto", "light", "dark"];
 
   function setTheme(mode) {
@@ -164,6 +165,36 @@ ${INTERACTIONS_JS}
     }
     if (localStorage.getItem(ZEN_KEY) === "1") docEl.setAttribute("data-zen", "");
   } catch {}
+
+  /* ── แท็ก: เปิด/ปิดได้ (docs/08 ข้อ 85) ─────────────────────────────────
+     state อยู่บน <html data-tags="off"> (CSS ซ่อน) + localStorage (จำข้ามหน้า)
+     SSR ค่าเริ่มต้น = เปิด → ปิด JS แล้วแท็กยังโชว์ครบ (progressive enhancement)
+     อ่าน state ทุกหน้า ไม่ใช่เฉพาะหน้าที่มีปุ่ม — ปุ่มอยู่หน้าแรกอย่างเดียว
+     แต่ผลของมันคือ "ไม่อยากเห็นแท็ก" ซึ่งต้องตามไปทุกหน้าที่มีแท็กโชว์
+     (ถ้าโหลดหน้าอื่นแล้ว state หาย = คนจะเห็นแท็กผุดขึ้นมาเองโดยไม่ได้กด) */
+
+  const tagToggle = $("[data-action='toggle-tags']");
+
+  function setTagsShown(shown) {
+    if (shown) docEl.removeAttribute("data-tags");
+    else docEl.setAttribute("data-tags", "off");
+    try {
+      localStorage.setItem(TAGS_KEY, shown ? "1" : "0");
+    } catch {}
+    if (!tagToggle) return;
+    tagToggle.setAttribute("aria-expanded", shown ? "true" : "false");
+    const label = tagToggle.querySelector("[data-tags-label]");
+    if (label) label.textContent = shown ? "ซ่อนแท็ก" : "แสดงแท็ก";
+  }
+
+  let tagsShown = true;
+  try {
+    tagsShown = localStorage.getItem(TAGS_KEY) !== "0";
+  } catch {}
+  // state ต้องคงอยู่ทุกหน้า แม้หน้านั้นไม่มีปุ่มให้สลับ
+  if (tagsShown) docEl.removeAttribute("data-tags");
+  else docEl.setAttribute("data-tags", "off");
+  if (tagToggle) setTagsShown(tagsShown);
 
   function cycleTheme() {
     const current = docEl.getAttribute("data-theme") || "auto";
@@ -2083,6 +2114,9 @@ ${INTERACTIONS_JS}
         break;
       case "zen":
         toggleZen();
+        break;
+      case "toggle-tags":
+        if (tagToggle) setTagsShown(docEl.getAttribute("data-tags") === "off");
         break;
       case "edit":
         enterWriting(null);
