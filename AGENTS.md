@@ -144,6 +144,10 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - ล็อกเพิ่มตอนแก้บั๊ก rail tree (หลัง M5): **tree ยาวไม่ทับ foot อีก** — `.doku-rail-tree` เป็น
   scroll container ของตัวเอง (`overflow-y: auto`) + `min-height` floor `var(--d-space-24)` ·
   head+ค้นหา คงอยู่บน · foot ตรึงท้าย rail · จอเตี้ยปล่อย `.doku-rail` เลื่อนเป็น fallback (ข้อ 84)
+- ล็อกเพิ่มตอนเพิ่มปุ่มเปิด/ปิดแท็ก: **state คือ preference ไม่ใช่ query** — `?tag=` = กรองผลลัพธ์
+  (แชร์ URL ได้) · ปุ่ม = "อยากเห็นแท็กในหน้าจอไหม" (localStorage) ไม่ใช่คู่กัน · ปุ่มอยู่หน้าแรก
+  แต่ state ใช้ทั้งแอป · ซ่อนด้วย attribute selector 4 ชั้น + `!important` (แถวใช้ Tailwind `flex`
+  ชนะ) · แถว `tags-only` ซ่อนทั้งแถว แต่แถวที่มี `status` ต้องไม่หาย (ข้อ 85)
 - ถัดไป: ของหลัง v1 ตาม `docs/07` §หลัง v1 เท่านั้น (D2 · graph view · semantic search · token auth)
 - MVP = M0 + M1 + M2 (ครบแล้ว) · port `7667` · vault default `vault/` · examples = `examples/vault`
 - ล็อกเพิ่มตอน M2: content CSS ที่ core (ข้อ 28) · block renderer คืน hast/ห้าม inline style (ข้อ 29) · mark `==…==` (ข้อ 30)

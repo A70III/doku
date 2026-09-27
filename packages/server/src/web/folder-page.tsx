@@ -70,13 +70,20 @@ const FolderDocRow: FC<{ doc: DocSummary }> = ({ doc }) => {
         </span>
       </div>
       {hasMeta ? (
-        <div class="mt-0.5 flex flex-wrap items-baseline gap-x-4 text-xs text-(--d-text-muted)">
+        // attribute เดียวกับ DocRow ของหน้าแรก — state `data-tags="off"` ที่ผู้ใช้ตั้ง
+        // จากปุ่มหน้าแรกจึงซ่อนแท็กที่นี่ด้วย ไม่ต้องมีปุ่มซ้ำทุกหน้า (docs/08 ข้อ 85)
+        <div
+          class="mt-0.5 flex flex-wrap items-baseline gap-x-4 text-xs text-(--d-text-muted)"
+          {...(doc.status === "active" ? { "data-row-meta": "tags-only" } : {})}
+        >
           {doc.status !== "active" ? (
             <span class="text-(--d-text-subtle)">{doc.status}</span>
           ) : null}
-          {doc.tags.map((tag) => (
-            <span key={tag}>#{tag}</span>
-          ))}
+          <span data-row-tags>
+            {doc.tags.map((tag) => (
+              <span key={tag}>#{tag}</span>
+            ))}
+          </span>
         </div>
       ) : null}
     </a>
