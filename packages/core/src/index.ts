@@ -7,6 +7,7 @@
 
 export {
   type AssetResolver,
+  assetMimeOf,
   createAssetResolver,
   type ResolvedAsset,
 } from "./assets.ts"
@@ -70,12 +71,21 @@ export {
 } from "./links.ts"
 export { loadMeta, type MetaLoadResult, type MetaSource } from "./meta.ts"
 export {
+  MoveError,
+  type MoveErrorCode,
+  type MoveOptions,
+  type MoveResult,
+  moveDoc,
+  moveFolder,
+} from "./move.ts"
+export {
   assetUrl,
   basenameOf,
   dirnameOf,
   docIdFromMdPath,
   docUrl,
   encodeVaultUrl,
+  isSafeAssetName,
   isSafeVaultPath,
   mdPathFromDocId,
   metaPathFromDocId,

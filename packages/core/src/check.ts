@@ -6,6 +6,7 @@
  * - custom block รู้จัก + ปิดครบ
  * - orphan assets + เอกสารที่ไม่มี title
  * - `_folder.meta.json` ผ่าน Zod
+ * - ชื่อซ้ำ `x/` + `x.md` (folder_file_name_clash — ticket 06)
  *
  * exit code ≠ 0 เมื่อมี error (ใช้เป็น pre-commit/CI gate)
  */
@@ -39,6 +40,7 @@ const CHECK_LEVELS: Partial<Record<WarningCode, WarningLevel>> = {
   asset_unresolved: "warning",
   orphan_asset: "warning",
   missing_title: "warning",
+  folder_file_name_clash: "warning",
   block_unimplemented: "info",
   icon_unknown: "warning",
   code_language_unsupported: "info",
@@ -281,6 +283,19 @@ export async function checkVault(fs: VaultFs, options: CheckOptions = {}): Promi
           warning("orphan_asset", `asset ที่ไม่มีเอกสารอ้างถึง: ${asset}`, "warning", { path: asset }),
         )
       }
+    }
+
+    // ชื่อซ้ำ `x/` + `x.md` (ticket 06 ข้อ 8c): `/d/x` เปิดเอกสารเสมอเมื่อมีไฟล์ →
+    // โฟลเดอร์เข้าไม่ถึงผ่าน URL เดิม → เตือนให้คนแก้ชื่อ
+    // `listing` มาจาก `walkVault` ที่ข้าม dotfile/dotfolder ทุกตัวอยู่แล้ว (invariant 9)
+    const folderPaths = new Set(listing.folders)
+    for (const id of listing.docs) {
+      if (!folderPaths.has(id)) continue
+      vaultWarnings.push(
+        warning("folder_file_name_clash", `ชื่อซ้ำ: โฟลเดอร์ ${id}/ กับ เอกสาร ${id}.md`, "warning", {
+          path: id,
+        }),
+      )
     }
   }
 

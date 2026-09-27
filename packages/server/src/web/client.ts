@@ -1663,6 +1663,10 @@ ${INTERACTIONS_JS}
   let paletteDocs = null;
   let paletteItems = [];
   let paletteIndex = 0;
+  // ผล FTS จาก /api/search (M5) — เก็บล่าสุดที่พิมพ์ + seq กันคำตอบหลัง (stale)
+  let paletteSearchHits = [];
+  let paletteSearchTimer = null;
+  let paletteSearchSeq = 0;
 
   function paletteCommands() {
     const commands = [
@@ -1687,6 +1691,29 @@ ${INTERACTIONS_JS}
     return current ? dirname(current) : "";
   }
 
+  // ค้นเนื้อหาเต็มรูปแบบผ่าน FTS (GET /api/search) — debounce 200ms · query ถูกแทนที่ = เมินคำตอบเก่า
+  function schedulePaletteSearch(query) {
+    const needle = (query || "").trim();
+    if (paletteSearchTimer) clearTimeout(paletteSearchTimer);
+    if (needle.length < 2) {
+      paletteSearchHits = [];
+      return;
+    }
+    const seq = ++paletteSearchSeq;
+    paletteSearchTimer = setTimeout(() => {
+      api("/api/search?q=" + encodeURIComponent(needle) + "&limit=12")
+        .then((result) => {
+          if (seq !== paletteSearchSeq) return;
+          paletteSearchHits = result && Array.isArray(result.hits) ? result.hits : [];
+          renderPalette(paletteInput.value);
+        })
+        .catch(() => {
+          if (seq !== paletteSearchSeq) return;
+          paletteSearchHits = [];
+        });
+    }, 200);
+  }
+
   function renderPalette(query) {
     const needle = (query || "").trim().toLowerCase();
     const commands = paletteCommands().map((command) => ({
@@ -1697,15 +1724,34 @@ ${INTERACTIONS_JS}
     const docs = (paletteDocs || []).map((doc) => ({
       label: doc.title,
       hint: doc.id,
+      tags: Array.isArray(doc.tags) ? doc.tags.join(" ") : "",
       run: () => {
         window.location.href = "/d/" + encodePath(doc.id);
       },
     }));
     const all = commands.concat(docs);
-    paletteItems = needle
-      ? all.filter((item) => (item.label + " " + item.hint).toLowerCase().indexOf(needle) !== -1)
+    let items = needle
+      ? all.filter(
+          (item) =>
+            (item.label + " " + item.hint + " " + (item.tags || "")).toLowerCase().indexOf(needle) !== -1,
+        )
       : all;
-    paletteItems = paletteItems.slice(0, 40);
+    // ผล FTS (ค้นจากเนื้อหาในไฟล์ได้ ไม่ใช่แค่ชื่อ/แท็ก) แทรกหน้าสุด + dedup กับที่ local match แล้ว (M5)
+    if (needle && paletteSearchHits.length) {
+      const seen = new Set(items.map((item) => item.hint));
+      const fromSearch = paletteSearchHits
+        .filter((hit) => hit && hit.path && !seen.has(hit.path))
+        .map((hit) => ({
+          label: hit.title || hit.path,
+          hint: hit.path,
+          tags: "",
+          run: () => {
+            window.location.href = "/d/" + encodePath(hit.path);
+          },
+        }));
+      items = fromSearch.concat(items);
+    }
+    paletteItems = items.slice(0, 40);
     paletteIndex = 0;
     paletteList.textContent = "";
     if (!paletteItems.length) {
@@ -1765,7 +1811,10 @@ ${INTERACTIONS_JS}
   }
 
   if (paletteInput) {
-    paletteInput.addEventListener("input", () => renderPalette(paletteInput.value));
+    paletteInput.addEventListener("input", () => {
+      schedulePaletteSearch(paletteInput.value);
+      renderPalette(paletteInput.value);
+    });
     paletteInput.addEventListener("keydown", (event) => {
       if (event.key === "ArrowDown") {
         event.preventDefault();

@@ -12,6 +12,7 @@ import { createNodeRevisionStore, createNodeVaultFs } from "@doku/fs-node"
 import { createDokuApp } from "./app.tsx"
 import { FragmentCache } from "./cache.ts"
 import { DocRenderer } from "./doc.ts"
+import { createSearchIndex } from "./index-db.ts"
 import { SseHub } from "./sse.ts"
 import { VaultState } from "./tree.ts"
 import { createVaultWatcher } from "./watch.ts"
@@ -39,6 +40,9 @@ const hub = new SseHub()
 const trash = fs.trashStore()
 const revisions = await createNodeRevisionStore(varDir)
 
+// search index (M5): boot sync ทันที + watcher trigger + rescan fallback (docs/01 §Indexer)
+const searchIndex = await createSearchIndex(varDir, fs)
+
 // retention: auto-purge trash 30 วัน (docs/06) — ตอนบูต + ทุกชั่วโมง
 void trash.purge()
 const purgeTimer = setInterval(() => void trash.purge(), 60 * 60 * 1000)
@@ -49,6 +53,7 @@ const watcher = createVaultWatcher(fs.root, {
   onChange: () => {
     state.invalidate()
     hub.scheduleBroadcast()
+    searchIndex.trigger()
   },
 })
 
@@ -69,7 +74,17 @@ const readPublic = async (name: string): Promise<string | null> => {
   }
 }
 
-const app = createDokuApp({ fs, vaultName, state, renderer, hub, readPublic, trash, revisions })
+const app = createDokuApp({
+  fs,
+  vaultName,
+  state,
+  renderer,
+  hub,
+  readPublic,
+  trash,
+  revisions,
+  searchIndex,
+})
 
 let server: ReturnType<typeof Bun.serve>
 try {
@@ -92,6 +107,7 @@ process.stderr.write(
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     clearInterval(purgeTimer)
+    searchIndex.close()
     void watcher.close()
     server.stop(true)
     process.exit(0)

@@ -180,6 +180,18 @@ async function walkDocs(root: string, dir = root, acc: string[] = []): Promise<s
   return acc.sort()
 }
 
+/** เดินหาโฟลเดอร์ทั้งหมด (ข้าม dot) — ถ่ายหน้า FolderPage `/d/<folder>` (M3.5) ด้วย */
+async function walkFolders(root: string, dir = root, acc: string[] = []): Promise<string[]> {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith(".")) continue
+    const full = join(dir, entry.name)
+    if (!entry.isDirectory()) continue
+    acc.push(relative(root, full).replaceAll("\\", "/"))
+    await walkFolders(root, full, acc)
+  }
+  return acc.sort()
+}
+
 async function waitForHealth(url: string, timeoutMs = 20_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
@@ -219,6 +231,10 @@ async function main(): Promise<void> {
     ...(await walkDocs(vault, vault, []))
       .slice(0, 12)
       .map((id) => ({ name: `doc-${id.replaceAll("/", "-")}`, path: `/d/${id}` })),
+    // FolderPage (`/d/<folder>`) — เคยขาดจากลิสต์ (follow-up ตั้งแต่ M3.5) → เติมให้ a11y gate ครอบคลุม
+    ...(await walkFolders(vault))
+      .slice(0, 6)
+      .map((folder) => ({ name: `folder-${folder.replaceAll("/", "-")}`, path: `/d/${folder}` })),
     { name: "styleguide", path: "/styleguide" },
     { name: "trash", path: "/trash" },
   ]

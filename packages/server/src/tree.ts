@@ -4,7 +4,7 @@
  * สิ่งที่เก็บ:
  * - tree สำหรับ sidebar (โฟลเดอร์ sort: order → ชื่อ · ไฟล์ sort: pinned → order → ชื่อ ·
  *   โฟลเดอร์ก่อนไฟล์ — docs/01 sidebar tree, docs/02 โฟลเดอร์)
- * - doc summary (title/tags/pinned/mtime) สำหรับหน้า home
+ * - doc summary (title/tags/pinned/mtime/bytes) สำหรับหน้า home
  * - listingHash — ส่วนหนึ่งของ HTML cache key เพื่อให้ fragment ที่อ้าง asset/wikilink
  *   ถูก render ใหม่เมื่อโครง vault เปลี่ยน (docs/01: cache เป็น pure function ของ input)
  *
@@ -33,6 +33,8 @@ export interface DocSummary {
   created?: string
   /** mtime ของไฟล์ .md (ถ้า adapter ให้ stat — 0 เมื่อไม่มี) */
   mtimeMs: number
+  /** ขนาดไฟล์ .md เป็น bytes (ถ้า adapter ให้ stat — 0 เมื่อไม่มี) — ใช้ sort `?sort=size` */
+  bytes: number
 }
 
 export interface TreeDoc {
@@ -177,6 +179,7 @@ export class VaultState {
       status: meta.status,
       created: meta.created,
       mtimeMs: stat?.mtimeMs ?? 0,
+      bytes: stat?.size ?? 0,
     }
   }
 }

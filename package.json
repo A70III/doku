@@ -10,11 +10,11 @@
     "test": "bun test",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/fs-node/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json",
+    "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/fs-node/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/mcp/tsconfig.json",
     "gen:schema": "bun run scripts/gen-schema.ts",
     "doku": "bun run packages/cli/src/index.ts",
     "dev": "bash scripts/dev.sh",
-    "build:css": "bunx @tailwindcss/cli -i packages/server/src/web/styles/app.css -o packages/server/public/app.css --minify",
+    "build:css": "bun x @tailwindcss/cli -i packages/server/src/web/styles/app.css -o packages/server/public/app.css --minify",
     "gen:icons": "bun run scripts/gen-icons.ts",
     "build:editor": "bun run scripts/build-editor.ts",
     "shot": "bun run scripts/shot.ts"

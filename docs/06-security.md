@@ -95,13 +95,23 @@ function safeJoin(vault: string, rel: string) {
 
 ## Audit log
 
-`var/audit.log` (JSONL):
+`var/audit.log` (JSONL · **append-only** — ไม่มี route/CLI ใด truncate หรือลบ log ได้):
 
 ```json
-{"ts":"2025-09-12T10:00:00Z","actor":"hermes","token":"ci...","action":"doc.write","path":"projects/doku/design","etag":"abc","ip":"192.168.1.105"}
+{"ts":"2025-09-12T10:00:00Z","actor":"mcp","action":"doc.update","path":"projects/doku/design","etag":"abc","ip":"192.168.1.105"}
 ```
 
-`doku audit --path projects/doku/design` ดูย้อนหลัง
+- **ครบทุก write channel** ใช้ writer เดียว (`packages/fs-node/src/audit-log.ts`): REST hooks ใน `api.ts` ·
+  MCP tools (`doc_write/doc_move/doc_delete/folder_create/asset_put`) · CLI (`new/mkdir/mv/restore`) — 1 write = 1 บรรทัด
+- `actor` = ค่าที่รู้ได้จริงจากช่องทาง (LAN ไม่มี auth — **ไม่มี token/identity แต่งขึ้นเอง**):
+  browser = `web` · agent ผ่าน MCP = `mcp` · CLI = `cli` · curl = หัว UA จริง (`curl`) · ไม่มี UA = `lan`
+- `action` ครบทุก write op: `doc.*` create/update/delete/move/restore/revision_restore/purge ·
+  `folder.*` create/update/move/delete/restore/purge · `asset.*` upload/delete/restore/purge
+- `ip` มีเฉพาะเมื่อมาจริงจาก `x-forwarded-for`/`x-real-ip` — ไม่มี header = ไม่ใส่ (ไม่เดา)
+- best-effort ทุก channel: log ล้มเหลว = stderr note แล้วเขียนต่อ — **write ไม่มีวัน fail เพราะ audit พัง**
+- `POST /api/trash/empty` ล็อก **ต่อ item** (`<kind>.purge`) — ทำลายอะไรไปบ้างต้องเห็นใน log
+
+`doku audit [--path <p>] [--limit n] [--json]` ดูย้อนหลัง — **read-only** (ผ่าน DoD: hostile flags แล้ว bytes เดิมเป๊ะ)
 
 ## Revision / undo (safety net หลัก)
 
@@ -136,5 +146,5 @@ in-memory counter ไม่ต้อง Redis
 - [ ] CSP ทดสอบ devtools ไม่มี violation
 - [x] raw HTML ปิด confirmed
 - [x] revision เขียนจริง + restore ได้
-- [ ] audit log เขียนจริง
+- [x] audit log เขียนจริง (1 บรรทัด/1 write ทุก channel — ดูหัวข้อ Audit log · DoD บน Docker: 17 writes = 17 lines)
 - [ ] ถ้าเปิดออกนอก LAN → ใส่ token + HTTPS ผ่าน proxy

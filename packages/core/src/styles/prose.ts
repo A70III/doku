@@ -159,6 +159,46 @@ export const PROSE_CSS = `
   color: var(--d-text-subtle);
 }
 
+/* ── backlinks: เอกสารที่อ้างอิงเอกสารนี้ (M5 S4 — วางหน้า colophon, hairline เดียวกัน) ── */
+.doku-backlinks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-space-3);
+  margin-top: var(--d-rhythm-h2);
+  padding-top: var(--d-space-5);
+  border-top: 1px solid var(--d-border);
+  font-size: var(--d-text-sm);
+}
+.doku-backlinks h2 {
+  margin: 0;
+  font-size: var(--d-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--d-text-subtle);
+}
+.doku-backlinks ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-space-2);
+}
+.doku-backlinks li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--d-space-2);
+  align-items: baseline;
+}
+.doku-backlinks code {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: var(--d-text-xs);
+  color: var(--d-text-subtle);
+}
+
 .doku-warnings {
   margin: 0 0 var(--d-rhythm-h3);
   border: 1px solid var(--d-border);

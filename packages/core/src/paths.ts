@@ -20,6 +20,8 @@ const CONTROL_CHARS = /[\u0000-\u001f\u007f]/
 // `#` อยู่ใน forbidden ด้วย: HTTP แยก fragment ให้แล้ว (browser ไม่ส่ง `#` มาให้ server)
 // ถ้าเราตัด `#` ทิ้งอีกชั้น ไฟล์ชื่อ `a#b.md` จะถูกเปิดเป็น `a.md` แบบเงียบ ๆ (docs/08 ข้อ 56)
 const FORBIDDEN_CHARS = /[<>:"|?*\\#]/
+/** charset ของ asset filename (docs/06) — latin + digits + `. _ -` + space + ไทย เท่านั้น */
+const ASSET_NAME_PATTERN = /^[a-zA-Z0-9._\-\u0E00-\u0E7F ]+$/
 
 /**
  * path สัมพัทธ์จาก vault รูปแบบเดียวที่ยอมรับ
@@ -35,6 +37,15 @@ export function isSafeVaultPath(rel: string): boolean {
     if (segment.startsWith(".")) return false
   }
   return true
+}
+
+/**
+ * charset ของ asset filename ตาม docs/06: `[a-zA-Z0-9._\-\u0E00-\u0E7F ]+`
+ * บังคับทุกทางเข้า/ออก ของ asset ผ่าน REST (upload + delete — Q7 → docs/08 ข้อ 74)
+ * เป็น pure function isomorphic → server / CLI / MCP ใช้ร่วมกันได้
+ */
+export function isSafeAssetName(name: string): boolean {
+  return ASSET_NAME_PATTERN.test(name)
 }
 
 export interface NormalizePathOptions {
