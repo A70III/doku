@@ -1007,13 +1007,29 @@ html[data-zen] .doku-main {
   padding-block: var(--d-space-12);
 }
 
+/* ── tag toggle (docs/08 ข้อ 85) ──────────────────────────────────────────
+   `html[data-tags="off"]` = ปิดแท็กทั้งแอป — ซ่อนทุกที่ที่โชว์แท็ก:
+   ① แถวแท็กในตารางเอกสาร (`[data-row-tags]`) ② แถวที่มีแต่แท็ก
+   (`[data-row-meta="tags-only"]` ซ่อนทั้งแถว ไม่ปล่อยเหลืองานว่าง)
+   ③ แถบตัวกรองบนหน้าแรก (`[data-tag-filter]`) ④ แท็กในหัวเอกสาร (`[data-doc-tag]`)
+   ปุ่มอยู่หน้าแรกที่เดียว แต่ state นี้คือ "ไม่อยากเห็นแท็ก" → ตามไปทุกหน้า
+   `!important` จำเป็นเพราะแถวใช้ Tailwind utility (`flex`) ซึ่งชนะ attribute selector
+   — state นี้ต้องชนะเสมอไม่ว่า markup จะเปลี่ยนไปอย่างไร */
+html[data-tags="off"] [data-row-tags],
+html[data-tags="off"] [data-row-meta="tags-only"],
+html[data-tags="off"] [data-tag-filter],
+html[data-tags="off"] [data-doc-tag] {
+  display: none !important;
+}
+
 @media print {
   .doku-rail,
   .doku-toc-col,
   .doku-doc-toolbar,
   .doku-meta-panel-wrap,
   .doku-toast,
-  .doku-overlay {
+  .doku-overlay,
+  .doku-tag-toggle {
     display: none !important;
   }
 }

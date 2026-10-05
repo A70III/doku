@@ -407,7 +407,12 @@ const DocHeader: FC<{ meta: Meta }> = ({ meta }) => {
   if (meta.status !== "active") {
     bits.push(<span class="doku-status">{meta.status}</span>)
   }
-  for (const tag of meta.tags) bits.push(<span class="doku-tag">#{tag}</span>)
+  for (const tag of meta.tags)
+    bits.push(
+      <span class="doku-tag" data-doc-tag>
+        #{tag}
+      </span>,
+    )
   if (meta.created) bits.push(<span>{formatDateTime(meta.created)}</span>)
   if (meta.authors.length > 0) {
     bits.push(<span>{meta.authors.map((author) => author.name).join(", ")}</span>)
@@ -652,18 +657,47 @@ const DocRow: FC<{ doc: DocSummary; showPin?: boolean }> = ({ doc, showPin }) =>
         </span>
       </div>
       {hasMeta ? (
-        <div class="mt-0.5 flex flex-wrap items-baseline gap-x-4 text-xs text-(--d-text-muted)">
+        // `data-row-meta="tags-only"` = แถวนี้มีแต่แท็ก → ซ่อนทั้งแถวตอนปิดแท็ก
+        // (ไม่ปล่อยเหลืองานว่างสูง 2px) · `status` เป็นสถานะ ไม่ใช่แท็ก → ไม่ถูกซ่อน
+        <div
+          class="mt-0.5 flex flex-wrap items-baseline gap-x-4 text-xs text-(--d-text-muted)"
+          {...(doc.status === "active" ? { "data-row-meta": "tags-only" } : {})}
+        >
           {doc.status !== "active" ? (
             <span class="text-(--d-text-subtle)">{doc.status}</span>
           ) : null}
-          {doc.tags.map((tag) => (
-            <span key={tag}>#{tag}</span>
-          ))}
+          <span data-row-tags class="flex flex-wrap gap-x-4">
+            {doc.tags.map((tag) => (
+              <span key={tag}>#{tag}</span>
+            ))}
+          </span>
         </div>
       ) : null}
     </a>
   )
 }
+
+/**
+ * ปุ่มเปิด/ปิดแท็กของหน้าแรก (docs/08 ข้อ 85)
+ *
+ * - โชว์เฉพาะหน้าแรกที่ยัง**ไม่ได้กรอง**ด้วย `?tag=` — ถ้ากรองอยู่ แถวแท็กคือทางออก
+ *   ของตัวเอง (ลิงก์กดแล้วกลับ `/`) ซ่อนทิ้ง = คนค้างในหน้าที่กรองไว้
+ * - ไม่โชว์เมื่อ vault ไม่มีแท็กเลย — ไม่มี chrome ตาย
+ * - `aria-expanded` + `aria-controls` = disclosure จริงตาม ARIA · ป้ายสลับโดย client
+ * - ปิด JS = ยังโชว์แท็กครบ (SSR ค่าเริ่มต้น = เปิด) — progressive enhancement
+ */
+const TagsToggle: FC = () => (
+  <button
+    type="button"
+    class="doku-btn doku-tag-toggle"
+    data-action="toggle-tags"
+    aria-expanded="true"
+    aria-controls="doku-tag-filter"
+  >
+    <Icon name="tag" size={12} />
+    <span data-tags-label>ซ่อนแท็ก</span>
+  </button>
+)
 
 /** หัว section — masthead บาง ๆ + hairline ใต้ + ตัวเลข tabular (docs/03 Part B · Digital Archivist) */
 const SectionHead: FC<{ count: number; right?: Child; children: Child }> = ({
@@ -833,12 +867,20 @@ export const HomePage: FC<{
           <header class="mb-10 border-b border-(--d-border) pb-6">
             <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
               <h1 class="text-2xl font-semibold tracking-tight text-(--k-text)">{heading}</h1>
-              <p class="text-sm text-(--d-text-muted) tabular-nums">{stats}</p>
+              <div class="flex items-baseline gap-4">
+                <p class="text-sm text-(--d-text-muted) tabular-nums">{stats}</p>
+                {/* ไม่กรองแท็กอยู่ + vault มีแท็ก = ปุ่มมีที่ใช้ประโยชน์ (ข้อ 85) */}
+                {!tag && allTags.length > 0 ? <TagsToggle /> : null}
+              </div>
             </div>
           </header>
 
           {allTags.length > 0 ? (
-            <div class="mb-10 flex flex-wrap items-baseline gap-x-5 gap-y-2 text-sm">
+            <div
+              id="doku-tag-filter"
+              data-tag-filter
+              class="doku-tag-filter mb-10 flex flex-wrap items-baseline gap-x-5 gap-y-2 text-sm"
+            >
               <span class="text-(--d-text-subtle)">แท็ก</span>
               {allTags.map((item) => {
                 const active = item === tag
