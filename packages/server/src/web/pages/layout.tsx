@@ -55,6 +55,15 @@ export const Layout: FC<{
         <title>{title}</title>
         <link rel="stylesheet" href="/static/app.css" />
         <link rel="stylesheet" href="/static/content.css" />
+        {/* MPA: prefetch หน้าเอกสารตอน hover → คลิกแล้วเปิดทันที (เบราว์เซอร์อื่นข้าม) */}
+        <script
+          type="speculationrules"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              prefetch: [{ where: { selector_matches: "a.doku-row-link" }, eagerness: "moderate" }],
+            }),
+          }}
+        />
         {/* woff2 ถูกฝังเป็น data URI → ~380KB · โหลดเฉพาะหน้าที่มีสมการ (docs/08 ข้อ 23/70) */}
         {math ? <link rel="stylesheet" href="/static/katex.css" data-katex="true" /> : null}
         <script src="/static/client.js" defer />

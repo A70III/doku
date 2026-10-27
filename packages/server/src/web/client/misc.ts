@@ -264,6 +264,29 @@ export const MISC_JS = `  /* ── trash ────────────�
 
   if (toTopEl) toTopEl.hidden = window.scrollY < 600;
 
+  /* ── prefetch ตอน hover (เบราว์เซอร์ที่ไม่มี speculation rules) ──────── */
+  const supportsSpeculation =
+    typeof HTMLScriptElement !== "undefined" &&
+    "supports" in HTMLScriptElement &&
+    HTMLScriptElement.supports("speculationrules");
+  if (!supportsSpeculation) {
+    const prefetched = new Set();
+    document.addEventListener(
+      "mouseover",
+      (event) => {
+        const link =
+          event.target && event.target.closest ? event.target.closest("a.doku-row-link") : null;
+        if (!link || !link.href || prefetched.has(link.href)) return;
+        prefetched.add(link.href);
+        const tag = document.createElement("link");
+        tag.rel = "prefetch";
+        tag.href = link.href;
+        document.head.appendChild(tag);
+      },
+      { passive: true },
+    );
+  }
+
   /* ── keyboard ────────────────────────────────────────────────────────── */
 
   // Mac ใช้ ⌘ — Chrome/Edge บน Linux/Windows จอง Ctrl+K ไปโฟกัสช่องค้นหา

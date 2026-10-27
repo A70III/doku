@@ -23,6 +23,7 @@ import {
   type VaultFs,
 } from "@doku/core"
 import { Hono } from "hono"
+import { compress } from "hono/compress"
 import { streamSSE } from "hono/streaming"
 import { createApi } from "./api.ts"
 import { AssetHasher } from "./asset-hash.ts"
@@ -97,6 +98,14 @@ function tailPath(url: string, prefix: string): string {
 
 export function createDokuApp(deps: DokuAppDeps): Hono {
   const app = new Hono()
+  // ทุกหน้าเป็น MPA → HTML ~190KB ต่อการคลิก; บีบอัดเฉพาะ text (ไม่แตะ text/event-stream ของ SSE)
+  app.use(
+    "*",
+    compress({
+      contentTypeFilter: (type: string) =>
+        /^(text\/html|text\/css|text\/javascript|application\/javascript)/.test(type),
+    }),
+  )
   const assetHasher = deps.assetHasher ?? new AssetHasher(deps.fs)
 
   /** จำนวนรายการใน trash สำหรับ badge บน sidebar — อ่านสดเสมอ (หลัง delete/restore ต้องตรงทันที) */
@@ -179,19 +188,37 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     })
   }
 
+  /** ข้อความในหน่วยความจำ: hash ครั้งเดียวต่อโปรเซส แล้วตอบ 304 เมื่อ ETag ตรง */
+  const textEtags = new Map<string, string>()
+  const serveText = async (
+    context: import("hono").Context,
+    name: string,
+    body: string,
+    contentType: string,
+  ): Promise<Response> => {
+    let token = textEtags.get(name)
+    if (!token) {
+      token = await sha256Hex(body)
+      textEtags.set(name, token)
+    }
+    const etag = etagHeader(token)
+    if (matchesIfMatch(context.req.header("if-none-match"), token)) {
+      return context.body(null, 304, { etag, "cache-control": "no-cache" })
+    }
+    return context.body(body, 200, {
+      "content-type": contentType,
+      "cache-control": "no-cache",
+      etag,
+    })
+  }
+
   app.get("/static/:name", async (context) => {
     const name = context.req.param("name")
     if (name === "client.js") {
-      return context.body(CLIENT_JS, 200, {
-        "content-type": "text/javascript; charset=utf-8",
-        "cache-control": "no-cache",
-      })
+      return serveText(context, name, CLIENT_JS, "text/javascript; charset=utf-8")
     }
     if (name === "content.css") {
-      return context.body(CONTENT_CSS, 200, {
-        "content-type": "text/css; charset=utf-8",
-        "cache-control": "no-cache",
-      })
+      return serveText(context, name, CONTENT_CSS, "text/css; charset=utf-8")
     }
     if (name === "katex.css") {
       return context.body(await loadKatexCss(), 200, {
