@@ -148,6 +148,10 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   เท่าเดิม = ไม่ `readText`/`hash` เลย (เดิม rescan 60s อ่าน vault ทั้งก้อนทุกนาที · schema v3 rebuild เอง)
   · **sync ห้ามซ้อน** (timer + watcher → `running/queued`) · `DOKU_RESCAN_MS` (0 = ปิด rescan)
   · compose ใส่ `mem_limit/memswap_limit: 768m` — heap Bun ไม่คืน OS, RSS ไต่ตาม uptime (docs/08 ข้อ 86)
+- QoL pass (หลัง M5): **paste/drop ไฟล์ในพื้นที่เขียน = อัปโหลด + แทรก block** (`insertBlock` — ห้ามแทรกกลางประโยค)
+  · `assets/` ที่ไม่มีเอกสารถูก prune ออกจาก tree (ไฟล์ยังอยู่ใน vault) · จำตำแหน่งอ่านต่อเอกสาร
+  (`localStorage` `doku.read-position`) + ปุ่มกลับขึ้นบน · `askText()` แทน `window.prompt` · `Ctrl+N` / `?`
+  · rail 272px + ช่องกรอง + จำนวนเอกสารต่อโฟลเดอร์ (docs/08 ข้อ 87)
 - ล็อกเพิ่มตอนเพิ่มปุ่มเปิด/ปิดแท็ก: **state คือ preference ไม่ใช่ query** — `?tag=` = กรองผลลัพธ์
   (แชร์ URL ได้) · ปุ่ม = "อยากเห็นแท็กในหน้าจอไหม" (localStorage) ไม่ใช่คู่กัน · ปุ่มอยู่หน้าแรก
   แต่ state ใช้ทั้งแอป · ซ่อนด้วย attribute selector 4 ชั้น + `!important` (แถวใช้ Tailwind `flex`
