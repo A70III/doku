@@ -79,9 +79,10 @@ Base: `http://<host>:7667/api`
 
 | Method | Path | ทำอะไร |
 |---|---|---|
-| POST | `/docs/*path/assets` | upload multipart |
-| GET | `/assets/*path` | serve asset (web route ไม่มี `/api` prefix) |
-| DELETE | `/api/assets/*path` | ลบ asset |
+| POST | `/docs/*path/assets` | upload multipart → เขียน `.media/<sha256>.<ext>` แล้วคืน `{path, url:"/media/…", bytes, content_type, deduped}` |
+| GET | `/media/:name` | serve media store (ชื่อ = sha256 → `immutable`) |
+| GET | `/assets/*path` | serve asset เดิม (path ใน vault — ของเก่ายังใช้ได้) |
+| DELETE | `/api/assets/*path` | ลบ asset เดิม (soft-delete) |
 | POST | `/render` | stateless: `{md, meta?}` → `{html, warnings}` |
 | GET | `/search?q=` | FTS search |
 | GET | `/schema` | block registry: `{colors, variants, blocks:[{name, kind, attributes, values, example}]}` — **มีแล้ว (M3.1)** ใช้ทำ slash menu/block strip · JSON Schema ของ meta มาจาก `bun run gen:schema` (อ่านที่ `schema/`) |

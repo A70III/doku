@@ -138,11 +138,16 @@ vault/.trash/
 ## Assets
 
 - ไฟล์ที่ไม่ใช่ `.md` / `.meta.json` = asset
-- วางที่ไหนก็ได้ — แนะนำ `assets/` ข้างไฟล์ md
-- อ้างด้วย path สัมพัทธ์จากตัว md: `assets/diagram.png` หรือ `../shared/logo.png`
-- รองรับ `.png .jpg .webp .gif .svg .mp4 .webm .mp3 .json(lottie) .pdf`
+- **ค่าเริ่มต้น (docs/08 ข้อ 88): media store `vault/.media/<sha256>.<ext>`** — content-addressed
+  - อัปโหลดผ่าน UI (paste/drop) หรือ `POST /api/docs/*path/assets` / MCP `asset_put`
+  - อ้างใน markdown ด้วย URL `/media/<sha256>.<ext>` (ASCII, ไม่มีชื่อไฟล์ของผู้ใช้)
+  - เนื้อหาเดิม = ไฟล์เดิม (dedupe) · ลบโน้ตแล้วรูปไม่หาย · ชื่อ = hash → cache ตลอดกาล
+  - เป็น dotfolder → watcher/tree/index ข้าม (ไม่ถูก index เป็นเอกสาร/asset)
+- **ของเก่ายังใช้ได้**: ไฟล์ใต้ `<โฟลเดอร์>/assets/` หรือ path สัมพัทธ์ใด ๆ
+  (`assets/diagram.png`, `../shared/logo.png`) — renderer rewrite เป็น `/assets/<path>?h=<hash>`
+  · ย้ายเข้า media store ด้วย `bun run media:migrate --vault <dir> --apply`
+- รองรับ `.png .jpg .jpeg .webp .gif .svg .mp4 .webm .mp3 .json(lottie) .pdf`
 - ห้าม absolute path / `../` หลุด vault → validator เตือน
-- renderer rewrite เป็น `/assets/<asset-path-in-vault>?h=<hash>` (path เต็มจาก vault — ไม่กำกวม)
 - asset ไม่ถูก render เป็นเอกสาร
 - `vault/.trash/**` และ dotfile/dotfolder ไม่ถูกมองเป็น asset/เอกสาร
 

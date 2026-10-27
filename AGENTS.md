@@ -152,6 +152,9 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · `assets/` ที่ไม่มีเอกสารถูก prune ออกจาก tree (ไฟล์ยังอยู่ใน vault) · จำตำแหน่งอ่านต่อเอกสาร
   (`localStorage` `doku.read-position`) + ปุ่มกลับขึ้นบน · `askText()` แทน `window.prompt` · `Ctrl+N` / `?`
   · rail 272px + ช่องกรอง + จำนวนเอกสารต่อโฟลเดอร์ (docs/08 ข้อ 87)
+- ล็อกเพิ่มตอนย้าย media (ข้อ 88): **ไฟล์ภาพ = `.media/<sha256>.<ext>` (content-addressed)**
+  · markdown อ้าง `/media/<hash>.<ext>` · upload/MCP asset_put เขียน media store (dedupe) · **ไม่มีโฟลเดอร์ assets ใหม่**
+  · ของเก่าย้ายด้วย `bun run media:migrate --vault <dir> --apply` (dry-run ก่อนเสมอ · backup ก่อน)
 - ล็อกเพิ่มตอนเพิ่มปุ่มเปิด/ปิดแท็ก: **state คือ preference ไม่ใช่ query** — `?tag=` = กรองผลลัพธ์
   (แชร์ URL ได้) · ปุ่ม = "อยากเห็นแท็กในหน้าจอไหม" (localStorage) ไม่ใช่คู่กัน · ปุ่มอยู่หน้าแรก
   แต่ state ใช้ทั้งแอป · ซ่อนด้วย attribute selector 4 ชั้น + `!important` (แถวใช้ Tailwind `flex`
@@ -204,9 +207,9 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - see the Hard invariants (หลักการที่ห้ามละเมิด) + Conventions sections above
 
 ### hotspots
-- `packages/server/src/web/client.ts` — client ใหญ่สุด (palette · autosave · SSE · block strip) — แก้พลาด = โหมดเขียนค้าง / autosave ชน `If-Match` / interaction ตายหลัง repaint (docs/08 ข้อ 62–64)
-- `packages/server/src/web/pages.tsx` — layout SSR ทุกหน้า + colophon/toolbar — แก้พลาด = โครงหน้า/rhythm เพี้ยน หรือ markdown ไม่ถูก escape (XSS)
-- `packages/server/src/api.ts` — REST + ETag/`If-Match` + rate limit — แก้พลาด = สูญเขียนเงียบ หรือ 428/409 ผิดสัญญา (agent พัง)
+- `packages/server/src/web/client/*` — client JS (palette · autosave · SSE · block strip; ต่อเป็น CLIENT_JS) — แก้พลาด = โหมดเขียนค้าง / autosave ชน `If-Match` / interaction ตายหลัง repaint (docs/08 ข้อ 62–64)
+- `packages/server/src/web/pages/*` — layout SSR ทุกหน้า + colophon/toolbar — แก้พลาด = โครงหน้า/rhythm เพี้ยน หรือ markdown ไม่ถูก escape (XSS)
+- `packages/server/src/api/*` — REST + ETag/`If-Match` + rate limit (api.ts = barrel) — แก้พลาด = สูญเขียนเงียบ หรือ 428/409 ผิดสัญญา (agent พัง)
 - `packages/fs-node/src/index.ts` — `safeJoin`/realpath/trash guard — แก้พลาด = path escape ออกจาก vault (security)
 - `packages/core/src/blocks/` + `packages/core/src/styles/` — block renderer + tokens — แก้พลาด = เนื้อหาหายจาก block (ข้อ 67–68) / contrast+rhythm test แดง
 - `packages/cli/src/index.ts` — สัญญา `--json` ต่อ agent — แก้พลาด = output format หัก = ทุก flow ของ AI agent พัง
