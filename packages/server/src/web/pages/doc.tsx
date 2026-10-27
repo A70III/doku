@@ -1,24 +1,12 @@
 /** หน้าอ่านเอกสาร + TOC + colophon + toolbar — แยกจาก pages.tsx (ไม่เปลี่ยนพฤติกรรม) */
 
-import {
-  docUrl,
-  encodeVaultUrl,
-  HEX_COLOR_PATTERN,
-  hasIcon,
-  ICON_NAMES,
-  iconSvg,
-  type LucideIconName,
-  type Meta,
-  type TocEntry,
-  type TrashItem,
-} from "@doku/core"
+import { type Meta, type TocEntry } from "@doku/core"
 import type { Child, FC } from "hono/jsx"
 import type { CachedDoc } from "../../cache.ts"
-import type { DocSummary, TreeNode } from "../../tree.ts"
-import { groupDocsByDate, parseSort, type SortKey, sortDocs } from "../listing.ts"
+import type { TreeNode } from "../../tree.ts"
 import { getSiteName } from "../site.ts"
 import { Layout } from "./layout.tsx"
-import { formatBytes, formatDate, formatDateTime, Icon } from "./shared.tsx"
+import { formatDate, formatDateTime, Icon } from "./shared.tsx"
 import { Sidebar } from "./sidebar.tsx"
 
 export const TocList: FC<{ toc: TocEntry[]; variant?: "column" | "sheet" }> = ({

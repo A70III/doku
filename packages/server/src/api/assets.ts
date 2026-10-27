@@ -9,11 +9,8 @@
 
 import {
   assetMimeOf,
-  assetUrl,
   basenameOf,
-  dirnameOf,
   isSafeAssetName,
-  isSafeVaultPath,
   MEDIA_DIR,
   mediaName,
   mediaUrl,

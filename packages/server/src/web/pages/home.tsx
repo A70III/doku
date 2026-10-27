@@ -1,24 +1,12 @@
 /** หน้าแรก (section ต่อโฟลเดอร์ · tag · sort) — แยกจาก pages.tsx (ไม่เปลี่ยนพฤติกรรม) */
 
-import {
-  docUrl,
-  encodeVaultUrl,
-  HEX_COLOR_PATTERN,
-  hasIcon,
-  ICON_NAMES,
-  iconSvg,
-  type LucideIconName,
-  type Meta,
-  type TocEntry,
-  type TrashItem,
-} from "@doku/core"
+import { docUrl, encodeVaultUrl, HEX_COLOR_PATTERN, hasIcon, type LucideIconName } from "@doku/core"
 import type { Child, FC } from "hono/jsx"
-import type { CachedDoc } from "../../cache.ts"
 import type { DocSummary, TreeNode } from "../../tree.ts"
 import { groupDocsByDate, parseSort, type SortKey, sortDocs } from "../listing.ts"
 import { getSiteName } from "../site.ts"
 import { Layout } from "./layout.tsx"
-import { formatBytes, formatDate, Icon } from "./shared.tsx"
+import { formatDate, Icon } from "./shared.tsx"
 import { Sidebar } from "./sidebar.tsx"
 
 type FolderNode = Extract<TreeNode, { type: "folder" }>

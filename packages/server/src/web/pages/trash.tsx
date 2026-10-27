@@ -1,21 +1,8 @@
 /** หน้า trash — แยกจาก pages.tsx (ไม่เปลี่ยนพฤติกรรม) */
 
-import {
-  docUrl,
-  encodeVaultUrl,
-  HEX_COLOR_PATTERN,
-  hasIcon,
-  ICON_NAMES,
-  iconSvg,
-  type LucideIconName,
-  type Meta,
-  type TocEntry,
-  type TrashItem,
-} from "@doku/core"
-import type { Child, FC } from "hono/jsx"
-import type { CachedDoc } from "../../cache.ts"
-import type { DocSummary, TreeNode } from "../../tree.ts"
-import { groupDocsByDate, parseSort, type SortKey, sortDocs } from "../listing.ts"
+import { type TrashItem } from "@doku/core"
+import type { FC } from "hono/jsx"
+import type { TreeNode } from "../../tree.ts"
 import { Layout } from "./layout.tsx"
 import { formatBytes, formatDateTime, Icon } from "./shared.tsx"
 import { Sidebar } from "./sidebar.tsx"
