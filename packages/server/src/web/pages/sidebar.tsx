@@ -36,6 +36,7 @@ const TreeDocRow: FC<{ node: { id: string; title: string }; activeId?: string }>
       <a
         href={docUrl(node.id)}
         class={`doku-row-link ${active ? "is-active" : ""}`}
+        title={node.title}
         aria-current={active ? "page" : undefined}
         data-doc-link={node.id}
       >
@@ -88,7 +89,7 @@ const TreeFolder: FC<{
           <span class="doku-folder-icon" {...(color ? { style: { color } as never } : {})}>
             <Icon name={icon} size={14} />
           </span>
-          <span class="truncate">{label}</span>
+          <span class="doku-folder-name truncate">{label}</span>
           <span class="doku-rail-count" aria-hidden="true">
             {countDocs(node)}
           </span>

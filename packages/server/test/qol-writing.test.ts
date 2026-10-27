@@ -59,6 +59,10 @@ describe("QoL — แผนผังและสื่อ", () => {
     const html = await (await app.request("/")).text()
     expect(html).not.toContain('id="doku-tree-filter"')
     expect(html).toContain('data-action="palette"')
+    // ชื่อยาวถูกตัดในแผนผัง → ต้องมี title ให้อ่านเต็มตอน hover
+    const docLink = html.match(/<a[^>]*data-doc-link="notes\/a"[^>]*>/)?.[0]
+    expect(docLink).toBeDefined()
+    expect(docLink).toContain("title=")
     expect(html).toContain("doku-rail-count")
     // notes มี 3 เอกสาร (นับรวม subfolder)
     expect(html).toMatch(/data-folder-path="notes"[\s\S]{0,900}?doku-rail-count[^>]*>\s*3\s*</)

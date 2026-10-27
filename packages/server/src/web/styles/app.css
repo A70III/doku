@@ -133,6 +133,8 @@
   flex-direction: column;
   gap: var(--d-space-4);
   overflow-y: auto;
+  /* ชื่อยาวต้องตัดด้วย … ไม่ใช่ดันแถบเลื่อนแนวนอน (Soft Paper / docs/08 ข้อ 92) */
+  overflow-x: hidden;
   padding: var(--d-space-3);
   background: transparent;
 }
@@ -285,6 +287,15 @@
   font-weight: 600;
   box-shadow: var(--k-shadow-sm);
 }
+/* flex item ที่มีชื่อยาว: ต้องยอมให้แคบกว่า max-content ไม่งั้น details จะดัน rail กว้างเกิน */
+.doku-tree details {
+  min-width: 0;
+}
+.doku-folder-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .doku-folder-summary {
   display: flex;
   flex: 1;

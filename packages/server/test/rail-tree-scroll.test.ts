@@ -31,6 +31,27 @@ function ruleBlock(selector: string): string {
   return APP_CSS.slice(at, APP_CSS.indexOf("}", at))
 }
 
+describe("rail — ชื่อยาวต้องตัดด้วย … ไม่เกิดแถบเลื่อนแนวนอน", () => {
+  test(".doku-rail ปิดการเลื่อนแนวนอน", () => {
+    expect(ruleBlock(".doku-rail")).toMatch(/overflow-x:\s*hidden/)
+  })
+
+  test("details ใน tree ยอมแคบกว่า max-content (min-width: 0)", () => {
+    expect(ruleBlock(".doku-tree details")).toContain("min-width: 0")
+  })
+
+  test("ชื่อโฟลเดอร์หดได้และตัดด้วย ellipsis", () => {
+    const block = ruleBlock(".doku-folder-name")
+    expect(block).toContain("min-width: 0")
+  })
+
+  test("แถวเอกสารยังตัดด้วย ellipsis", () => {
+    const block = ruleBlock(".doku-row-link")
+    expect(block).toMatch(/text-overflow:\s*ellipsis/)
+    expect(block).toContain("min-width: 0")
+  })
+})
+
 describe("rail — tree ยาวต้องเลื่อนในตัว ไม่ทับ doku-rail-foot", () => {
   test(".doku-rail-tree เป็น scroll container (overflow-y: auto|scroll)", () => {
     const block = ruleBlock(".doku-rail-tree")
