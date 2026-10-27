@@ -18,7 +18,8 @@
     "build:css": "bun x @tailwindcss/cli -i packages/server/src/web/styles/app.css -o packages/server/public/app.css --minify",
     "gen:icons": "bun run scripts/gen-icons.ts",
     "build:editor": "bun run scripts/build-editor.ts",
-    "shot": "bun run scripts/shot.ts"
+    "shot": "bun run scripts/shot.ts",
+    "docs:sync": "bun run scripts/sync-docs.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",
