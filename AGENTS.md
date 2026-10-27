@@ -2,6 +2,10 @@
 
 คู่มือสำหรับ coding agents ที่ทำงานในโปรเจกต์นี้ อ่านให้จบก่อนแก้โค้ด
 
+**ถ้าเพิ่งเริ่ม (คนหรือ AI):** อ่าน [docs/00-start-here.md](docs/00-start-here.md) ก่อน —
+มีเส้นทางการอ่านตามบทบาท · ภาพรวมระบบอยู่ที่ [docs/01-architecture.md](docs/01-architecture.md) ·
+สถานะ/จุดเปราะ/งานถัดไปอยู่ที่ [docs/11-handoff.md](docs/11-handoff.md)
+
 ## วัตถุประสงค์โปรเจกต์
 
 Doku = document hub ส่วนตัวบน home server — เขียน Markdown เก็บเป็น vault

@@ -1,127 +1,164 @@
-# Doku
+# Doku — document hub ส่วนตัวบน home server
 
-Document hub ส่วนตัวบน home server — เขียน Markdown เก็บเป็น vault (โฟลเดอร์ซ้อนได้เหมือน Obsidian), render เป็น HTML ตอนเปิดดู, คนและ AI อ่าน-เขียนได้
+คลังเอกสาร Markdown ที่เก็บเป็นไฟล์ธรรมดาในโฟลเดอร์ (vault) แล้ว render เป็นหน้าเว็บอ่านสบาย
+เปิดให้คนและ AI ใช้ช่องทางเดียวกัน: **ไฟล์ใน vault · REST API · CLI · MCP**
 
-**ไม่มีการ publish ออกนอก** — ใช้เก็บและอ่านเองในบ้าน (LAN only ไม่มี auth)
+> เป้าหมาย: อ่านและค้นโน้ตเก่าได้เร็ว เขียนเพิ่มได้ทันที และไม่ถูกล็อกไว้กับแอปใดแอปหนึ่ง
+> ข้อมูลทั้งหมดอยู่ในดิสก์ เป็น plain text ที่ git ได้ สำรองได้ และเปิดด้วย editor อื่นได้
 
-```
-vault/                        ← vault ของตัวเอง (เปิดด้วย Obsidian ได้)
-  projects/doku/design.md
-  projects/doku/design.meta.json   ← optional
-  projects/doku/assets/diagram.svg
-  daily/2025-09-12.md
-        │
-        ▼
-  Document Renderer  →  HTML  (:7667)
-```
+- **LAN only** — ไม่มี auth ไม่ publish ออกอินเทอร์เน็ต (ใช้ในบ้าน/เซิร์ฟเวอร์ตัวเอง)
+- **server-render** — เปิดหน้าเร็ว ไม่ต้องรอ JS ก่อนเห็นเนื้อหา
+- **ไฟล์คือความจริง** — ฐานข้อมูลและ cache เป็นเพียงดัชนีที่สร้างใหม่ได้เสมอ
 
-## Stack
+---
 
-**Bun + Hono + TypeScript + unified + Drizzle/bun:sqlite + Hono JSX + Tailwind v4 + Shiki + KaTeX**
-mono repo, server-render, custom block ผ่าน remark-directive
-
-## หลักการ
-
-1. **ไฟล์คือความจริง** — vault เป็น plain text, git ได้
-2. **โฟลเดอร์คือโครงสร้าง** — ซ้อนได้ไม่จำกัด คล้าย Obsidian
-3. **meta.json เป็น optional** — ไม่มีก็ใช้ default จากชื่อไฟล์/โฟลเดอร์
-4. **ไม่ต้อง build เนื้อหา** — render on demand + cache (มี build แค่ CSS/Tailwind)
-5. **คนกับ AI เท่ากัน** — เขียนไฟล์ตรงๆ / REST / MCP (ลบถาวรเฉพาะคน)
-6. **mono repo** — core เดียว ใช้ร่วม CLI, server, MCP
-
-## ทิศทาง UI — Digital Archivist
-
-หน้าตาแบบ **ห้องสมุดดิจิทัลร่วมสมัย** — สงบ · editorial · typography-first · อ่านเป็นหลัก
-ไม่ใช่ generic SaaS และไม่ใช่ futuristic dashboard · เป้าหมายคือ minimal ที่ **ไม่ generic**
-
-- **Typography นำ hierarchy** — ขนาด/น้ำหนัก/จังหวะ ก่อนจะไปพึ่งกล่อง สี หรือ icon
-- **Content over chrome** — navigation/control ห้ามดังกว่าเนื้อหาที่มันห่ออยู่
-- **Card ไม่ใช่ default container** — ไต่จาก whitespace → hairline → typography → indent → พื้นหลังจาง แล้วจึงถึง card
-  (ใช้ card เมื่อเนื้อหาเป็น object อิสระที่มีการกระทำของตัวเองเท่านั้น)
-- **warm neutral + accent เดียว** — surface / เส้น / ตัวอักษร อยู่ตระกูลอุ่นเดียวกัน ไม่ใช้ `#fff`/`#000` ล้วน · สีต้องสื่อความหมาย
-- **List แบบ catalogue** มากกว่ากริดการ์ด · **hairline** แทนเงา · motion สั้นและมีเหตุผล · radius เล็ก (2/4/6px)
-- **ไม่ใช้**: gradient ม่วง/ฟ้าแบบ AI · glassmorphism/blur · neon/glow · เงานุ่มหนา · มุมโค้งยักษ์ · pill ทุกปุ่ม
-  · badge/card เต็มจอ · emoji เป็น UI · ของประดับหนังสือเก่าปลอม (ชั้นหนังสือ · parchment · ornament)
-
-รายละเอียดครบ (token · layout · container · icons · accessibility): [docs/03 Part B](docs/03-blocks-and-design-system.md)
-· decision ที่ล็อกแล้ว: [docs/08](docs/08-decisions.md) ข้อ 31–33
-
-## โครงสร้าง repo
-
-```
-packages/
-  core/              render, resolve, validate, sanitize, blocks
-  fs-node/           VaultFs adapter (node:fs) — ใช้ร่วม cli/server/mcp
-                     (+ revisions · search-index FTS5 · audit-log)
-  server/            Hono + JSX + Tailwind + SSE + REST        (M1–M4)
-  cli/               doku binary (render/check/new/mkdir/mv/list/tree/
-                     restore/search/audit/build)
-  mcp/               MCP stdio server — 12 tools                (M4+M5)
-vault/      เนื้อหา (default vault, mount เป็น volume)
-docs/       เอกสารออกแบบ
-examples/   ตัวอย่าง
-```
-
-> `schema/` ไม่ commit — generate จาก Zod ตอน M0 ด้วย `bun run gen:schema`
-
-## เอกสาร
-
-| ไฟล์ | เนื้อหา |
-|---|---|
-| [docs/01-architecture.md](docs/01-architecture.md) | องค์ประกอบ, pipeline, cache, packages |
-| [docs/02-content-format.md](docs/02-content-format.md) | vault, path id, meta.json, โฟลเดอร์, assets |
-| [docs/03-blocks-and-design-system.md](docs/03-blocks-and-design-system.md) | block syntax ทั้งหมด + design tokens, layout, styleguide |
-| [docs/04-tech-stack.md](docs/04-tech-stack.md) | stack แบบ TypeScript-first + monorepo |
-| [docs/05-api-and-agent-access.md](docs/05-api-and-agent-access.md) | REST, CLI, MCP, folder ops |
-| [docs/06-security.md](docs/06-security.md) | sanitize, path, token, revision, audit |
-| [docs/07-roadmap.md](docs/07-roadmap.md) | M0–M5 + ประมาณการ |
-| [docs/08-decisions.md](docs/08-decisions.md) | decisions ที่ล็อกแล้ว |
-
-## ตัวอย่าง
-
-[examples/](examples/) — vault ตัวอย่าง
-
-## Deploy บน home server (Docker)
-
-```bash
-docker compose up -d --build      # build image + ขึ้น container (port 7667)
-docker compose ps                 # healthy = /health ตอบผ่าน healthcheck
-```
-
-- `./vault` (host) = source of truth — mount เป็น `/data/vault` แก้/git ตรง ๆ จาก host ได้ตามปกติ
-- named volume `doku-var` = `var/` (cache · index · revisions · audit) — อายุสั้น ลบได้ด้วย `down -v`
-- container รันเป็น **uid 1000** (user เดียวกับ host) → ไฟล์ที่เขียนลง vault ไม่ใช่ root-owned
-- `app.css` + `editor.js` build **ตอนสร้าง image** (ไม่ build ตอน runtime — container เป็น non-root)
-- ทดสอบ function ครบวงจรแล้ว (pages · REST · search · watcher · MCP · CLI · audit) — ดู [docs/08](docs/08-decisions.md) ข้อ 82
-
-## สถานะ
-
-**M0–M5 เสร็จแล้ว** — render / validate / serve / editor / REST / MCP / search + backlinks / audit log / static export
-ได้จริง ผ่าน gates ครบ (461 tests · typecheck · Biome · shot a11y · doku check):
+## เริ่มใช้ใน 60 วินาที
 
 ```bash
 bun install
-bun test                                    # 461 tests ผ่าน
-bun run typecheck && bun run check          # tsc + Biome
-bun run build:css && bun run build:editor   # artifacts (gitignored) — build ก่อนรัน gate
-bun run shot                                # ถ่ายหน้า + a11y gate
-bun run doku check --vault examples/vault   # 0 errors / 0 warnings
-bun run dev                                 # server + Tailwind → localhost:7667
-bun run gen:schema                          # Zod → schema/ (ไม่ commit)
+bun run dev            # → http://localhost:7667  (server + Tailwind watch)
 ```
 
-- **CLI** (ทุกตัวรองรับ `--json`): `render` · `check` · `serve` · `new` · `mkdir` · `mv` · `list` · `tree` ·
-  `restore` · `search` · `audit` (read-only) · `build --out`
-- **route**: `/` · `/d/*path` · `/trash` · `/styleguide` · `/assets/*` · `/static/*` · `/sse` · `/health` · REST `/api/*`
-- **MCP** (stdio · `doku mcp`): 12 tools ครบตาม [docs/05](docs/05-api-and-agent-access.md) §4 — มี `doc_search` ด้วย
-- **search + backlinks**: FTS5 trigram (ค้นไทย substring กลางประโยคได้) ที่ `var/index.db` · watcher อัปเดตเอง ·
-  ลิงก์ย้อนใต้หน้าอ่าน · ค้นผ่าน palette (`Ctrl+K`) / `GET /api/search` / `doku search` / MCP `doc_search`
-- **audit log**: `var/audit.log` append-only — ทุก write channel (REST/MCP/CLI) ทิ้ง 1 บรรทัด/1 write ·
-  `doku audit --json [--path] [--limit]` read-only (ไม่มีทาง truncate — ดู [docs/06](docs/06-security.md))
-- **custom block ครบตาม [docs/03](docs/03-blocks-and-design-system.md)**: callout (7 type), mark, badge, stat/stats,
-  figure, gallery, video, card, section, grid/col, kv, progress, steps, timeline, margin-note, motion, details, tabs/tab
-- **design system**: tokens + prose + block CSS อยู่ที่ `@doku/core` ใช้ร่วม CLI/server · ดูทุก block ได้ที่ `/styleguide`
-- **ทิศทาง UI**: Digital Archivist / Editorial Minimalism (ดู [ทิศทาง UI](#ทิศทาง-ui--digital-archivist))
-- ยังไม่ทำ (ตาม [docs/07](docs/07-roadmap.md)): content intelligence · graph view · comments · kanban ·
-  semantic search · token auth (ยังไม่เปิดออกนอก LAN)
-- คำถามค้างดู [docs/08-decisions.md](docs/08-decisions.md) หัวข้อ "รอเคาะ"
+ครั้งแรกต้องมี artifact สองไฟล์ (gitignore ไว้ เพราะ generate ใหม่ได้):
+
+```bash
+bun run build:css      # Tailwind → packages/server/public/app.css
+bun run build:editor   # CodeMirror → packages/server/public/editor.js
+```
+
+หรือรันบน home server ด้วย Docker:
+
+```bash
+docker compose up -d --build
+docker compose ps      # healthy = /health ตอบ
+```
+
+รายละเอียด deploy · env · backup · troubleshooting: [docs/09-operations.md](docs/09-operations.md)
+
+---
+
+## ทำอะไรได้
+
+| งาน | วิธี |
+|---|---|
+| อ่านเอกสาร | เปิด `/` แล้วเลือกจากสารบัญ หรือกด `/` (slash) / `⌘K` เพื่อค้น |
+| เขียน/แก้ | คลิกที่เนื้อหาแล้วพิมพ์ได้เลย (autosave) · ไม่มีโหมดแยก |
+| สร้างเอกสาร/โฟลเดอร์ | ปุ่ม `+` ใน sidebar หรือ `Ctrl+N` |
+| ค้นหา | palette เดียว: ชื่อ · path · แท็ก · เนื้อหา (FTS5 trigram รองรับภาษาไทย) |
+| แนบรูป | ลากหรือ paste รูปเข้าเนื้อหา → เก็บเป็น `.media/<sha256>.<ext>` |
+| จัดการโฟลเดอร์ | drag & drop ในสารบัญ · ตั้งชื่อ/ไอคอน/สีได้ |
+| ถังขยะ | ลบ = ย้ายเข้า `.trash` · กู้คืนได้ · ลบถาวรเฉพาะคน |
+| ให้ AI ทำงานด้วย | REST `/api/*` · CLI `doku ...` · MCP `doku mcp` |
+
+คีย์ลัดทั้งหมดกด `?` ในแอป
+
+---
+
+## ภาพรวมสถาปัตยกรรม
+
+```
+                        ┌──────────────────────────────────────────┐
+   คน / AI / agent ────► │  ช่องทางเข้า 4 ทาง                        │
+                        │  1) แก้ไฟล์ใน vault ตรง ๆ                 │
+                        │  2) REST /api/*                           │
+                        │  3) CLI  doku ...                         │
+                        │  4) MCP  doku mcp                         │
+                        └───────────────┬──────────────────────────┘
+                                        ▼
+                        ┌──────────────────────────────────────────┐
+                        │  @doku/server  (Hono + JSX)               │
+                        │  routes · SSR pages · SSE · watcher       │
+                        │  cache (memory + disk) · search index     │
+                        └───────┬───────────────────────┬──────────┘
+                                ▼                       ▼
+                    ┌───────────────────┐   ┌───────────────────────┐
+                    │  @doku/core       │   │  @doku/fs-node        │
+                    │  render · blocks  │   │  VaultFs (node:fs)    │
+                    │  resolve · check  │   │  index.db · revisions │
+                    │  sanitize · tokens│   │  audit.log · trash    │
+                    └───────────────────┘   └──────────┬────────────┘
+                                                       ▼
+                                            ┌────────────────────┐
+                                            │  vault/ (ไฟล์จริง)  │
+                                            │  *.md · *.meta.json │
+                                            │  .media/ · .trash/  │
+                                            └────────────────────┘
+```
+
+| แพ็กเกจ | หน้าที่ | หมายเหตุ |
+|---|---|---|
+| `packages/core` | render pipeline, block registry, validate, path rules, design tokens | isomorphic — ไม่รู้จัก HTTP/fs จริง |
+| `packages/fs-node` | adapter ของ `node:fs`: เขียน atomic, path safety, index, revisions, audit | leaf ที่ core เรียกผ่าน interface |
+| `packages/server` | Hono app, หน้าเว็บ SSR, REST, SSE, watcher, cache | compose ทุกอย่างเข้าด้วยกัน |
+| `packages/cli` | คำสั่ง `doku` สำหรับคนและ agent | ทุกคำสั่งมี `--json` |
+| `packages/mcp` | MCP stdio server | ใช้ core + fs-node ผ่าน server tools |
+
+**กติกาทิศทาง dependency:** `cli` / `server` / `mcp` → `core` (+ `fs-node`) เท่านั้น
+ห้าม import ข้ามกันเอง และ `core` ห้าม import แพ็กเกจอื่น
+
+---
+
+## ข้อมูลอยู่ที่ไหน
+
+```
+vault/                     ← source of truth (bind mount เข้า container)
+  projects/doku/design.md
+  projects/doku/design.meta.json   ← optional sidecar
+  .media/<sha256>.<ext>            ← รูป/ไฟล์แนบ (content-addressed, dedupe เอง)
+  .trash/<id>/                     ← ของที่ลบ (กู้คืนได้)
+var/                       ← สร้างใหม่ได้ทั้งหมด (named volume `doku-var`)
+  index.db (+WAL)                  ← FTS5 trigram
+  cache/                           ← fragment cache (JSON)
+  revisions/<path>/<ts>.md         ← ประวัติก่อนทับ (rotate 20/ไฟล์)
+  audit.log                        ← append-only
+```
+
+ถ้าลบ `var/` ทั้งก้อน ระบบยังทำงานได้ — แค่ค้นหาช้าครั้งแรกและ cache ว่าง
+
+---
+
+## เอกสาร
+
+เริ่มที่ **[docs/00-start-here.md](docs/00-start-here.md)** — มีเส้นทางการอ่าน 4 แบบ
+(ผู้ใช้ · ผู้ดูแลระบบ · คนแก้โค้ด · AI agent) และตารางว่าแต่ละไฟล์ตอบคำถามอะไร
+
+| ไฟล์ | ตอบคำถาม |
+|---|---|
+| [00-start-here](docs/00-start-here.md) | ควรอ่านอะไรต่อ เลือกตามบทบาท |
+| [01-architecture](docs/01-architecture.md) | ระบบประกอบจากอะไร ข้อมูลไหลอย่างไร |
+| [02-content-format](docs/02-content-format.md) | รูปแบบไฟล์/โฟลเดอร์/meta/ลิงก์ |
+| [03-blocks-and-design-system](docs/03-blocks-and-design-system.md) | block ทั้งหมด + token/layout (เล่มอ้างอิง) |
+| [04-tech-stack](docs/04-tech-stack.md) | ทำไมเลือก stack นี้ |
+| [05-api-and-agent-access](docs/05-api-and-agent-access.md) | REST/CLI/MCP ครบทุก endpoint |
+| [06-security](docs/06-security.md) | sanitize, path safety, CSP, audit |
+| [07-roadmap](docs/07-roadmap.md) | แผน Milestone M0–M5 (ประวัติ) |
+| [08-decisions](docs/08-decisions.md) | decision log ทุกข้อที่ล็อกแล้ว |
+| [09-operations](docs/09-operations.md) | deploy, env, backup, monitoring, แก้ปัญหา |
+| [10-development](docs/10-development.md) | ทำงานกับโค้ด: gates, แผนที่ไฟล์, สูตรเพิ่มของ |
+| [11-handoff](docs/11-handoff.md) | ส่งต่อให้คน/AI ตัวต่อไป |
+
+สำเนาเอกสารชุดเดียวกันอยู่ใน doku เองที่ `projects/doku/manual/` (sync ด้วย `bun run docs:sync`)
+
+---
+
+## คุณภาพ / gates
+
+```bash
+bun test                              # unit + regression
+bun run typecheck                     # tsc ทุกแพ็กเกจ
+bun run check                         # Biome lint + format
+bun run build:css && bun run build:editor
+bun run shot                          # screenshot 2 ธีม + a11y + rhythm
+bun run doku check --vault examples/vault
+```
+
+ทุกข้อต้องผ่านก่อน commit — ดูรายละเอียดที่ [docs/10-development.md](docs/10-development.md)
+
+## สถานะ
+
+M0–M5 เสร็จและใช้งานจริงบน home server: render · validate · serve · editor · REST · MCP ·
+search + backlinks · audit · static export · media store · Docker deploy
+
+## License
+
+ดู [LICENSE](LICENSE)

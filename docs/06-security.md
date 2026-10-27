@@ -126,18 +126,17 @@ function safeJoin(vault: string, rel: string) {
 
 ## Rate limit
 
-- write: 60 req/min
+- write: 60 req/min (อัปโหลด asset นับรวมใน bucket นี้ — ไม่มีตัวนับแยก)
 - render: 120 req/min
-- upload: 10 req/min
-in-memory counter ไม่ต้อง Redis
+in-memory counter ไม่ต้อง Redis (รีเซ็ตเมื่อ restart)
 
 ## Backup
 
 | ข้อมูล | วิธี |
 |---|---|
-| `vault/` | git auto-commit ทุก 5 นาทีถ้ามี change (background) หรือ rsync |
+| `vault/` | `scripts/backup.sh` — `git init` ใน vault (ถ้ายังไม่มี) แล้ว commit เมื่อมีการเปลี่ยน · ตั้ง cron เองได้แต่ **ยังไม่ได้ติดตั้งในเครื่องนี้** · ทางเลือก: tar/rsync |
 | `var/` | ไม่ backup (regenerate ได้) |
-| `config/tokens.json` | backup แยก |
+| `config/tokens.json` | backup แยก (ถ้ามี) |
 
 ## Checklist ก่อนใช้
 
