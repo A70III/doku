@@ -28,17 +28,45 @@ export interface SearchIndex {
 }
 
 const DEBOUNCE_MS = 500
-const RESCAN_MS = 60_000
+/** ค่า default ของ rescan fallback (docs/01) — override ผ่าน `DOKU_RESCAN_MS` (0 = ปิด) */
+export const DEFAULT_RESCAN_MS = 60_000
 
-export async function createSearchIndex(varDir: string, fs: VaultFs): Promise<SearchIndex> {
+export interface SearchIndexOptions {
+  /** ระยะ rescan fallback (ms) · 0/ติดลบ = ปิด (พึ่ง watcher อย่างเดียว) · ไม่ระบุ = 60s */
+  rescanMs?: number
+}
+
+export async function createSearchIndex(
+  varDir: string,
+  fs: VaultFs,
+  options: SearchIndexOptions = {},
+): Promise<SearchIndex> {
   const store: SearchIndexStore = createSearchIndexStore(varDir)
 
+  /**
+   * sync ห้ามซ้อนกัน: timer + watcher เรียกพร้อมกันได้ ถ้าตัวเก่ายังไม่จบให้ mark คิวไว้แล้วรันต่อ
+   * (เดิม `void sync()` ทุกครั้ง → sync ที่ค้างสะสมเป็นชั้น ๆ = CPU/RAM บวมโดยไม่มีงานจริงเพิ่ม)
+   */
+  let running = false
+  let queued = false
+
   const sync = async (label: string): Promise<void> => {
+    if (running) {
+      queued = true
+      return
+    }
+    running = true
     try {
       await store.syncFull(fs)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       process.stderr.write(`index: sync ไม่สำเร็จ (${label}): ${message}\n`)
+    } finally {
+      running = false
+      if (queued) {
+        queued = false
+        void sync(`${label}:queued`)
+      }
     }
   }
 
@@ -53,8 +81,9 @@ export async function createSearchIndex(varDir: string, fs: VaultFs): Promise<Se
     }, DEBOUNCE_MS)
   }
 
-  const rescanner = setInterval(() => void sync("rescan"), RESCAN_MS)
-  rescanner.unref?.()
+  const rescanMs = options.rescanMs ?? DEFAULT_RESCAN_MS
+  const rescanner = rescanMs > 0 ? setInterval(() => void sync("rescan"), rescanMs) : null
+  rescanner?.unref?.()
 
   return {
     search: (q, options) => store.search(q, options),
@@ -62,7 +91,7 @@ export async function createSearchIndex(varDir: string, fs: VaultFs): Promise<Se
     trigger,
     close: () => {
       if (timer) clearTimeout(timer)
-      clearInterval(rescanner)
+      if (rescanner) clearInterval(rescanner)
       store.close()
     },
   }

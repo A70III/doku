@@ -4,6 +4,7 @@
  *
  * env: DOKU_VAULT (default `vault`) · DOKU_PORT (7667) · DOKU_HOST (0.0.0.0)
  *      DOKU_VAR (default `var`) · DOKU_CACHE=off (dev ปิด disk cache — docs/01)
+ *      DOKU_RESCAN_MS (60000 — rescan fallback ของ index · 0 = ปิด พึ่ง watcher อย่างเดียว)
  */
 
 import { basename, resolve as resolvePath } from "node:path"
@@ -23,6 +24,14 @@ const port = Number(process.env.DOKU_PORT ?? 7667)
 const hostname = process.env.DOKU_HOST ?? "0.0.0.0"
 const disableCache = process.env.DOKU_CACHE === "off"
 
+/** DOKU_RESCAN_MS — ไม่ตั้ง/ไม่ใช่ตัวเลข = default · 0 = ปิด rescan (watcher เป็นหลัก) */
+const rescanMs = (() => {
+  const raw = process.env.DOKU_RESCAN_MS?.trim()
+  if (!raw) return undefined
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : undefined
+})()
+
 const vaultName = basename(vaultRoot)
 const fs = await createNodeVaultFs(vaultRoot).catch(() => {
   process.stderr.write(
@@ -41,7 +50,7 @@ const trash = fs.trashStore()
 const revisions = await createNodeRevisionStore(varDir)
 
 // search index (M5): boot sync ทันที + watcher trigger + rescan fallback (docs/01 §Indexer)
-const searchIndex = await createSearchIndex(varDir, fs)
+const searchIndex = await createSearchIndex(varDir, fs, { rescanMs })
 
 // retention: auto-purge trash 30 วัน (docs/06) — ตอนบูต + ทุกชั่วโมง
 void trash.purge()
