@@ -55,6 +55,47 @@
   flex: none;
 }
 
+/* ── navigation feedback (MPA: ระหว่างรอหน้าใหม่) ─────────────────────── */
+.doku-navbar {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 3px;
+  z-index: 120;
+  background: var(--d-accent);
+  transform-origin: 0 50%;
+  animation: doku-navbar-slide 1.1s var(--d-ease) infinite;
+}
+@keyframes doku-navbar-slide {
+  0% { transform: scaleX(0.02); }
+  55% { transform: scaleX(0.62); }
+  100% { transform: scaleX(1); }
+}
+.doku-navspinner {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--k-app-bg) 45%, transparent);
+}
+.doku-navspinner span {
+  width: 26px;
+  height: 26px;
+  border: 2px solid color-mix(in srgb, var(--d-accent) 22%, transparent);
+  border-top-color: var(--d-accent);
+  border-radius: 999px;
+  animation: doku-navspin 0.7s linear infinite;
+}
+@keyframes doku-navspin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .doku-navbar { animation: none; transform: scaleX(1); }
+  .doku-navspinner span { animation: none; }
+}
+
 /* ── layout ──────────────────────────────────────────────────────────────
    3 คอลัมน์ (docs/03 §2 · docs/08 ข้อ 49): rail · คอลัมน์อ่าน (จัดกลาง) · TOC
    เดิม main 880px แต่ article 544px ชิดซ้าย = gutter ขวาว่าง 336px โดยไม่มีอะไรใช้ */
@@ -63,7 +104,7 @@
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--d-space-4);
-  max-width: 82rem;
+  max-width: 88rem;
   margin-inline: auto;
   padding: var(--d-space-4);
 }

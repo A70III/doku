@@ -287,6 +287,43 @@ export const MISC_JS = `  /* ── trash ────────────�
     );
   }
 
+  /* ── ตัวบอกความคืบหน้าตอนนำทาง (MPA — หน้าถัดไปใช้เวลาเป็นร้อย ms) ──── */
+  const navBar = $("[data-nav-progress]");
+  const navSpinner = $("[data-nav-spinner]");
+  let navTimer = 0;
+
+  function showNavigation() {
+    if (navBar) navBar.hidden = false;
+    if (navTimer) clearTimeout(navTimer);
+    navTimer = window.setTimeout(() => {
+      if (navSpinner) navSpinner.hidden = false;
+    }, 220);
+  }
+
+  function hideNavigation() {
+    if (navTimer) clearTimeout(navTimer);
+    navTimer = 0;
+    if (navBar) navBar.hidden = true;
+    if (navSpinner) navSpinner.hidden = true;
+  }
+
+  addEventListener("pageshow", hideNavigation);
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+      const url = new URL(link.href, location.href);
+      if (url.origin !== location.origin) return;
+      if (url.pathname === location.pathname && url.search === location.search) return;
+      showNavigation();
+    },
+    true,
+  );
+
   /* ── keyboard ────────────────────────────────────────────────────────── */
 
   // Mac ใช้ ⌘ — Chrome/Edge บน Linux/Windows จอง Ctrl+K ไปโฟกัสช่องค้นหา

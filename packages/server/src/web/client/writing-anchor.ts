@@ -210,6 +210,24 @@ export const WRITING_ANCHOR_JS = `  /* ── สลับ read ↔ write แล
     window.setTimeout(() => textarea.focus(), 0);
   }
 
+  /** editor.js (CodeMirror ~533KB) โหลดเฉพาะตอนจะเขียน — ไม่ฉุดทุกหน้า */
+  let editorPromise = null;
+  function ensureEditor() {
+    if (window.DokuEditor) return Promise.resolve(true);
+    if (editorPromise) return editorPromise;
+    const metaEl = document.querySelector('meta[name="doku-asset-version"]');
+    const version = (metaEl && metaEl.getAttribute("content")) || "";
+    editorPromise = new Promise((resolve) => {
+      const tag = document.createElement("script");
+      tag.src = "/static/editor.js" + (version ? "?v=" + encodeURIComponent(version) : "");
+      tag.async = true;
+      tag.onload = () => resolve(!!window.DokuEditor);
+      tag.onerror = () => resolve(false);
+      document.head.appendChild(tag);
+    });
+    return editorPromise;
+  }
+
   async function enterWriting(anchor) {
     if (writing.editing || !articleEl || !bodyEl) return;
     const payload = await readEmbedded();
@@ -230,6 +248,9 @@ export const WRITING_ANCHOR_JS = `  /* ── สลับ read ↔ write แล
     docEl.setAttribute("data-editing", "1");
     setDocStatus("clean", "พร้อมแก้ไข");
     // ส่งทั้ง offset (ให้ CM วางカー) และ element ที่คลิก (ให้จัด "บรรทัดเดิม" กลับที่เดิม)
+    showNavigation();
+    await ensureEditor();
+    hideNavigation();
     mountWritingSurface(payload.md, offsetForElement(payload.md, anchor), buildSlashItems(schema), anchor);
   }
 
@@ -299,7 +320,9 @@ export const WRITING_ANCHOR_JS = `  /* ── สลับ read ↔ write แล
     if (document.querySelector("link[data-katex]")) return;
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "/static/katex.css";
+    const metaEl = document.querySelector('meta[name="doku-asset-version"]');
+    const version = (metaEl && metaEl.getAttribute("content")) || "";
+    link.href = "/static/katex.css" + (version ? "?v=" + encodeURIComponent(version) : "");
     link.setAttribute("data-katex", "true");
     document.head.appendChild(link);
   }

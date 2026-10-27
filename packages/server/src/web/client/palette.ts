@@ -90,6 +90,7 @@ export const PALETTE_JS = `  /* ── command palette ────────�
       icon: "file-text",
       tags: Array.isArray(doc.tags) ? doc.tags.join(" ") : "",
       run: () => {
+        showNavigation();
         window.location.href = "/d/" + encodePath(doc.id);
       },
     }));
@@ -111,6 +112,7 @@ export const PALETTE_JS = `  /* ── command palette ────────�
           icon: "search",
           tags: "",
           run: () => {
+            showNavigation();
             window.location.href = "/d/" + encodePath(hit.path);
           },
         }));

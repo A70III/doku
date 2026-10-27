@@ -161,6 +161,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · palette: Mac = ⌘K · อื่น ๆ = `/` (Ctrl+K ถูกเบราว์เซอร์ยึด) — ห้ามใส่ label คีย์ที่ใช้ไม่ได้จริง
   · ทุก response text ต้องผ่าน `compress()` (ยกเว้น SSE) · static ต้องมี ETag + 304 · prefetch `.doku-row-link` ตอน hover
   · ไอคอนที่ซ้ำ ≥ หลายสิบบนหน้า → ใส่ sprite (`web/sprite.ts` + `<use>`) ห้าม inline SVG ต่อแถว · ห้ามฝัง markdown ใน HTML (client fetch) · static ต้องมี `?v=<hash>` + immutable
+  · ห้ามใส่ `editor.js` ใน layout — โหลดด้วย `ensureEditor()` ตอนเข้าโหมดเขียน · ลิงก์ภายในต้องมี nav progress (แถบ + spinner) · คอลัมน์อ่าน: shell 88rem / measure 75ch
 - Soft Paper (ข้อ 89): **ผิว 3 ชั้น canvas → กระดาษ (radius-xl + shadow-paper) → เนื้อหา** · chrome ไม่มีเส้น (rail/search/filter/panel/colophon ใช้ระยะ/พื้น/เงา) · body 18px/1.82, h1 34–42 · แถว active = การ์ดขาว ไม่มีแถบ accent · `bun run shot` ต้องผ่าน a11y ทุกหน้า
 - ล็อกเพิ่มตอนเพิ่มปุ่มเปิด/ปิดแท็ก: **state คือ preference ไม่ใช่ query** — `?tag=` = กรองผลลัพธ์
   (แชร์ URL ได้) · ปุ่ม = "อยากเห็นแท็กในหน้าจอไหม" (localStorage) ไม่ใช่คู่กัน · ปุ่มอยู่หน้าแรก

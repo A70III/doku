@@ -139,7 +139,7 @@ export const TOKENS_CSS = `
 
   --k-leading-body: 1.82;
   --k-leading-th: 1.9;
-  --k-measure: 70ch;
+  --k-measure: 75ch;
 
   /* ── space ── (สเกลเดียวที่ยอมให้ใช้ · ห้ามอ้าง step ที่ไม่ถูก define — docs/08 ข้อ 50) */
   --d-space-1: 0.25rem;

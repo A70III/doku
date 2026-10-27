@@ -288,7 +288,10 @@ describe("M3 chrome (toolbar / palette / trash page)", () => {
     expect(html).toContain('id="ic-more-horizontal"')
     expect(html).toContain('id="doku-meta-form"')
     expect(html).toContain('id="doku-folder-form"')
-    expect(html).toContain("/static/editor.js")
+    // editor.js (CodeMirror ~533KB) ไม่ถูกโหลดทุกหน้า — client โหลดตอนเข้าโหมดเขียน
+    expect(html).not.toContain("/static/editor.js")
+    expect(CLIENT_JS).toContain("ensureEditor")
+    expect(CLIENT_JS).toContain('"/static/editor.js"')
     // ไอคอน chrome = inline svg (docs/08 ข้อ 35)
     expect(html).toContain("<svg")
     expect(html).not.toContain("data-icon='folder'") // chrome ใช้ svg ไม่ใช้ mask

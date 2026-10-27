@@ -26,6 +26,7 @@ export const Layout: FC<{
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light dark" />
+        <meta name="doku-asset-version" content={getAssetVersion()} />
         <title>{title}</title>
         <link rel="stylesheet" href={`/static/app.css?v=${getAssetVersion()}`} />
         <link rel="stylesheet" href={`/static/content.css?v=${getAssetVersion()}`} />
@@ -41,9 +42,13 @@ export const Layout: FC<{
         {/* woff2 ถูกฝังเป็น data URI → ~380KB · โหลดเฉพาะหน้าที่มีสมการ (docs/08 ข้อ 23/70) */}
         {math ? <link rel="stylesheet" href="/static/katex.css" data-katex="true" /> : null}
         <script src={`/static/client.js?v=${getAssetVersion()}`} defer />
-        <script src={`/static/editor.js?v=${getAssetVersion()}`} defer />
       </head>
       <body class="min-h-screen bg-(--k-app-bg) text-(--k-text) font-(family-name:--d-font-sans) antialiased">
+        {/* ตัวบอกความคืบหน้าตอนนำทาง (MPA) — แสดงตอนคลิกลิงก์ จนหน้าใหม่ขึ้น */}
+        <div class="doku-navbar" data-nav-progress hidden />
+        <div class="doku-navspinner" data-nav-spinner aria-hidden="true" hidden>
+          <span />
+        </div>
         {/* sprite เดียวต่อหน้า — ไอคอนที่ซ้ำ (เมนูแถว/โฟลเดอร์) อ้างด้วย <use> */}
         <div
           class="doku-sprite"
