@@ -46,7 +46,7 @@ export const Layout: FC<{
         <script src="/static/client.js" defer />
         <script src="/static/editor.js" defer />
       </head>
-      <body class="min-h-screen bg-(--k-bg) text-(--k-text) font-(family-name:--d-font-sans) antialiased">
+      <body class="min-h-screen bg-(--k-app-bg) text-(--k-text) font-(family-name:--d-font-sans) antialiased">
         <div class="doku-progress" aria-hidden="true">
           <div data-part="progress-fill" />
         </div>

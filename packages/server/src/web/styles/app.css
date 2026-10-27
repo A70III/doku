@@ -61,26 +61,35 @@
 .doku-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  max-width: 90rem;
+  align-items: start;
+  gap: var(--d-space-4);
+  max-width: 82rem;
   margin-inline: auto;
+  padding: var(--d-space-4);
 }
 @media (min-width: 48rem) {
   .doku-shell {
-    grid-template-columns: 272px minmax(0, 1fr);
+    grid-template-columns: 264px minmax(0, 1fr);
+    gap: var(--d-space-6);
+    padding: var(--d-space-6);
   }
 }
 @media (min-width: 75rem) {
   .doku-shell {
-    grid-template-columns: 272px minmax(0, 1fr) 208px;
+    grid-template-columns: 264px minmax(0, 1fr) 200px;
   }
 }
 .doku-main {
   min-width: 0;
-  padding: var(--d-space-12) var(--d-space-6);
+  padding: var(--d-space-10) var(--d-space-5);
+  background: var(--k-bg);
+  border-radius: var(--d-radius-xl);
+  box-shadow: var(--k-shadow-paper);
 }
 @media (min-width: 48rem) {
   .doku-main {
-    padding-inline: var(--d-space-10);
+    padding: var(--d-space-12) var(--d-space-10);
+    min-height: calc(100vh - var(--d-space-12));
   }
 }
 .doku-article {
@@ -95,7 +104,7 @@
 @media (min-width: 75rem) {
   .doku-toc-col {
     display: block;
-    padding: var(--d-space-12) var(--d-gutter) var(--d-space-12) 0;
+    padding: var(--d-space-12) var(--d-space-2) var(--d-space-12) 0;
   }
   .doku-toc-col .doku-toc {
     position: sticky;
@@ -122,11 +131,16 @@
   display: none;
   height: 100vh;
   flex-direction: column;
-  gap: var(--d-space-5);
+  gap: var(--d-space-4);
   overflow-y: auto;
-  padding: var(--d-gutter);
-  border-inline-end: 1px solid var(--d-border);
-  background: var(--k-app-bg);
+  padding: var(--d-space-3);
+  background: transparent;
+}
+@media (min-width: 48rem) {
+  .doku-rail {
+    top: var(--d-space-2);
+    height: calc(100vh - var(--d-space-4));
+  }
 }
 @media (min-width: 48rem) {
   .doku-rail {
@@ -164,8 +178,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-top: var(--d-space-4);
-  border-top: 1px solid var(--d-border);
+  padding-top: var(--d-space-2);
 }
 .doku-rail-link {
   display: flex;
@@ -200,10 +213,11 @@
      (rail 248 − gutter 24×2 = 200px · เดิม gap space-2 ทำ span ไทยถูกตัดเป็น 2 บรรทัด) */
   gap: var(--d-space-1);
   width: 100%;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--d-border);
-  border-radius: var(--d-radius-sm);
-  background: var(--k-bg);
+  min-height: 34px;
+  padding: 0.35rem 0.75rem;
+  border: 0;
+  border-radius: var(--d-radius-pill);
+  background: color-mix(in srgb, var(--k-text) 6%, transparent);
   font: inherit;
   font-size: var(--d-text-sm);
   color: var(--d-text-muted);
@@ -235,8 +249,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  margin-inline-start: 7px;
-  border-inline-start: 1px solid var(--d-border);
+  margin-inline-start: 12px;
 }
 .doku-row {
   display: flex;
@@ -265,14 +278,12 @@
   background: color-mix(in srgb, var(--k-text) 4%, transparent);
 }
 .doku-row-link.is-active {
-  /* ห้ามยื่นซ้ายด้วย margin ลบ — tree เป็น scroll container แล้ว กล่องถูก clip ที่ padding box
-     → แถบ accent ที่เคยยื่นเลยขอบ 1px จะหดเหลือ 1px · ชดเชยตำแหน่งข้อความด้วย padding
-     ให้เท่าเดิมเป๊ะ: 24(ขอบ) − 1 + 2(border) + 12(pad) = 37 → 24 + 2 + 11 = 37 (docs/08 ข้อ 84) */
-  padding-inline-start: calc(var(--d-space-3) - 1px);
-  border-inline-start: 2px solid var(--d-accent);
-  background: var(--d-accent-tint);
-  color: var(--d-accent);
-  font-weight: 500;
+  /* Soft Paper (docs/08 ข้อ 89): แถว active = การ์ดขาว + เงาเบา ไม่มีแถบ accent
+     (ไม่มี margin ลบ/ขอบซ้าย → ไม่มีอะไรให้ scroll container clip) */
+  background: var(--k-bg);
+  color: var(--k-text);
+  font-weight: 600;
+  box-shadow: var(--k-shadow-sm);
 }
 .doku-folder-summary {
   display: flex;
@@ -498,8 +509,8 @@
 .doku-palette,
 .doku-panel {
   width: min(38rem, 94vw);
-  border: 1px solid var(--d-border);
-  border-radius: var(--d-radius-md);
+  border: 0;
+  border-radius: var(--d-radius-lg);
   background: var(--k-bg);
   box-shadow: var(--k-shadow-lg);
   overflow: hidden;
@@ -508,7 +519,6 @@
   width: 100%;
   padding: var(--d-space-3) var(--d-space-4);
   border: 0;
-  border-bottom: 1px solid var(--d-border);
   background: none;
   font: inherit;
   font-size: var(--d-text-base);
@@ -586,7 +596,6 @@
   gap: var(--d-space-3);
   margin-top: var(--d-space-2);
   padding-top: var(--d-space-3);
-  border-top: 1px solid var(--d-border);
 }
 .doku-field {
   display: flex;
@@ -946,7 +955,7 @@ html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
   z-index: 80;
   max-width: min(26rem, 92vw);
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--d-border);
+  border: 0;
   border-radius: var(--d-radius-md);
   background: var(--k-bg);
   box-shadow: var(--k-shadow-md);
@@ -968,10 +977,10 @@ html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
   display: flex;
   align-items: center;
   gap: var(--d-space-2);
-  padding: 0 0.5rem;
-  border: 1px solid var(--d-border);
-  border-radius: var(--d-radius-sm);
-  background: var(--k-bg);
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--d-radius-pill);
+  background: color-mix(in srgb, var(--k-text) 4%, transparent);
   color: var(--d-text-subtle);
   transition: border-color var(--d-dur-fast) var(--d-ease);
 }

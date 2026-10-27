@@ -139,7 +139,7 @@ ${CALLOUT_VARIANTS}
 .doku-prose [data-block='figure'] img {
   width: 100%;
   height: auto;
-  border: 1px solid var(--d-border);
+  border: 0;
   border-radius: var(--d-radius-md);
   background: var(--d-bg-subtle);
 }

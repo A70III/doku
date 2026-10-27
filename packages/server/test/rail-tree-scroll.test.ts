@@ -52,15 +52,14 @@ describe("rail — tree ยาวต้องเลื่อนในตัว �
     expect(ruleBlock(".doku-rail")).toContain("overflow-y: auto")
   })
 
-  test("แถบ active ห้ามยื่นซ้ายออกนอกกล่อง — scroll container ใหม่จะ clip มันเหลือ 1px", () => {
-    // เดิม .doku-row-link.is-active ใช้ margin-inline-start: -1px ให้แถบ accent ยื่นเลย
-    // ขอบเนื้อหา 1px — ตอน overflow: visible โชว์ครบ 2px แต่พอ tree เป็น scroll container
-    // กล่องถูก clip ที่ padding box → แถบหดเหลือ 1px (วัดจริง: activeLeft 23 < scrollport 24)
+  test("แถว active = การ์ดขาวในกล่อง scroll (ไม่มี margin ลบ/แถบยื่นออกนอก padding box)", () => {
+    // Soft Paper (docs/08 ข้อ 89): เลิกใช้แถบ accent ที่ต้องชดเชยด้วย margin -1px ตอนถูก clip
+    // → แถว active เป็นการ์ด (พื้น + เงา + radius) จึงไม่มีอะไรยื่นออกนอก scroll container
     const block = ruleBlock(".doku-row-link.is-active")
-    expect(block).toContain("border-inline-start: 2px")
+    expect(block).toContain("background: var(--k-bg)")
+    expect(block).toContain("box-shadow: var(--k-shadow-sm)")
     expect(block).not.toContain("margin-inline-start: -1px")
-    // ชดเชยตำแหน่งข้อความให้เท่าเดิมเป๊ะ: เดิม 24(ขอบ) − 1(margin) + 2(border) + 12(pad) = 37
-    const padStart = block.match(/padding-inline-start:\s*([^;]+);/)?.[1]?.trim()
-    expect(padStart).toBe("calc(var(--d-space-3) - 1px)")
+    expect(block).not.toContain("border-inline-start")
+    expect(block).not.toMatch(/margin-inline-start:\s*-/)
   })
 })

@@ -43,6 +43,7 @@ const DARK_TOKENS = `
   --k-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.30);
   --k-shadow-md: 0 2px 8px rgb(0 0 0 / 0.35);
   --k-shadow-lg: 0 4px 16px rgb(0 0 0 / 0.40);
+  --k-shadow-paper: 0 1px 2px rgb(0 0 0 / 0.35), 0 18px 44px -18px rgb(0 0 0 / 0.55);
 `
 
 export const TOKENS_CSS = `
@@ -128,14 +129,15 @@ export const TOKENS_CSS = `
   --d-text-3xl: clamp(1.75rem, 1.5rem + 1.4vw, 2.25rem);
 
   /* ── typography: reading scale (.doku-prose เท่านั้น) ── */
-  --d-read: 1.0625rem;
-  --d-read-lede: 1.125rem;
-  --d-read-h4: 1.0625rem;
-  --d-read-h3: 1.25rem;
-  --d-read-h2: clamp(1.5rem, 1.35rem + 0.6vw, 1.75rem);
-  --d-read-h1: clamp(2rem, 1.6rem + 1.4vw, 2.75rem);
+  /* Soft Paper (docs/08 ข้อ 89): ตัวเนื้อหา 18px + leading 1.82 — อ่านยาวแล้วไม่แน่นแบบ editor เก่า */
+  --d-read: 1.125rem;
+  --d-read-lede: 1.1875rem;
+  --d-read-h4: 1.125rem;
+  --d-read-h3: 1.1875rem;
+  --d-read-h2: clamp(1.4375rem, 1.3rem + 0.5vw, 1.625rem);
+  --d-read-h1: clamp(2.125rem, 1.7rem + 1.5vw, 2.625rem);
 
-  --k-leading-body: 1.7;
+  --k-leading-body: 1.82;
   --k-leading-th: 1.9;
   --k-measure: 70ch;
 
@@ -164,15 +166,18 @@ export const TOKENS_CSS = `
   --d-rhythm-h4: var(--d-space-8);
   --d-rhythm-after: var(--d-space-3);
 
-  /* ── radius / shadow ── */
-  --d-radius-sm: 2px;
-  --d-radius-md: 4px;
-  --d-radius-lg: 6px;
+  /* ── radius / shadow ── (Soft Paper: มุมโค้ง + เงานุ่มแทนเส้นhairline — docs/08 ข้อ 89) */
+  --d-radius-sm: 8px;
+  --d-radius-md: 12px;
+  --d-radius-lg: 16px;
+  --d-radius-xl: 20px;
   --d-radius-pill: 999px;
 
   --k-shadow-sm: 0 1px 2px rgb(28 26 23 / 0.05);
   --k-shadow-md: 0 2px 8px rgb(28 26 23 / 0.08);
   --k-shadow-lg: 0 4px 16px rgb(28 26 23 / 0.10);
+  /* กระดาษลอยบนผืน canvas — 2 ชั้น: contact + ambient (ไม่ใช่เส้นขอบ) */
+  --k-shadow-paper: 0 1px 2px rgb(28 26 23 / 0.05), 0 14px 36px -14px rgb(28 26 23 / 0.18);
 
   /* ── motion ── */
   --d-dur-fast: 120ms;

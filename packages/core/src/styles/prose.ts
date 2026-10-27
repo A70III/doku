@@ -148,7 +148,6 @@ export const PROSE_CSS = `
   align-items: baseline;
   margin-top: var(--d-rhythm-h2);
   padding-top: var(--d-space-5);
-  border-top: 1px solid var(--d-border);
   font-size: var(--d-text-xs);
   color: var(--d-text-subtle);
 }
@@ -166,7 +165,6 @@ export const PROSE_CSS = `
   gap: var(--d-space-3);
   margin-top: var(--d-rhythm-h2);
   padding-top: var(--d-space-5);
-  border-top: 1px solid var(--d-border);
   font-size: var(--d-text-sm);
 }
 .doku-backlinks h2 {
@@ -286,7 +284,9 @@ ${PROSE_RHYTHM_CSS}
   color: var(--d-text-muted);
 }
 .doku-prose hr { border: 0; border-top: 1px solid var(--d-border); margin-block: var(--d-rhythm-h2); }
-.doku-prose img { max-width: 100%; height: auto; border-radius: var(--d-radius-sm); }
+.doku-prose img { max-width: 100%; height: auto; border-radius: var(--d-radius-md); }
+/* caption ของรูป — ตัวเล็กกว่าเนื้อหา 1 step + สีจาง (Soft Paper: docs/08 ข้อ 89) */
+.doku-prose figcaption { margin-top: var(--d-space-2); font-size: var(--d-text-sm); color: var(--d-text-subtle); }
 .doku-prose kbd {
   font-family: var(--d-font-mono);
   font-size: 0.8em;
@@ -320,7 +320,7 @@ ${PROSE_RHYTHM_CSS}
   position: relative;
   padding: var(--d-space-4) var(--d-space-5);
   overflow: auto;
-  border: 1px solid var(--d-border);
+  border: 0;
   border-radius: var(--d-radius-md);
   background: var(--d-bg-subtle);
   font-size: var(--d-text-sm);
