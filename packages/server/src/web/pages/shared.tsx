@@ -2,18 +2,32 @@
 
 import { iconSvg, type LucideIconName } from "@doku/core"
 import type { FC } from "hono/jsx"
+import { inSprite } from "../sprite.ts"
 
 export const Icon: FC<{ name: LucideIconName; size?: number; className?: string }> = ({
   name,
   size = 16,
   className,
-}) => (
-  <span
-    aria-hidden="true"
-    dangerouslySetInnerHTML={{ __html: iconSvg(name, { size }) }}
-    {...(className ? { class: className } : {})}
-  />
-)
+}) =>
+  inSprite(name) ? (
+    // ไอคอนที่ซ้ำทั้งหน้า → อ้าง symbol เดียว (sprite) ไม่ฝัง path ซ้ำทุกแถว
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      {...(className ? { class: className } : {})}
+    >
+      <use href={`#ic-${name}`} />
+    </svg>
+  ) : (
+    <span
+      aria-hidden="true"
+      dangerouslySetInnerHTML={{ __html: iconSvg(name, { size }) }}
+      {...(className ? { class: className } : {})}
+    />
+  )
 
 /** วันที่แบบคลังเอกสาร — เก็บเป็น absolute เสมอสำหรับ archive (docs/03 §3) */
 export function formatDate(mtimeMs: number): string {

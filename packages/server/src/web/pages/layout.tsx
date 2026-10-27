@@ -1,37 +1,11 @@
 /** shell ของหน้า (head/chrome/dialog/toast) — แยกจาก pages.tsx (ไม่เปลี่ยนพฤติกรรม) */
 
-import {
-  HEX_COLOR_PATTERN,
-  ICON_NAMES,
-  LUCIDE_ICONS,
-  type LucideIconName,
-  type Meta,
-} from "@doku/core"
+import { HEX_COLOR_PATTERN, ICON_NAMES, type Meta } from "@doku/core"
 import type { Child, FC } from "hono/jsx"
 
+import { getAssetVersion } from "../site.ts"
+import { SPRITE_HTML } from "../sprite.ts"
 import { Icon } from "./shared.tsx"
-
-/** ไอคอนที่ palette ใช้ — วาดเป็น <symbol> ครั้งเดียว แล้ว client อ้างด้วย <use> */
-const PALETTE_ICONS = [
-  "file-text",
-  "search",
-  "file-plus-2",
-  "folder-plus",
-  "maximize-2",
-  "moon",
-  "command",
-  "trash-2",
-  "palette",
-  "house",
-  "pencil",
-  "info",
-] as const satisfies readonly LucideIconName[]
-
-const PALETTE_SPRITE = PALETTE_ICONS.map(
-  (name) =>
-    `<symbol id="pi-${name}" viewBox="0 0 24 24" fill="none" stroke="currentColor" ` +
-    `stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${LUCIDE_ICONS[name]}</symbol>`,
-).join("")
 
 export const Layout: FC<{
   title: string
@@ -53,8 +27,8 @@ export const Layout: FC<{
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light dark" />
         <title>{title}</title>
-        <link rel="stylesheet" href="/static/app.css" />
-        <link rel="stylesheet" href="/static/content.css" />
+        <link rel="stylesheet" href={`/static/app.css?v=${getAssetVersion()}`} />
+        <link rel="stylesheet" href={`/static/content.css?v=${getAssetVersion()}`} />
         {/* MPA: prefetch หน้าเอกสารตอน hover → คลิกแล้วเปิดทันที (เบราว์เซอร์อื่นข้าม) */}
         <script
           type="speculationrules"
@@ -66,10 +40,16 @@ export const Layout: FC<{
         />
         {/* woff2 ถูกฝังเป็น data URI → ~380KB · โหลดเฉพาะหน้าที่มีสมการ (docs/08 ข้อ 23/70) */}
         {math ? <link rel="stylesheet" href="/static/katex.css" data-katex="true" /> : null}
-        <script src="/static/client.js" defer />
-        <script src="/static/editor.js" defer />
+        <script src={`/static/client.js?v=${getAssetVersion()}`} defer />
+        <script src={`/static/editor.js?v=${getAssetVersion()}`} defer />
       </head>
       <body class="min-h-screen bg-(--k-app-bg) text-(--k-text) font-(family-name:--d-font-sans) antialiased">
+        {/* sprite เดียวต่อหน้า — ไอคอนที่ซ้ำ (เมนูแถว/โฟลเดอร์) อ้างด้วย <use> */}
+        <div
+          class="doku-sprite"
+          aria-hidden="true"
+          dangerouslySetInnerHTML={{ __html: SPRITE_HTML }}
+        />
         <div class="doku-progress" aria-hidden="true">
           <div data-part="progress-fill" />
         </div>
@@ -95,13 +75,6 @@ export const Layout: FC<{
               autocomplete="off"
               spellcheck={false}
               aria-controls="doku-palette-list"
-            />
-            <div
-              class="doku-palette-sprite"
-              aria-hidden="true"
-              dangerouslySetInnerHTML={{
-                __html: `<svg xmlns="http://www.w3.org/2000/svg">${PALETTE_SPRITE}</svg>`,
-              }}
             />
             <div id="doku-palette-list" class="doku-palette-list" role="listbox" />
           </div>

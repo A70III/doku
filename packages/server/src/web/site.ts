@@ -9,3 +9,12 @@ export const setSiteName = (name: string | undefined): void => {
 }
 
 export const getSiteName = (): string => siteName
+
+/** เวอร์ชันของ static asset — เปลี่ยนเมื่อเนื้อหา CSS/JS เปลี่ยน → URL เปลี่ยน → cache immutable ได้ */
+let assetVersion = "dev"
+
+export const setAssetVersion = (version: string): void => {
+  assetVersion = version.trim() || "dev"
+}
+
+export const getAssetVersion = (): string => assetVersion

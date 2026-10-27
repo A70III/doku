@@ -83,7 +83,6 @@ ${INTERACTIONS_JS}
   const folderStatus = $("#doku-folder-status");
   const articleEl = $("article[data-doc-id]");
   const bodyEl = $("#doku-doc-body");
-  const embeddedEl = $("#doku-doc-md");
   const docStatusEl = $("#doku-doc-status");
   const tocSheetEl = $("#doku-toc-sheet");
   const askEl = $("#doku-ask");

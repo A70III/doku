@@ -145,19 +145,11 @@ export const DocPage: FC<{
   trashCount?: number
   mtimeMs?: number
   words?: number
-  /** markdown ต้นฉบับ + ETag — ฝังลงหน้าเพื่อให้แก้ไขได้ทันทีโดยไม่ต้อง fetch (docs/08 ข้อ 52) */
-  markdown?: string
-  etag?: string
   /** backlinks (M5 S4) — เอกสารที่อ้างอิงเอกสารนี้ · ไม่ส่ง = ไม่โชว์ section */
   backlinks?: { path: string; title: string }[]
-}> = ({ doc, path, tree, trashCount, mtimeMs, words, markdown, etag, backlinks }) => {
+}> = ({ doc, path, tree, trashCount, mtimeMs, words, backlinks }) => {
   const meta = doc.meta
   const toc = meta.render.toc ? doc.toc : []
-  // `<` ต้อง escape ไม่งั้น `</script>` ใน markdown จะปิด tag ก่อนเวลา
-  const embedded =
-    markdown === undefined
-      ? null
-      : JSON.stringify({ md: markdown, etag: etag ?? "" }).replaceAll("</", "<\\/")
   return (
     <Layout
       title={meta.title ?? getSiteName()}
@@ -269,13 +261,6 @@ export const DocPage: FC<{
         <TocColumn toc={toc} />
       </div>
       <TocSheet toc={toc} />
-      {embedded === null ? null : (
-        <script
-          type="application/json"
-          id="doku-doc-md"
-          dangerouslySetInnerHTML={{ __html: embedded }}
-        />
-      )}
     </Layout>
   )
 }

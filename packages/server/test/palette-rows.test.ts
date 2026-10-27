@@ -67,8 +67,11 @@ describe("palette — แถวผลลัพธ์เรียบเสมอ�
     expect(ruleBlock(".doku-palette-list .doku-palette-hint")).toContain("text-overflow: ellipsis")
   })
 
-  test("มี sprite สำหรับไอคอน (ไม่ฝัง SVG ซ้ำทุกแถว)", () => {
-    expect(LAYOUT).toContain("PALETTE_SPRITE")
-    expect(LAYOUT).toMatch(/pi-\$\{name\}/)
+  test("มี sprite กลางสำหรับไอคอน (ไม่ฝัง SVG ซ้ำทุกแถว)", () => {
+    const SPRITE = readFileSync(new URL("../src/web/sprite.ts", import.meta.url), "utf8")
+    expect(LAYOUT).toContain("SPRITE_HTML")
+    expect(SPRITE).toMatch(/ic-\$\{name\}/)
+    // ไอคอนที่ซ้ำมากที่สุด (เมนูแถว) ต้องอยู่ใน sprite
+    expect(SPRITE).toContain('"more-horizontal"')
   })
 })

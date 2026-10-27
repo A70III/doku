@@ -71,7 +71,7 @@ export const PALETTE_JS = `  /* ── command palette ────────�
     svg.setAttribute("aria-hidden", "true");
     svg.setAttribute("focusable", "false");
     const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-    use.setAttribute("href", "#pi-" + (name || "file-text"));
+    use.setAttribute("href", "#ic-" + (name || "file-text"));
     svg.appendChild(use);
     return svg;
   }

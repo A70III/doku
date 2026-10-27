@@ -21,10 +21,14 @@ export const WRITING_SURFACE_JS = `  /* ── writing surface: พิมพ์�
     schema: null,
   };
 
-  function readEmbedded() {
-    if (!embeddedEl) return null;
+  /** markdown โหลดตอนเข้าโหมดเขียน (ไม่ฝังใน HTML — ประหยัด ~26KB ต่อหน้า) */
+  async function readEmbedded() {
+    const id = articleEl && articleEl.getAttribute("data-doc-id");
+    if (!id) return null;
     try {
-      return JSON.parse(embeddedEl.textContent || "{}");
+      const payload = await api("/api/docs/" + encodePath(id));
+      if (!payload || typeof payload.md !== "string") return null;
+      return { md: payload.md, etag: payload.etag || "" };
     } catch {
       return null;
     }

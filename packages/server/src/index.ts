@@ -9,7 +9,7 @@
  */
 
 import { basename, resolve as resolvePath } from "node:path"
-import { RENDERER_VERSION } from "@doku/core"
+import { RENDERER_VERSION, sha256Hex } from "@doku/core"
 import { createNodeRevisionStore, createNodeVaultFs } from "@doku/fs-node"
 import { createDokuApp } from "./app.tsx"
 import { FragmentCache } from "./cache.ts"
@@ -18,7 +18,9 @@ import { createSearchIndex } from "./index-db.ts"
 import { SseHub } from "./sse.ts"
 import { VaultState } from "./tree.ts"
 import { createVaultWatcher } from "./watch.ts"
-import { setSiteName } from "./web/site.ts"
+import { CLIENT_JS } from "./web/client.ts"
+import { CONTENT_CSS } from "./web/content-css.ts"
+import { setAssetVersion, setSiteName } from "./web/site.ts"
 
 setSiteName(process.env.DOKU_NAME)
 const vaultRoot = resolvePath(process.env.DOKU_VAULT ?? "vault")
@@ -85,6 +87,13 @@ const readPublic = async (name: string): Promise<string | null> => {
     return null
   }
 }
+
+// URL ของ static เปลี่ยนตามเนื้อหา → ตั้ง cache ได้ 1 ปี (ไม่ต้อง revalidate ทุกคลิก)
+setAssetVersion(
+  (
+    await sha256Hex([CLIENT_JS, CONTENT_CSS, (await readPublic("app.css")) ?? ""].join("\u0000"))
+  ).slice(0, 12),
+)
 
 const app = createDokuApp({
   fs,

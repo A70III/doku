@@ -212,7 +212,7 @@ export const WRITING_ANCHOR_JS = `  /* ── สลับ read ↔ write แล
 
   async function enterWriting(anchor) {
     if (writing.editing || !articleEl || !bodyEl) return;
-    const payload = readEmbedded();
+    const payload = await readEmbedded();
     if (!payload) return;
     const schema = await loadSchema();
     writing.schema = schema;

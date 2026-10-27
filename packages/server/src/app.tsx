@@ -177,13 +177,15 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     if (content === null || content === undefined) return context.notFound()
     const token = await sha256Hex(content)
     const etag = etagHeader(token)
+    // ?v=<hash> = URL เปลี่ยนตามเนื้อหา → cache 1 ปีได้
+    const cache = context.req.query("v") ? "public, max-age=31536000, immutable" : "no-cache"
     // If-None-Match ต้องเทียบแบบ weak (RFC 9110) → ใช้ matchesIfMatch ตัวเดียวกับ If-Match
     if (matchesIfMatch(context.req.header("if-none-match"), token)) {
-      return context.body(null, 304, { etag, "cache-control": "no-cache" })
+      return context.body(null, 304, { etag, "cache-control": cache })
     }
     return context.body(content, 200, {
       "content-type": contentType,
-      "cache-control": "no-cache",
+      "cache-control": cache,
       etag,
     })
   }
@@ -202,12 +204,14 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
       textEtags.set(name, token)
     }
     const etag = etagHeader(token)
+    // ?v=<hash> = เนื้อหาเปลี่ยนแล้ว URL เปลี่ยน → cache ได้นาน (ไม่มี revalidate)
+    const cache = context.req.query("v") ? "public, max-age=31536000, immutable" : "no-cache"
     if (matchesIfMatch(context.req.header("if-none-match"), token)) {
-      return context.body(null, 304, { etag, "cache-control": "no-cache" })
+      return context.body(null, 304, { etag, "cache-control": cache })
     }
     return context.body(body, 200, {
       "content-type": contentType,
-      "cache-control": "no-cache",
+      "cache-control": cache,
       etag,
     })
   }
@@ -311,8 +315,6 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
           trashCount={await trashCount()}
           mtimeMs={summary?.mtimeMs}
           words={words}
-          markdown={markdown ?? undefined}
-          etag={currentEtag}
         />,
       )
     } catch (error) {

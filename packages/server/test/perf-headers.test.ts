@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { memoryRevisionStore, memoryVaultFs, RENDERER_VERSION } from "@doku/core"
+import { memoryVaultFs, RENDERER_VERSION } from "@doku/core"
 import { createDokuApp } from "../src/app.tsx"
 import { FragmentCache } from "../src/cache.ts"
 import { DocRenderer } from "../src/doc.ts"

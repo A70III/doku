@@ -281,7 +281,11 @@ describe("M3 chrome (toolbar / palette / trash page)", () => {
     expect(html).not.toContain("doku-editor")
     expect(html).not.toContain('data-action="edit"')
     expect(html).toContain('id="doku-doc-body"')
-    expect(html).toContain('id="doku-doc-md"')
+    // markdown ไม่ถูกฝังใน HTML แล้ว — client โหลดตอนเข้าโหมดเขียน (ประหยัด ~26KB/หน้า)
+    expect(html).not.toContain('id="doku-doc-md"')
+    // ไอคอนที่ซ้ำถูกยุบเป็น sprite เดียว
+    expect(html).toContain('class="doku-sprite"')
+    expect(html).toContain('id="ic-more-horizontal"')
     expect(html).toContain('id="doku-meta-form"')
     expect(html).toContain('id="doku-folder-form"')
     expect(html).toContain("/static/editor.js")

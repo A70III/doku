@@ -625,7 +625,8 @@ describe("doc_render / doc_validate / asset_put", () => {
     expect(assets[0]?.url).toMatch(/^\/media\/[0-9a-f]{64}\.png$/)
     expect(assets[0]?.content_type).toBe("image/png")
     expect(assets[0]?.deduped).toBe(false)
-    expect(await fs.mediaStore().read(assets[0]!.path.slice(".media/".length))).toEqual(content)
+    const stored = assets[0]?.path.slice(".media/".length) ?? ""
+    expect(await fs.mediaStore().read(stored)).toEqual(content)
 
     // วางไฟล์เดิมซ้ำ = dedupe (media store content-addressed)
     const again = await call(server, "asset_put", {
