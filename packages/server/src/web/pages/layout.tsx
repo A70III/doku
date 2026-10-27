@@ -1,9 +1,37 @@
 /** shell ของหน้า (head/chrome/dialog/toast) — แยกจาก pages.tsx (ไม่เปลี่ยนพฤติกรรม) */
 
-import { HEX_COLOR_PATTERN, ICON_NAMES, type Meta } from "@doku/core"
+import {
+  HEX_COLOR_PATTERN,
+  ICON_NAMES,
+  LUCIDE_ICONS,
+  type LucideIconName,
+  type Meta,
+} from "@doku/core"
 import type { Child, FC } from "hono/jsx"
 
 import { Icon } from "./shared.tsx"
+
+/** ไอคอนที่ palette ใช้ — วาดเป็น <symbol> ครั้งเดียว แล้ว client อ้างด้วย <use> */
+const PALETTE_ICONS = [
+  "file-text",
+  "search",
+  "file-plus-2",
+  "folder-plus",
+  "maximize-2",
+  "moon",
+  "command",
+  "trash-2",
+  "palette",
+  "house",
+  "pencil",
+  "info",
+] as const satisfies readonly LucideIconName[]
+
+const PALETTE_SPRITE = PALETTE_ICONS.map(
+  (name) =>
+    `<symbol id="pi-${name}" viewBox="0 0 24 24" fill="none" stroke="currentColor" ` +
+    `stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${LUCIDE_ICONS[name]}</symbol>`,
+).join("")
 
 export const Layout: FC<{
   title: string
@@ -54,10 +82,17 @@ export const Layout: FC<{
               class="doku-palette-input"
               type="search"
               placeholder="ค้นหาเอกสาร หรือพิมพ์คำสั่ง เช่น new, folder, zen…"
-              aria-label="ค้นหาและคำสั่ง (Ctrl+K)"
+              aria-label="ค้นหาและคำสั่ง"
               autocomplete="off"
               spellcheck={false}
               aria-controls="doku-palette-list"
+            />
+            <div
+              class="doku-palette-sprite"
+              aria-hidden="true"
+              dangerouslySetInnerHTML={{
+                __html: `<svg xmlns="http://www.w3.org/2000/svg">${PALETTE_SPRITE}</svg>`,
+              }}
             />
             <div id="doku-palette-list" class="doku-palette-list" role="listbox" />
           </div>
@@ -157,26 +192,26 @@ export const Layout: FC<{
             </header>
             <dl class="doku-keys-list">
               <div>
-                <dt>
-                  <kbd>Ctrl</kbd> <kbd>K</kbd>
+                <dt data-palette-kbd>
+                  <kbd data-mod-key>Ctrl</kbd> <kbd>K</kbd>
                 </dt>
                 <dd>ค้นหาเอกสาร / สั่งงาน</dd>
               </div>
               <div>
                 <dt>
-                  <kbd>Ctrl</kbd> <kbd>N</kbd>
+                  <kbd data-mod-key>Ctrl</kbd> <kbd>N</kbd>
                 </dt>
                 <dd>เอกสารใหม่ (ในโฟลเดอร์เดียวกับที่เปิดอยู่)</dd>
               </div>
               <div>
                 <dt>
-                  <kbd>Ctrl</kbd> <kbd>E</kbd>
+                  <kbd data-mod-key>Ctrl</kbd> <kbd>E</kbd>
                 </dt>
                 <dd>เข้าโหมดเขียนของเอกสารนี้</dd>
               </div>
               <div>
                 <dt>
-                  <kbd>Ctrl</kbd> <kbd>S</kbd>
+                  <kbd data-mod-key>Ctrl</kbd> <kbd>S</kbd>
                 </dt>
                 <dd>บันทึกทันที (ขณะเขียน)</dd>
               </div>

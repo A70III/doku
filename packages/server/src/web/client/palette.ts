@@ -17,19 +17,19 @@ export const PALETTE_JS = `  /* ── command palette ────────�
 
   function paletteCommands() {
     const commands = [
-      { label: "เอกสารใหม่…", hint: "new", run: () => newDoc(currentDirForNew()) },
-      { label: "โฟลเดอร์ใหม่…", hint: "folder", run: () => newFolder(currentDirForNew()) },
-      { label: "สลับ zen mode", hint: "zen", run: toggleZen },
-      { label: "สลับธีม", hint: "theme", run: cycleTheme },
-      { label: "คีย์ลัดทั้งหมด", hint: "keys", run: () => { if (keysEl) keysEl.hidden = false; } },
-      { label: "ไปที่ trash", hint: "trash", run: () => (window.location.href = "/trash") },
-      { label: "ไปที่ styleguide", hint: "styleguide", run: () => (window.location.href = "/styleguide") },
-      { label: "หน้าแรก", hint: "home", run: () => (window.location.href = "/") },
+      { label: "เอกสารใหม่…", hint: "new", icon: "file-plus-2", run: () => newDoc(currentDirForNew()) },
+      { label: "โฟลเดอร์ใหม่…", hint: "folder", icon: "folder-plus", run: () => newFolder(currentDirForNew()) },
+      { label: "สลับ zen mode", hint: "zen", icon: "maximize-2", run: toggleZen },
+      { label: "สลับธีม", hint: "theme", icon: "moon", run: cycleTheme },
+      { label: "คีย์ลัดทั้งหมด", hint: "keys", icon: "command", run: () => { if (keysEl) keysEl.hidden = false; } },
+      { label: "ไปที่ trash", hint: "trash", icon: "trash-2", run: () => (window.location.href = "/trash") },
+      { label: "ไปที่ styleguide", hint: "styleguide", icon: "palette", run: () => (window.location.href = "/styleguide") },
+      { label: "หน้าแรก", hint: "home", icon: "house", run: () => (window.location.href = "/") },
     ];
     const current = currentDocPath();
     if (current) {
-      commands.unshift({ label: "แก้เอกสารนี้", hint: "edit", run: () => enterWriting(null) });
-      commands.push({ label: "คุณสมบัติเอกสารนี้", hint: "meta", run: () => openMeta(current) });
+      commands.unshift({ label: "แก้เอกสารนี้", hint: "edit", icon: "pencil", run: () => enterWriting(null) });
+      commands.push({ label: "คุณสมบัติเอกสารนี้", hint: "meta", icon: "info", run: () => openMeta(current) });
     }
     return commands;
   }
@@ -62,16 +62,32 @@ export const PALETTE_JS = `  /* ── command palette ────────�
     }, 200);
   }
 
+  /** ไอคอนของแถว — อ้าง <symbol> ที่ layout เรนเดอร์ไว้ (ไม่ต้องฝัง SVG ซ้ำทุกแถว) */
+  function paletteIcon(name) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "doku-palette-icon");
+    svg.setAttribute("width", "15");
+    svg.setAttribute("height", "15");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", "#pi-" + (name || "file-text"));
+    svg.appendChild(use);
+    return svg;
+  }
+
   function renderPalette(query) {
     const needle = (query || "").trim().toLowerCase();
     const commands = paletteCommands().map((command) => ({
       label: command.label,
       hint: command.hint,
+      icon: command.icon || "command",
       run: command.run,
     }));
     const docs = (paletteDocs || []).map((doc) => ({
       label: doc.title,
       hint: doc.id,
+      icon: "file-text",
       tags: Array.isArray(doc.tags) ? doc.tags.join(" ") : "",
       run: () => {
         window.location.href = "/d/" + encodePath(doc.id);
@@ -92,6 +108,7 @@ export const PALETTE_JS = `  /* ── command palette ────────�
         .map((hit) => ({
           label: hit.title || hit.path,
           hint: hit.path,
+          icon: "search",
           tags: "",
           run: () => {
             window.location.href = "/d/" + encodePath(hit.path);
@@ -114,7 +131,11 @@ export const PALETTE_JS = `  /* ── command palette ────────�
       button.type = "button";
       button.setAttribute("role", "option");
       button.setAttribute("data-active", String(index === 0));
-      button.appendChild(document.createTextNode(item.label));
+      button.appendChild(paletteIcon(item.icon));
+      const label = document.createElement("span");
+      label.className = "doku-palette-label";
+      label.textContent = item.label;
+      button.appendChild(label);
       const hint = document.createElement("span");
       hint.className = "doku-palette-hint";
       hint.textContent = item.hint;

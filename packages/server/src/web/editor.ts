@@ -622,7 +622,7 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
       const rest = doc.sliceString(end, doc.length)
       const gap = /^\n*/.exec(rest)
       const to = end + (gap ? gap[0].length : 0)
-      const insert = "\n\n" + text + "\n\n"
+      const insert = `\n\n${text}\n\n`
       view.dispatch({
         changes: { from: end, to, insert },
         selection: EditorSelection.cursor(end + insert.length),

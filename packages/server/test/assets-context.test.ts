@@ -144,7 +144,7 @@ describe("POST /api/docs/*path/assets — multipart upload", () => {
 
   test("GET /media/<ชื่อที่ไม่ใช่ sha256> → 404 (ไม่มีทางออกนอก .media)", async () => {
     const { app } = setup({})
-    for (const name of ["../secret.png", "pic.png", "a".repeat(64) + ".png"]) {
+    for (const name of ["../secret.png", "pic.png", `${"a".repeat(64)}.png`]) {
       expect((await app.request(`/media/${encodeURIComponent(name)}`)).status).toBe(404)
     }
   })

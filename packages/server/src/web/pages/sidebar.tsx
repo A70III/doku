@@ -151,7 +151,7 @@ export const Sidebar: FC<{
     <button type="button" class="doku-search-trigger" data-action="palette">
       <Icon name="search" size={14} />
       <span>ค้นหา / คำสั่ง</span>
-      <kbd>Ctrl K</kbd>
+      <kbd data-palette-key>Ctrl K</kbd>
     </button>
 
     <nav aria-label="แผนผังเอกสาร" class="doku-rail-tree">

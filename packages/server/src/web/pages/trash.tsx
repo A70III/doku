@@ -1,6 +1,6 @@
 /** หน้า trash — แยกจาก pages.tsx (ไม่เปลี่ยนพฤติกรรม) */
 
-import { type TrashItem } from "@doku/core"
+import type { TrashItem } from "@doku/core"
 import type { FC } from "hono/jsx"
 import type { TreeNode } from "../../tree.ts"
 import { Layout } from "./layout.tsx"

@@ -543,12 +543,21 @@
   max-height: 55vh;
   overflow-y: auto;
 }
+.doku-palette-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
 .doku-palette-list button {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  /* แถวเท่ากันทุกบรรทัด: ไอคอน · ชื่อ · path — ชื่อ/path ตัด ellipsis ไม่ดันความสูง */
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.625rem;
   width: 100%;
-  padding: 0.45rem 0.5rem;
+  min-height: 2.375rem;
+  padding: 0.5rem 0.625rem;
   border: 0;
   border-radius: var(--d-radius-sm);
   background: none;
@@ -561,11 +570,29 @@
 .doku-palette-list button[data-active="true"] {
   background: var(--d-bg-subtle);
 }
+.doku-palette-list .doku-palette-icon {
+  display: block;
+  flex: none;
+  color: var(--d-text-subtle);
+  transition: color var(--d-dur-fast) var(--d-ease);
+}
+.doku-palette-list button[data-active="true"] .doku-palette-icon {
+  color: var(--d-accent);
+}
+.doku-palette-list .doku-palette-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .doku-palette-list .doku-palette-hint {
-  margin-inline-start: auto;
+  max-width: 45%;
+  overflow: hidden;
   font-family: var(--d-font-mono);
   font-size: var(--d-text-xs);
   color: var(--d-text-subtle);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .doku-palette-list .doku-palette-empty {
   padding: 0.75rem 0.5rem;

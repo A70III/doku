@@ -1,6 +1,6 @@
 /** หน้าอ่านเอกสาร + TOC + colophon + toolbar — แยกจาก pages.tsx (ไม่เปลี่ยนพฤติกรรม) */
 
-import { type Meta, type TocEntry } from "@doku/core"
+import type { Meta, TocEntry } from "@doku/core"
 import type { Child, FC } from "hono/jsx"
 import type { CachedDoc } from "../../cache.ts"
 import type { TreeNode } from "../../tree.ts"

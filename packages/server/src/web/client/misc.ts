@@ -266,8 +266,28 @@ export const MISC_JS = `  /* ── trash ────────────�
 
   /* ── keyboard ────────────────────────────────────────────────────────── */
 
+  // Mac ใช้ ⌘ — Chrome/Edge บน Linux/Windows จอง Ctrl+K ไปโฟกัสช่องค้นหา
+  // จึงมี "/" เป็นทางลัดสำรองที่เบราว์เซอร์ไม่แย่ง
+  const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+  for (const el of $$("[data-palette-key]")) el.textContent = isMac ? "\u2318K" : "/";
+  for (const el of $$("[data-mod-key]")) el.textContent = isMac ? "\u2318" : "Ctrl";
+  for (const el of $$("[data-palette-kbd]")) {
+    el.innerHTML = isMac ? "<kbd>\u2318</kbd> <kbd>K</kbd>" : "<kbd>/</kbd>";
+  }
+  for (const el of $$("[data-action='palette']")) {
+    el.title = isMac ? "ค้นหา / คำสั่ง (\u2318K)" : "ค้นหา / คำสั่ง (/)";
+  }
+
   document.addEventListener("keydown", (event) => {
     const meta = event.metaKey || event.ctrlKey;
+    const tag = (event.target && event.target.tagName) || "";
+    if (!meta && !event.altKey && event.key === "/" && !writing.editing) {
+      if (tag !== "INPUT" && tag !== "TEXTAREA" && !event.target.isContentEditable) {
+        event.preventDefault();
+        openPalette();
+        return;
+      }
+    }
     if (meta && event.key.toLowerCase() === "k") {
       event.preventDefault();
       if (paletteEl.hidden) openPalette();
