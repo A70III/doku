@@ -1,7 +1,7 @@
 /**
  * Hono JSX pages — entry ที่แอป import (แยกโค้ดอยู่ที่ `./pages/`)
  *
- * คงชื่อ export เดิมทุกตัว (`app.tsx` / `folder-page.tsx` / `styleguide.ts` import ที่นี่)
+ * คงชื่อ export เดิมทุกตัว (`app.tsx` / `pages/folder.tsx` / `styleguide.ts` import ที่นี่)
  */
 
 export { DocPage, TocList } from "./pages/doc.tsx"

@@ -20,10 +20,10 @@
 
 import { dirnameOf, docUrl, HEX_COLOR_PATTERN } from "@doku/core"
 import type { Child, FC } from "hono/jsx"
-import type { DocSummary, TreeFolder, TreeNode } from "../tree.ts"
-import { groupDocsByDate, type SortKey, sortDocs } from "./listing.ts"
-import { Icon, Layout, Sidebar } from "./pages.tsx"
-import { getSiteName } from "./site.ts"
+import type { DocSummary, TreeFolder, TreeNode } from "../../tree.ts"
+import { groupDocsByDate, type SortKey, sortDocs } from "../listing.ts"
+import { Icon, Layout, Sidebar } from "../pages.tsx"
+import { getSiteName } from "../site.ts"
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 
