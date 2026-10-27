@@ -144,6 +144,10 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
 - ล็อกเพิ่มตอนแก้บั๊ก rail tree (หลัง M5): **tree ยาวไม่ทับ foot อีก** — `.doku-rail-tree` เป็น
   scroll container ของตัวเอง (`overflow-y: auto`) + `min-height` floor `var(--d-space-24)` ·
   head+ค้นหา คงอยู่บน · foot ตรึงท้าย rail · จอเตี้ยปล่อย `.doku-rail` เลื่อนเป็น fallback (ข้อ 84)
+- ล็อกเพิ่มตอนแก้ RAM บวม (หลัง M5): **index sync ต้อง stat-first** — คอลัมน์ `stamp` (`mtime:size` ของ md+meta)
+  เท่าเดิม = ไม่ `readText`/`hash` เลย (เดิม rescan 60s อ่าน vault ทั้งก้อนทุกนาที · schema v3 rebuild เอง)
+  · **sync ห้ามซ้อน** (timer + watcher → `running/queued`) · `DOKU_RESCAN_MS` (0 = ปิด rescan)
+  · compose ใส่ `mem_limit/memswap_limit: 768m` — heap Bun ไม่คืน OS, RSS ไต่ตาม uptime (docs/08 ข้อ 86)
 - ล็อกเพิ่มตอนเพิ่มปุ่มเปิด/ปิดแท็ก: **state คือ preference ไม่ใช่ query** — `?tag=` = กรองผลลัพธ์
   (แชร์ URL ได้) · ปุ่ม = "อยากเห็นแท็กในหน้าจอไหม" (localStorage) ไม่ใช่คู่กัน · ปุ่มอยู่หน้าแรก
   แต่ state ใช้ทั้งแอป · ซ่อนด้วย attribute selector 4 ชั้น + `!important` (แถวใช้ Tailwind `flex`
