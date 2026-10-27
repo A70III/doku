@@ -13,6 +13,13 @@ services:
       DOKU_VAR: /data/var
       DOKU_PORT: "7667"
       DOKU_HOST: 0.0.0.0
+      # rescan fallback ของ index (ms) — 0 = ปิด พึ่ง watcher อย่างเดียว
+      # (sync เร็วขึ้นมากแล้วเพราะ stat-first: ไม่เปลี่ยน = ไม่อ่าน/i/o/hash เลย)
+      DOKU_RESCAN_MS: "60000"
+    # heap ของ Bun ไม่คืนหน้าให้ OS → RSS ไต่ตาม uptime (วัดจริง 30 วัน: 120MB → ~500MB)
+    # cap ไว้ให้ GC ทำงาน + memswap = ห้ามไปกิน swap ของ host (swap 4GB ถูกใช้อยู่แล้ว)
+    mem_limit: 768m
+    memswap_limit: 768m
     volumes:
       # vault = source of truth (host เห็น/แก้ได้ — "ไฟล์คือความจริง")
       - ./vault:/data/vault
