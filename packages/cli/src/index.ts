@@ -20,6 +20,7 @@ import {
   type Meta,
   MetaSchema,
   MoveError,
+  mediaStoreOf,
   moveDoc,
   moveFolder,
   normalizeLinkTarget,
@@ -1027,18 +1028,25 @@ function rewriteOffline(html: string, pageDir: string): string {
       return `href="${relativeTo(pageDir, `${id}.html`)}${anchor ?? ""}"`
     },
   )
-  return withDocs.replace(
-    /(href|src|poster)="\/assets\/([^"?]+)(?:\?[^"]*)?"/g,
-    (_match, attr: string, rawPath: string) => {
-      let asset = rawPath
-      try {
-        asset = decodeURIComponent(rawPath)
-      } catch {
-        // ใช้ raw
-      }
-      return `${attr}="${relativeTo(pageDir, asset)}"`
-    },
-  )
+  return withDocs
+    .replace(
+      /(href|src|poster)="\/assets\/([^"?]+)(?:\?[^"]*)?"/g,
+      (_match, attr: string, rawPath: string) => {
+        let asset = rawPath
+        try {
+          asset = decodeURIComponent(rawPath)
+        } catch {
+          // ใช้ raw
+        }
+        return `${attr}="${relativeTo(pageDir, asset)}"`
+      },
+    )
+    .replace(
+      /(href|src|poster)="\/media\/([a-f0-9]{64}\.[a-z0-9]{2,5})"/g,
+      (_match, attr: string, name: string) => {
+        return `${attr}="${relativeTo(pageDir, `media/${name}`)}"`
+      },
+    )
 }
 
 /**
@@ -1064,6 +1072,7 @@ async function commandBuild(args: ParsedArgs): Promise<number> {
   const known = new Set(listing.docs)
 
   const built: { id: string; title: string }[] = []
+  const mediaNames = new Set<string>()
   for (const id of listing.docs) {
     const resolved = await resolveDoc(id, vault.fs, { vaultName: vault.vaultName })
     const result = await renderMarkdown(resolved.body, {
@@ -1073,6 +1082,9 @@ async function commandBuild(args: ParsedArgs): Promise<number> {
       warnings: resolved.warnings,
     })
     const dir = dirname(resolved.id)
+    for (const match of result.html.matchAll(/\/media\/([a-f0-9]{64}\.[a-z0-9]{2,5})/g)) {
+      if (match[1]) mediaNames.add(match[1])
+    }
     const html = rewriteOffline(result.html, dir === "." ? "" : dir)
     const page = renderPreviewPage({
       title: result.meta.title ?? resolved.id,
@@ -1093,6 +1105,17 @@ async function commandBuild(args: ParsedArgs): Promise<number> {
     if (!bytes) continue
     await Bun.write(join(outRoot, asset), bytes)
     copied += 1
+  }
+
+  // media = ไฟล์ content-addressed ใน `.media/` (dotfolder — walkVault ไม่เห็น จึงเก็บจาก URL ที่เจอ)
+  const media = mediaStoreOf(vault.fs)
+  if (media) {
+    for (const name of mediaNames) {
+      const bytes = await media.read(name)
+      if (!bytes) continue
+      await Bun.write(join(outRoot, "media", name), bytes)
+      copied += 1
+    }
   }
 
   const items = [...built]

@@ -619,11 +619,21 @@ describe("doc_render / doc_validate / asset_put", () => {
       url: string
       bytes: number
       content_type: string
+      deduped: boolean
     }[]
-    expect(assets[0]?.path).toBe("projects/assets/pic.png")
-    expect(assets[0]?.url).toMatch(/^\/assets\/projects\/assets\/pic\.png\?h=[0-9a-f]{12}$/)
+    expect(assets[0]?.path).toMatch(/^\.media\/[0-9a-f]{64}\.png$/)
+    expect(assets[0]?.url).toMatch(/^\/media\/[0-9a-f]{64}\.png$/)
     expect(assets[0]?.content_type).toBe("image/png")
-    expect(await fs.readBytes("projects/assets/pic.png")).toEqual(content)
+    expect(assets[0]?.deduped).toBe(false)
+    expect(await fs.mediaStore().read(assets[0]!.path.slice(".media/".length))).toEqual(content)
+
+    // วางไฟล์เดิมซ้ำ = dedupe (media store content-addressed)
+    const again = await call(server, "asset_put", {
+      path: "projects/a",
+      filename: "copy.png",
+      content_base64: base64,
+    })
+    expect((again.payload.assets as { deduped: boolean }[])[0]?.deduped).toBe(true)
 
     // charset ของ docs/06 — traversal/อักขระพิเศษถูกปฏิเสธ + ไม่มีไฟล์หลุดลง disk
     const traversal = await call(server, "asset_put", {
@@ -651,13 +661,14 @@ describe("doc_render / doc_validate / asset_put", () => {
     expect(errorOf(wrongType).code).toBe("asset_type_rejected")
     expect(await fs.exists("projects/assets/page.html")).toBe(false)
 
-    // dotfile = ห้าม (invariant 9 — walker ข้าม dotfile)
+    // ชื่อ dotfile ไม่ถูกใช้เป็น path แล้ว (เก็บด้วย hash ใน .media) → ผ่านได้ และไม่มี dotfile ใน vault
     const dotfile = await call(server, "asset_put", {
       path: "projects/a",
       filename: ".pic.png",
       content_base64: base64,
     })
-    expect(errorOf(dotfile).code).toBe("path_invalid")
+    expect(dotfile.isError).toBe(false)
+    expect(await fs.exists(".media/.pic.png")).toBe(false)
 
     const badBase64 = await call(server, "asset_put", {
       path: "projects/a",
@@ -680,7 +691,9 @@ describe("doc_render / doc_validate / asset_put", () => {
       filename: "logo.png",
       content_base64: base64,
     })
-    expect((root.payload.assets as { path: string }[])[0]?.path).toBe("assets/logo.png")
+    expect((root.payload.assets as { path: string }[])[0]?.path).toMatch(
+      /^\.media\/[0-9a-f]{64}\.png$/,
+    )
   })
 })
 
@@ -797,7 +810,7 @@ describe("audit log — MCP write channel (docs/06)", () => {
     ])
     expect(entries[2]?.path).toBe("a")
     expect(entries[2]?.to).toBe("c")
-    expect(entries[4]?.path).toContain("assets/pic.png")
+    expect(entries[4]?.path).toMatch(/^\.media\/[0-9a-f]{64}\.png$/)
     expect(entries[5]?.path).toBe("c")
   })
 })

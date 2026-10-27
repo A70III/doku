@@ -7,11 +7,14 @@
  */
 
 import {
+  assetMimeOf,
   DocNotFoundError,
   docEtag,
   etagHeader,
   loadMeta,
+  MEDIA_NAME,
   matchesIfMatch,
+  mediaStoreOf,
   normalizeVaultPath,
   PathError,
   type RevisionStore,
@@ -327,6 +330,25 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
       }
       throw error
     }
+  })
+
+  /**
+   * media content-addressed (docs/08 ข้อ 88) — ชื่อไฟล์คือ sha256 ของเนื้อหา
+   * → เนื้อหาเปลี่ยน = ชื่อเปลี่ยน จึง cache ตลอดกาลได้ (immutable) และไม่ต้องเทียบ `?h=` อีก
+   */
+  app.get("/media/:name", async (context) => {
+    const name = context.req.param("name")
+    if (!MEDIA_NAME.test(name)) return context.notFound()
+    const media = mediaStoreOf(deps.fs)
+    const bytes = media ? await media.read(name) : null
+    if (!bytes) return context.notFound()
+    // slice เฉพาะช่วงของ view นี้ (Uint8Array อาจเป็น subarray) — Hono รับ ArrayBuffer
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    return context.body(buffer as ArrayBuffer, 200, {
+      "content-type": assetMimeOf(name) ?? "application/octet-stream",
+      "cache-control": "public, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff",
+    })
   })
 
   app.get("/assets/*", async (context) => {

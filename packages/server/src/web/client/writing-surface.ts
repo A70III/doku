@@ -47,7 +47,7 @@ export const WRITING_SURFACE_JS = `  /* ── writing surface: พิมพ์�
     const dir = dirname(docPath);
     return (src) => {
       if (/^(https?:)?\\/\\//.test(src) || src.startsWith("data:")) return src;
-      if (src.startsWith("/assets/")) return src;
+      if (src.startsWith("/assets/") || src.startsWith("/media/")) return src;
       const clean = src.replace(/^\\.\\//, "");
       if (src.startsWith("/")) return "/assets" + src;
       return "/assets/" + (dir ? dir + "/" : "") + clean;

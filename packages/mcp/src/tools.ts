@@ -28,15 +28,20 @@ import {
   isSafeAssetName,
   isSafeVaultPath,
   loadMeta,
+  MEDIA_DIR,
   META_KNOWN_KEYS,
   type Meta,
   MetaSchema,
+  mediaName,
+  mediaStoreOf,
+  mediaUrl,
   moveDoc,
   renderMarkdown,
   resolveDoc,
   resolveInline,
   resolveWikiTarget,
   scanMarkdown,
+  sha256Hex,
   shortHash,
   type Warning,
   walkVault,
@@ -704,7 +709,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
     definition: {
       name: "asset_put",
       description:
-        "วาง asset ลง vault — ตำแหน่ง <โฟลเดอร์ของเอกสาร path>/assets/<filename> (ตรงกับ REST upload · put = เขียนทับได้) · filename ต้องผ่าน charset ของ docs/06 + นามสกุลต้องอยู่ใน allowlist · คืน url พร้อม ?h=hash",
+        "วางไฟล์ลง media store — เก็บที่ .media/<sha256>.<ext> (content-addressed, ไม่มีโฟลเดอร์ assets · ไฟล์ซ้ำ = ใช้ของเดิม) · filename ต้องผ่าน charset ของ docs/06 + นามสกุลอยู่ใน allowlist · คืน url /media/<hash>.<ext> สำหรับเขียนลง markdown",
       inputSchema: {
         type: "object",
         properties: {
@@ -740,12 +745,14 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
         throw new ToolError("too_large", `ไฟล์ใหญ่กว่า limit ${MAX_ASSET_BYTES} bytes`)
       }
 
-      const dir = dirnameOf(id)
-      const target = dir ? `${dir}/assets/${filename}` : `assets/${filename}`
-      // กันซ้ำอีกชั้น: filename ที่ผ่าน charset อาจทำให้ segment เป็น dotfile ได้ (invariant 9)
-      if (!isSafeVaultPath(target)) throw new ToolError("path_invalid", `path ไม่ปลอดภัย: ${target}`)
+      const media = mediaStoreOf(deps.fs)
+      if (!media) throw new ToolError("read_only", "adapter นี้ไม่รองรับ media store")
+      const extension = filename.slice(filename.lastIndexOf(".") + 1).toLowerCase()
+      const name = mediaName(await sha256Hex(bytes), extension)
+      const deduped = await media.has(name)
+      if (!deduped) await media.write(name, bytes)
+      const target = `${MEDIA_DIR}/${name}`
 
-      await deps.fs.writeBytes(target, bytes)
       logAudit({ actor: "mcp", action: "asset.upload", path: target }, deps.varDir)
       return {
         ok: true,
@@ -753,9 +760,10 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
         assets: [
           {
             path: target,
-            url: assetUrl(target, await shortHash(bytes)),
+            url: mediaUrl(name),
             bytes: bytes.byteLength,
             content_type: mime,
+            deduped,
           },
         ],
       }

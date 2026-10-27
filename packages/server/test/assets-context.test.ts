@@ -96,7 +96,7 @@ describe("charset + mime helpers (docs/06 · Q7 → docs/08 ข้อ 74)", () =
 })
 
 describe("POST /api/docs/*path/assets — multipart upload", () => {
-  test("ไฟล์ผ่าน charset → 201 แล้ว GET /assets/ เสิร์ฟ bytes เดิมเป๊ะ", async () => {
+  test("ไฟล์ผ่าน charset → 201 เขียน .media/<sha256>.<ext> แล้ว GET /media/ เสิร์ฟ bytes เดิมเป๊ะ", async () => {
     const { app, fs } = setup({ "projects/doku/design.md": DOC })
     const res = await upload(app, "projects/doku/design", formOf("diagram.png"))
     expect(res.status).toBe(201)
@@ -104,37 +104,49 @@ describe("POST /api/docs/*path/assets — multipart upload", () => {
     expect(body.ok).toBe(true)
     expect(body.path).toBe("projects/doku/design")
     expect(body.assets).toHaveLength(1)
-    // ตำแหน่งเขียน = <โฟลเดอร์ของเอกสาร>/assets/<filename> (docs/05 §1)
-    expect(body.assets[0].path).toBe("projects/doku/assets/diagram.png")
-    expect(body.assets[0].url).toContain("/assets/projects/doku/assets/diagram.png")
-    // `?h=` ต้องเป็น sha256 เต็ม 64 hex (ไม่ใช่ shortHash 12 ตัว) — serve เทียบค่านี้กับ hash จริงก่อนให้ immutable (docs/08 ข้อ 58)
-    const claimed = new URL(body.assets[0].url, "http://doku.local").searchParams.get("h") ?? ""
-    expect(claimed).toHaveLength(64)
-    expect(claimed).toMatch(/^[0-9a-f]{64}$/)
+    // content-addressed: `.media/<sha256>.<ext>` — ไม่มีโฟลเดอร์ assets ใน vault (docs/08 ข้อ 88)
+    expect(body.assets[0].path).toMatch(/^\.media\/[0-9a-f]{64}\.png$/)
+    expect(body.assets[0].url).toBe(`/media/${body.assets[0].path.slice(".media/".length)}`)
     expect(body.assets[0].content_type).toBe("image/png")
+    expect(body.assets[0].deduped).toBe(false)
 
-    // bytes บน "disk" = ที่อัปโหลดมา
-    expect(await fs.readBytes("projects/doku/assets/diagram.png")).toEqual(PNG)
+    // bytes อยู่ใน media store (dotfolder) ไม่ใช่ข้างเอกสาร
+    const name = body.assets[0].path.slice(".media/".length)
+    expect(await fs.mediaStore().read(name)).toEqual(PNG)
+    expect(await fs.exists("projects/doku/assets/diagram.png")).toBe(false)
 
-    // serve กลับ = bytes เดิม + mime allowlist
-    const served = await app.request("/assets/projects/doku/assets/diagram.png")
+    // serve กลับ = bytes เดิม + mime allowlist + cache ตลอดกาล (ชื่อ = hash)
+    const served = await app.request(body.assets[0].url)
     expect(served.status).toBe(200)
     expect(served.headers.get("content-type")).toBe("image/png")
+    expect(served.headers.get("cache-control")).toBe("public, max-age=31536000, immutable")
     expect(new Uint8Array(await served.arrayBuffer())).toEqual(PNG)
-
-    // URL ที่คืนมาใช้ได้จริง: ?h= ตรง hash จริง → serve ให้ immutable (ไม่ใช่ no-cache)
-    const cached = await app.request(body.assets[0].url)
-    expect(cached.status).toBe(200)
-    expect(cached.headers.get("cache-control")).toBe("public, max-age=31536000, immutable")
   })
 
-  test("ชื่อไทย (อยู่ใน charset) ผ่าน · เอกสารระดับ root → เขียนที่ assets/", async () => {
+  test("ชื่อไทย (อยู่ใน charset) ผ่าน · เอกสารระดับ root → ยังเก็บที่ .media/", async () => {
     const { app, fs } = setup({ "design.md": DOC })
     const res = await upload(app, "design", formOf("ภาพประกอบ.png"))
     expect(res.status).toBe(201)
-    expect((await res.json()).assets[0].path).toBe("assets/ภาพประกอบ.png")
-    expect(await fs.exists("assets/ภาพประกอบ.png")).toBe(true)
-    expect((await app.request("/assets/assets/ภาพประกอบ.png")).status).toBe(200)
+    const asset = (await res.json()).assets[0]
+    expect(asset.path).toMatch(/^\.media\/[0-9a-f]{64}\.png$/)
+    expect(await fs.mediaStore().has(asset.path.slice(".media/".length))).toBe(true)
+    expect((await app.request(asset.url)).status).toBe(200)
+    expect(await fs.exists("assets/ภาพประกอบ.png")).toBe(false)
+  })
+
+  test("ไฟล์เดิมซ้ำ (bytes เดียวกัน) → dedupe: url เดิม ไม่เขียนเพิ่ม", async () => {
+    const { app } = setup({ "design.md": DOC })
+    const first = (await (await upload(app, "design", formOf("a.png"))).json()).assets[0]
+    const second = (await (await upload(app, "design", formOf("b.png"))).json()).assets[0]
+    expect(second.url).toBe(first.url)
+    expect(second.deduped).toBe(true)
+  })
+
+  test("GET /media/<ชื่อที่ไม่ใช่ sha256> → 404 (ไม่มีทางออกนอก .media)", async () => {
+    const { app } = setup({})
+    for (const name of ["../secret.png", "pic.png", "a".repeat(64) + ".png"]) {
+      expect((await app.request(`/media/${encodeURIComponent(name)}`)).status).toBe(404)
+    }
   })
 
   test("ชื่อละเมิด charset (../evil · a<b> · a!b) → 400 path_invalid + ไม่มีไฟล์หลุดลง disk", async () => {
@@ -169,13 +181,14 @@ describe("POST /api/docs/*path/assets — multipart upload", () => {
     expect(Object.keys(fs.snapshot()).sort()).toEqual(before)
   })
 
-  test("ชื่อ dotfile (.hidden.png — ผ่าน charset แต่ isSafeVaultPath ปฏิเสธ) ปนกับไฟล์ดี = ไม่มีไฟล์หลุดลง disk", async () => {
+  test("ชื่อ dotfile (.hidden.png) ไม่ถูกใช้เป็น path อีกต่อไป → เก็บด้วย hash ได้ (ไม่มี dotfile ใน vault)", async () => {
     const { app, fs } = setup({ "projects/doku/design.md": DOC })
-    const before = Object.keys(fs.snapshot()).sort()
     const res = await upload(app, "projects/doku/design", formOf(["zz-good.png", ".hidden.png"]))
-    expect(res.status).toBe(400)
-    expect((await res.json()).error.code).toBe("path_invalid")
-    expect(Object.keys(fs.snapshot()).sort()).toEqual(before)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    // bytes เดียวกันทั้งสองไฟล์ → dedupe เป็นรายการเดียวใน media store
+    expect(new Set(body.assets.map((asset: { path: string }) => asset.path)).size).toBe(1)
+    expect(body.assets[0].path).toMatch(/^\.media\/[0-9a-f]{64}\.png$/)
     expect(await fs.exists("projects/doku/assets/zz-good.png")).toBe(false)
     expect(await fs.exists("projects/doku/assets/.hidden.png")).toBe(false)
   })
@@ -222,17 +235,16 @@ describe("POST /api/docs/*path/assets — multipart upload", () => {
     expect(Object.keys(fs.snapshot()).sort()).toEqual(before)
   })
 
-  test("หลายไฟล์ในคำขอเดียว → เขียนครบทุกไฟล์", async () => {
+  test("หลายไฟล์ในคำขอเดียว → เขียนครบทุกไฟล์ (ชื่อ = hash + นามสกุลของแต่ละไฟล์)", async () => {
     const { app, fs } = setup({ "projects/doku/design.md": DOC })
     const res = await upload(app, "projects/doku/design", formOf(["a.png", "b.jpg"]))
     expect(res.status).toBe(201)
     const body = await res.json()
-    expect(body.assets.map((item: { path: string }) => item.path)).toEqual([
-      "projects/doku/assets/a.png",
-      "projects/doku/assets/b.jpg",
-    ])
-    expect(await fs.exists("projects/doku/assets/a.png")).toBe(true)
-    expect(await fs.exists("projects/doku/assets/b.jpg")).toBe(true)
+    expect(body.assets).toHaveLength(2)
+    expect(body.assets[0].path).toMatch(/^\.media\/[0-9a-f]{64}\.png$/)
+    expect(body.assets[1].path).toMatch(/^\.media\/[0-9a-f]{64}\.jpg$/)
+    expect(await fs.mediaStore().read(body.assets[0].path.slice(".media/".length))).toEqual(PNG)
+    expect(await fs.mediaStore().read(body.assets[1].path.slice(".media/".length))).toEqual(PNG)
   })
 
   test("ไม่ใช่ multipart → 400 invalid_body · multipart ไม่มีไฟล์ → 400 invalid_body", async () => {
@@ -266,9 +278,10 @@ describe("POST /api/docs/*path/assets — multipart upload", () => {
 })
 
 describe("DELETE /api/assets/*path", () => {
-  test("ลบ → 200 soft-delete (kind: asset) แล้ว GET /assets/ → 404", async () => {
+  test("ลบ asset เดิม (legacy per-doc assets) → 200 soft-delete (kind: asset) แล้ว GET /assets/ → 404", async () => {
     const { app, fs } = setup({ "projects/doku/design.md": DOC })
-    await upload(app, "projects/doku/design", formOf("diagram.png"))
+    // upload ใหม่ไป media store — route DELETE นี้ยังรับเฉพาะ path ที่มี segment `assets` (ไฟล์ legacy)
+    await fs.writeBytes("projects/doku/assets/diagram.png", PNG)
     expect(await fs.exists("projects/doku/assets/diagram.png")).toBe(true)
 
     const del = await app.request("/api/assets/projects/doku/assets/diagram.png", {
@@ -399,13 +412,14 @@ describe("mime allowlist — observable parity ระหว่าง upload แ�
     "pdf",
   ]
 
-  test("นามสกุลใน allowlist (11 ตัว): upload → 201 + GET /assets/ → 200", async () => {
+  test("นามสกุลใน allowlist (11 ตัว): upload → 201 + GET /media/ → 200", async () => {
     const { app } = setup({ "projects/doku/design.md": DOC })
     for (const ext of ALLOWED_EXTENSIONS) {
       const res = await upload(app, "projects/doku/design", formOf(`x.${ext}`))
       expect(res.status).toBe(201)
-      expect((await res.json()).assets[0].path).toBe(`projects/doku/assets/x.${ext}`)
-      const served = await app.request(`/assets/projects/doku/assets/x.${ext}`)
+      const asset = (await res.json()).assets[0]
+      expect(asset.path).toMatch(new RegExp(`^\\.media/[0-9a-f]{64}\\.${ext}$`))
+      const served = await app.request(asset.url)
       expect(served.status).toBe(200)
     }
   })

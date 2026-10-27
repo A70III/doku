@@ -137,11 +137,12 @@ export const HELPERS_JS = `  /* ── helpers ───────────
     return "paste-" + Date.now().toString(36) + "-" + index + "." + ext;
   }
 
-  function mediaMarkdown(name, mime) {
-    const rel = "assets/" + name;
-    if ((mime || "").indexOf("image/") === 0) return "![](" + rel + ")";
-    const base = name.indexOf("/") === -1 ? name : name.slice(name.lastIndexOf("/") + 1);
-    return "[" + base + "](" + rel + ")";
+  function mediaMarkdown(asset, name) {
+    const url = asset.url || "";
+    if (url === "") return "";
+    if ((asset.content_type || "").indexOf("image/") === 0) return "![](" + url + ")";
+    const label = name || (asset.path || url).replace(/^.*\\//, "");
+    return "[" + label + "](" + url + ")";
   }
 
   async function uploadMedia(path, entries) {
@@ -184,7 +185,7 @@ export const HELPERS_JS = `  /* ── helpers ───────────
         const assets = await uploadMedia(path, entries);
         const blocks = assets.map((asset, index) => {
           const entry = entries[index];
-          return mediaMarkdown(entry ? entry.name : asset.path, asset.content_type);
+          return mediaMarkdown(asset, entry ? entry.name : "");
         });
         if (blocks.length) insert(blocks.join("\\n\\n"));
         toast("แทรก " + assets.length + " ไฟล์แล้ว", "ok");

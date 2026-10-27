@@ -19,6 +19,9 @@ import {
   isRevisionTs,
   isSafeVaultPath,
   isTrashId,
+  MEDIA_DIR,
+  MEDIA_NAME,
+  type MediaStore,
   parseRevisionTs,
   parseTrashManifest,
   REVISION_KEEP,
@@ -51,6 +54,8 @@ export interface NodeVaultFs extends WritableVaultFs {
   readonly root: string
   /** trash ที่ผูกกับ vault นี้ (soft-delete — docs/06) */
   trashStore(): TrashStore
+  /** media store content-addressed ใน `.media/` (docs/08 ข้อ 88) */
+  mediaStore(): MediaStore
 }
 
 /**
@@ -98,6 +103,51 @@ function createRealpathGuard(root: string) {
   }
 }
 
+/**
+ * media store — ไฟล์ content-addressed ใน `<vault>/.media/<sha256>.<ext>` (docs/08 ข้อ 88)
+ *
+ * ชื่อถูกบังคับด้วย `MEDIA_NAME` (sha256 64 hex + นามสกุล) → ไม่มี path ให้ traverse
+ * และไม่ต้องพึ่ง safeJoin ที่ปฏิเสธ dotfolder · เขียน atomic (temp → rename)
+ */
+function createNodeMediaStore(root: string): MediaStore {
+  const dir = join(root, MEDIA_DIR)
+  const pathOf = (name: string): string => {
+    if (!MEDIA_NAME.test(name)) throw new Error(`ชื่อ media ไม่ถูกต้อง: ${name}`)
+    return join(dir, name)
+  }
+  return {
+    async read(name) {
+      if (!MEDIA_NAME.test(name)) return null
+      try {
+        return new Uint8Array(await readFile(pathOf(name)))
+      } catch {
+        return null
+      }
+    },
+    async has(name) {
+      if (!MEDIA_NAME.test(name)) return false
+      try {
+        await stat(pathOf(name))
+        return true
+      } catch {
+        return false
+      }
+    },
+    async write(name, bytes) {
+      const abs = pathOf(name)
+      await mkdir(dir, { recursive: true })
+      const tmp = `${abs}.doku-tmp-${crypto.randomUUID()}`
+      await writeFile(tmp, bytes)
+      try {
+        await rename(tmp, abs)
+      } catch (error) {
+        await rm(tmp, { force: true })
+        throw error
+      }
+    },
+  }
+}
+
 export async function createNodeVaultFs(root: string): Promise<NodeVaultFs> {
   const realRoot = await realpath(resolvePath(root))
   const guard = createRealpathGuard(realRoot)
@@ -135,11 +185,15 @@ export async function createNodeVaultFs(root: string): Promise<NodeVaultFs> {
   }
 
   const trash = createNodeTrashStore(realRoot)
+  const media = createNodeMediaStore(realRoot)
 
   return {
     root: realRoot,
     trashStore() {
       return trash
+    },
+    mediaStore() {
+      return media
     },
     async readText(rel) {
       return (await read(rel))?.toString("utf8") ?? null

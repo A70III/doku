@@ -20,11 +20,17 @@ import {
   isWritableVaultFs,
   loadMeta,
   MAX_MD_BYTES,
+  MEDIA_DIR,
+  MEDIA_NAME,
   META_KNOWN_KEYS,
+  type MediaStore,
   type Meta,
   MetaSchema,
   type MoveError,
   matchesIfMatch,
+  mediaName,
+  mediaStoreOf,
+  mediaUrl,
   normalizeVaultPath,
   PathError,
   type RevisionStore,
@@ -250,6 +256,8 @@ export interface ApiContext {
   fs: VaultFs
   /** null = read-only (หรือ adapter ที่เขียนไม่ได้) — ทุก write route ต้องผ่าน `guardWrite` ก่อน */
   writable: WritableVaultFs | null
+  /** media store (`.media/`) — null = adapter ไม่รองรับ (upload จะตอบ 503) */
+  media: MediaStore | null
   limiter: RateLimiter
   clientKey(context: Context): string
   /** หลัง mutate ทุกครั้ง: invalidate tree + broadcast SSE */
@@ -269,6 +277,7 @@ export interface ApiContext {
 export function createApiContext(deps: ApiDeps, limiter: RateLimiter): ApiContext {
   const fs = deps.fs
   const writable = !deps.readOnly && isWritableVaultFs(fs) ? (fs as WritableVaultFs) : null
+  const media = mediaStoreOf(fs)
 
   const clientKey = (context: Context): string =>
     context.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -338,6 +347,7 @@ export function createApiContext(deps: ApiDeps, limiter: RateLimiter): ApiContex
     deps,
     fs,
     writable,
+    media,
     limiter,
     clientKey,
     touch,

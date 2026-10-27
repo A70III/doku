@@ -14,6 +14,9 @@ import {
   dirnameOf,
   isSafeAssetName,
   isSafeVaultPath,
+  MEDIA_DIR,
+  mediaName,
+  mediaUrl,
   sha256Hex,
 } from "@doku/core"
 import type { Context, Hono } from "hono"
@@ -35,11 +38,12 @@ const ASSETS_PREFIX = "/api/assets/"
  * - filename ทุกไฟล์ต้องผ่าน charset ของ docs/06 (Q7 → docs/08 ข้อ 74) + ความยาวชื่อ ≤ 255 bytes (NAME_MAX)
  *   + path safety ของ path เต็ม (จับ dotfile อย่าง `.hidden.png`) + mime allowlist ชุดเดียวกับ route serve
  *   `/assets/*` — validate **ครบก่อน**เขียนไฟล์แรก (พลาด = ไม่มีไฟล์หลุดลง disk) · fs error ตอนเขียน = 400 ไม่ใช่ 500
- * - ตำแหน่งเขียน: `<โฟลเดอร์ของเอกสาร>/assets/<filename>` (docs/05 §1)
- * - เขียนทับไฟล์เดิมได้ (put semantics — ตรงกับ MCP `asset_put`) · ผ่าน adapter เดิม (safeJoin + atomic)
+ * - ตำแหน่งเขียน: `.media/<sha256>.<ext>` (content-addressed — docs/08 ข้อ 88) · ชื่อไฟล์เดิมใช้แค่นามสกุล
+ *   ไม่ได้เก็บ (ไม่มีทาง collide/ทับกัน) · ไฟล์เนื้อหาเดิม = ใช้ของเดิม (dedupe)
+ * - ผ่าน media store ของ adapter (`.media` เป็น dotfolder ที่ safeJoin ปฏิเสธ) — เขียน atomic
  * - ไม่เช็คว่าเอกสารปลายทางมีอยู่ — upload ได้ก่อนเขียนเอกสาร */
 export function createAssetUploader(ctx: ApiContext) {
-  const { writable, guardWrite, touch } = ctx
+  const { guardWrite, touch, media } = ctx
 
   return async function uploadAssets(context: Context, id: string): Promise<Response> {
     const blocked = guardWrite(context)
@@ -64,9 +68,8 @@ export function createAssetUploader(ctx: ApiContext) {
       return apiError(context, 400, "invalid_body", `เกินลิมิต ${ASSET_MAX_FILES} ไฟล์/คำขอ (docs/05)`)
     }
 
-    const dir = dirnameOf(id)
     const encoder = new TextEncoder()
-    const planned: { file: File; target: string; mime: string }[] = []
+    const planned: { file: File; extension: string; mime: string }[] = []
     for (const file of files) {
       const name = file.name
       if (!isSafeAssetName(name)) {
@@ -93,32 +96,36 @@ export function createAssetUploader(ctx: ApiContext) {
       if (file.size > ASSET_MAX_BYTES) {
         return apiError(context, 413, "too_large", `ไฟล์ใหญ่กว่า limit ${ASSET_MAX_BYTES} bytes`)
       }
-      const target = dir ? `${dir}/assets/${name}` : `assets/${name}`
-      // path เต็มต้องผ่าน path safety ด้วย — ชื่ออย่าง `.hidden.png` ผ่าน charset แต่เป็น dotfile ที่
-      // `isSafeVaultPath` ปฏิเสธ → จับตรงนี้ **ก่อนเขียนไฟล์แรก** (plan §4: validate ครบก่อนเขียนเสมอ)
-      if (!isSafeVaultPath(target)) {
-        return apiError(
-          context,
-          400,
-          "path_invalid",
-          `path เป้าหมายไม่ผ่าน path safety (docs/06): ${target}`,
-        )
-      }
-      planned.push({ file, target, mime })
+      const extension = name.slice(name.lastIndexOf(".") + 1).toLowerCase()
+      planned.push({ file, extension, mime })
     }
 
-    const assets: { path: string; url: string; bytes: number; content_type: string }[] = []
+    if (!media) {
+      return apiError(context, 503, "read_only", "adapter นี้ไม่รองรับ media store")
+    }
+
+    const assets: {
+      path: string
+      url: string
+      bytes: number
+      content_type: string
+      deduped: boolean
+    }[] = []
     try {
       for (const item of planned) {
         const bytes = new Uint8Array(await item.file.arrayBuffer())
-        await writable?.writeBytes(item.target, bytes)
-        auditLog(context, "asset.upload", item.target)
+        const name = mediaName(await sha256Hex(bytes), item.extension)
+        const exists = await media.has(name)
+        if (!exists) await media.write(name, bytes)
+        const target = `${MEDIA_DIR}/${name}`
+        auditLog(context, "asset.upload", target)
         assets.push({
-          path: item.target,
-          // `?h=` ต้องเป็น sha256 เต็ม (64 hex) — serve เทียบกับ hash เต็มของไฟล์จริงก่อนให้ immutable (docs/08 ข้อ 58)
-          url: assetUrl(item.target, await sha256Hex(bytes)),
+          path: target,
+          // ชื่อไฟล์ = sha256 ของเนื้อหา → cache ได้ตลอดกาล (ไม่ต้องมี `?h=`)
+          url: mediaUrl(name),
           bytes: bytes.byteLength,
           content_type: item.mime,
+          deduped: exists,
         })
       }
     } catch {

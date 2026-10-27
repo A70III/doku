@@ -184,3 +184,30 @@ describe("symlink write-path safety (docs/06 — regression)", () => {
     await trash.empty()
   })
 })
+
+describe("mediaStore (.media — content-addressed, docs/08 ข้อ 88)", () => {
+  const name = `${"a".repeat(64)}.png`
+  const media = () => fs.mediaStore()
+
+  test("write → read/has คืน bytes เดิม · เขียนทับได้", async () => {
+    const bytes = new Uint8Array([1, 2, 3])
+    await media().write(name, bytes)
+    expect(await media().has(name)).toBe(true)
+    expect(await media().read(name)).toEqual(bytes)
+    await media().write(name, new Uint8Array([9]))
+    expect(await media().read(name)).toEqual(new Uint8Array([9]))
+  })
+
+  test("ชื่อที่ไม่ใช่ sha256.ext = ปฏิเสธ (อ่าน null / เขียน throw)", async () => {
+    expect(await media().read("../escape.png")).toBeNull()
+    expect(await media().has("../escape.png")).toBe(false)
+    expect(media().write("../escape.png", new Uint8Array([1]))).rejects.toThrow()
+  })
+
+  test("ไฟล์อยู่ใน .media/ จริง และ vault fs ปกติไม่เห็น (dotfolder)", async () => {
+    const entries = await readdir(join(root, ".media"))
+    expect(entries).toContain(name)
+    // fs ปกติปฏิเสธ dotfolder (safeJoin) — ทางเดียวที่เข้าถึงได้คือ mediaStore
+    await expect(fs.readBytes(`.media/${name}`)).rejects.toThrow()
+  })
+})

@@ -151,7 +151,7 @@ describe("var/audit.log — 1 บรรทัดต่อ write op (docs/06)", (
   })
 
   test("folder create/update/move/delete + asset upload/delete — ทุก op 1 บรรทัด", async () => {
-    const { app } = setup({ "projects/a.md": DOC })
+    const { app, fs } = setup({ "projects/a.md": DOC })
 
     expect((await app.request("/api/folders/projects/new", { method: "POST" })).status).toBe(201)
     const patched = await app.request("/api/folders/projects/new", {
@@ -173,7 +173,11 @@ describe("var/audit.log — 1 บรรทัดต่อ write op (docs/06)", (
     form.append("file", new File([PNG], "diagram.png"))
     const upload = await app.request("/api/docs/projects/a/assets", { method: "POST", body: form })
     expect(upload.status).toBe(201)
+    const uploaded = (await upload.json()).assets[0].path as string
 
+    // asset ที่ upload ใหม่อยู่ใน media store (dotfolder) — route DELETE ยังรับเฉพาะไฟล์ legacy
+    // ที่อยู่ใต้ `<folder>/assets/` (ไฟล์ที่มีอยู่ก่อนย้ายมา media store)
+    await fs.writeBytes("projects/assets/diagram.png", PNG)
     const assetDeleted = await app.request("/api/assets/projects/assets/diagram.png", {
       method: "DELETE",
     })
@@ -188,14 +192,15 @@ describe("var/audit.log — 1 บรรทัดต่อ write op (docs/06)", (
       "asset.upload",
       "asset.delete",
     ])
-    expect(entries.map((entry) => entry.path)).toEqual([
+    expect(entries.map((entry) => entry.path).slice(0, 4)).toEqual([
       "projects/new",
       "projects/new",
       "projects/new",
       "projects/moved",
-      "projects/assets/diagram.png",
-      "projects/assets/diagram.png",
     ])
+    expect(uploaded).toMatch(/^\.media\/[0-9a-f]{64}\.png$/)
+    expect(entries[4]?.path).toBe(uploaded)
+    expect(entries[5]?.path).toBe("projects/assets/diagram.png")
     expect(entries[2]?.to).toBe("projects/moved")
     expect(entries.every((entry) => typeof entry.ts === "string")).toBe(true)
   })

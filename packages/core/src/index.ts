@@ -69,6 +69,14 @@ export {
   relativeVaultLink,
   rewriteMarkdownLinks,
 } from "./links.ts"
+export {
+  MEDIA_DIR,
+  MEDIA_NAME,
+  type MediaStore,
+  mediaName,
+  mediaStoreOf,
+  mediaUrl,
+} from "./media.ts"
 export { loadMeta, type MetaLoadResult, type MetaSource } from "./meta.ts"
 export {
   MoveError,

@@ -8,6 +8,7 @@
  * write ต้อง atomic (temp → rename) — เป็นหน้าที่ของ adapter (docs/08 ข้อ 8)
  */
 
+import { MEDIA_DIR, MEDIA_NAME, type MediaStore } from "./media.ts"
 import { memoryTrashStoreOver, type TrashStore } from "./trash.ts"
 
 export interface VaultEntry {
@@ -74,6 +75,8 @@ export interface MemoryVaultFs extends WritableVaultFs {
   snapshot(): Record<string, string>
   /** trash store ที่ใช้ store เดียวกัน — ให้ test ตรวจ soft-delete ได้โดยไม่แตะ filesystem */
   trashStore(): TrashStore
+  /** media store (`.media/<sha256>.<ext>`) — dotfolder ที่ adapter ปกติปฏิเสธ */
+  mediaStore(): MediaStore
 }
 
 export function memoryVaultFs(files: Record<string, string | Uint8Array> = {}): MemoryVaultFs {
@@ -194,6 +197,23 @@ export function memoryVaultFs(files: Record<string, string | Uint8Array> = {}): 
     },
     trashStore() {
       return memoryTrashStoreOver({ entries, directories })
+    },
+    mediaStore(): MediaStore {
+      const pathOf = (name: string): string => `${MEDIA_DIR}/${name}`
+      return {
+        async read(name) {
+          if (!MEDIA_NAME.test(name)) return null
+          return entries.get(pathOf(name)) ?? null
+        },
+        async has(name) {
+          return MEDIA_NAME.test(name) && entries.has(pathOf(name))
+        },
+        async write(name, bytes) {
+          if (!MEDIA_NAME.test(name)) throw new Error(`ชื่อ media ไม่ถูกต้อง: ${name}`)
+          entries.set(pathOf(name), bytes)
+          addParents(pathOf(name))
+        },
+      }
     },
   }
 
