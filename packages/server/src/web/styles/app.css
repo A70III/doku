@@ -231,14 +231,29 @@
 }
 .doku-search-trigger span {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
   text-align: start;
   /* ห้ามตัดคำ — ข้อความไทยยาวขอบกล่องพอดี ตัดได้เมื่อ font กว้างผิดคาด */
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
+/* ปุ่มลัด = keycap มีกรอบชัด — แยกจากคำว่า "ค้นหา / คำสั่ง" ให้เห็นว่าเป็นคีย์ */
 .doku-search-trigger kbd {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--d-border-strong);
+  border-radius: 6px;
+  background: var(--k-bg);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--k-text) 14%, transparent);
   font-family: var(--d-font-mono);
   font-size: 0.6875rem;
-  color: var(--d-text-subtle);
+  line-height: 1;
+  color: var(--d-text-muted);
 }
 
 /* ── tree ── */

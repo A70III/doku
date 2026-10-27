@@ -42,6 +42,16 @@ describe("palette — เปิดได้ทุกแพลตฟอร์ม"
   })
 })
 
+describe("rail — ปุ่มลัดแสดงเป็น keycap มีกรอบ", () => {
+  test("kbd ของปุ่มค้นหามีกรอบและขนาดคงที่ (ไม่ใช่ตัวอักษรลอย)", () => {
+    const block = ruleBlock(".doku-search-trigger kbd")
+    expect(block).toMatch(/border:\s*1px solid/)
+    expect(block).toMatch(/border-radius:\s*6px/)
+    expect(block).toMatch(/min-width:\s*1\.375rem/)
+    expect(block).toMatch(/height:\s*1\.375rem/)
+  })
+})
+
 describe("palette — แถวผลลัพธ์เรียบเสมอกัน", () => {
   test("แถวเป็น grid 3 คอลัมน์ (ไอคอน · ชื่อ · path)", () => {
     const block = ruleBlock(".doku-palette-list button")
