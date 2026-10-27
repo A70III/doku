@@ -165,6 +165,95 @@ export const Layout: FC<{
             </footer>
           </form>
         </div>
+        {/* กลับขึ้นบน — โผล่หลังเลื่อนลง (client ตัดสิน) */}
+        <button type="button" class="doku-to-top" data-action="to-top" aria-label="กลับขึ้นบน" hidden>
+          <Icon name="chevron-down" size={16} />
+        </button>
+
+        {/* ถามข้อความสั้น ๆ — แทน window.prompt ของ new/move (client เรียก askText) */}
+        <div id="doku-ask" class="doku-overlay" hidden>
+          <form id="doku-ask-form" class="doku-panel doku-ask" aria-labelledby="doku-ask-title">
+            <h2 id="doku-ask-title" class="doku-panel-title">
+              เอกสารใหม่
+            </h2>
+            <p id="doku-ask-hint" class="doku-panel-hint" hidden />
+            <label class="doku-field">
+              <span id="doku-ask-label">path</span>
+              <input id="doku-ask-input" type="text" autocomplete="off" spellcheck={false} />
+            </label>
+            <footer class="doku-panel-foot">
+              <span class="doku-panel-hint" />
+              <button type="button" class="doku-btn" data-ask="cancel">
+                ยกเลิก
+              </button>
+              <button type="submit" class="doku-btn doku-btn-accent" id="doku-ask-submit">
+                ตกลง
+              </button>
+            </footer>
+          </form>
+        </div>
+
+        {/* คีย์ลัดทั้งหมด — เปิดด้วย ? หรือคำสั่งใน palette */}
+        <div id="doku-keys" class="doku-overlay" hidden>
+          <div
+            class="doku-panel doku-keys"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="doku-keys-title"
+          >
+            <header class="doku-panel-head">
+              <h2 id="doku-keys-title" class="doku-panel-title">
+                คีย์ลัด
+              </h2>
+              <button type="button" class="doku-icon-btn" data-action="keys-close" aria-label="ปิด">
+                <Icon name="x" size={16} />
+              </button>
+            </header>
+            <dl class="doku-keys-list">
+              <div>
+                <dt>
+                  <kbd>Ctrl</kbd> <kbd>K</kbd>
+                </dt>
+                <dd>ค้นหาเอกสาร / สั่งงาน</dd>
+              </div>
+              <div>
+                <dt>
+                  <kbd>Ctrl</kbd> <kbd>N</kbd>
+                </dt>
+                <dd>เอกสารใหม่ (ในโฟลเดอร์เดียวกับที่เปิดอยู่)</dd>
+              </div>
+              <div>
+                <dt>
+                  <kbd>Ctrl</kbd> <kbd>E</kbd>
+                </dt>
+                <dd>เข้าโหมดเขียนของเอกสารนี้</dd>
+              </div>
+              <div>
+                <dt>
+                  <kbd>Ctrl</kbd> <kbd>S</kbd>
+                </dt>
+                <dd>บันทึกทันที (ขณะเขียน)</dd>
+              </div>
+              <div>
+                <dt>
+                  <kbd>Esc</kbd>
+                </dt>
+                <dd>ออกจากโหมดเขียน / ปิดแผง</dd>
+              </div>
+              <div>
+                <dt>
+                  <kbd>?</kbd>
+                </dt>
+                <dd>เปิดคีย์ลัดนี้</dd>
+              </div>
+              <div>
+                <dt>ลาก / แปะรูป</dt>
+                <dd>อัปโหลดเข้าโฟลเดอร์ของเอกสารแล้วแทรกลงเนื้อหาให้เลย</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+
         <div id="doku-toast" class="doku-toast" role="status" aria-live="polite" hidden />
       </body>
     </html>
@@ -212,6 +301,10 @@ const TreeDocRow: FC<{ node: { id: string; title: string }; activeId?: string }>
   )
 }
 
+/** จำนวนเอกสารใต้โฟลเดอร์ (นับรวม subfolder) — แสดงท้ายแถวเพื่อบอกขนาด */
+const countDocs = (node: { children: TreeNode[] }): number =>
+  node.children.reduce((total, child) => total + (child.type === "doc" ? 1 : countDocs(child)), 0)
+
 const TreeFolder: FC<{
   node: {
     path: string
@@ -251,6 +344,9 @@ const TreeFolder: FC<{
             <Icon name={icon} size={14} />
           </span>
           <span class="truncate">{label}</span>
+          <span class="doku-rail-count" aria-hidden="true">
+            {countDocs(node)}
+          </span>
           <TreeRowMenu kind="folder" path={node.path} label={label} />
         </summary>
         <ul class="doku-tree-children">
@@ -310,6 +406,18 @@ export const Sidebar: FC<{
       <span>ค้นหา / คำสั่ง</span>
       <kbd>Ctrl K</kbd>
     </button>
+
+    <label class="doku-rail-filter">
+      <Icon name="list" size={13} />
+      <input
+        id="doku-tree-filter"
+        type="search"
+        placeholder="กรองในแผนผัง"
+        aria-label="กรองเอกสารในแผนผัง"
+        autocomplete="off"
+        spellcheck={false}
+      />
+    </label>
 
     <nav aria-label="แผนผังเอกสาร" class="doku-rail-tree">
       {tree.length === 0 ? (

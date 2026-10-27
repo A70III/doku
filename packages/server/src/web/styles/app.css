@@ -66,12 +66,12 @@
 }
 @media (min-width: 48rem) {
   .doku-shell {
-    grid-template-columns: 248px minmax(0, 1fr);
+    grid-template-columns: 272px minmax(0, 1fr);
   }
 }
 @media (min-width: 75rem) {
   .doku-shell {
-    grid-template-columns: 248px minmax(0, 1fr) 208px;
+    grid-template-columns: 272px minmax(0, 1fr) 208px;
   }
 }
 .doku-main {
@@ -250,17 +250,19 @@
   overflow: hidden;
   display: flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 34px;
   padding: var(--d-space-1) var(--d-space-2) var(--d-space-1) var(--d-space-3);
+  border-radius: var(--d-radius-sm);
   font-size: var(--d-text-sm);
   color: var(--d-text-muted);
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: color var(--d-dur-fast) var(--d-ease);
+  transition: color var(--d-dur-fast) var(--d-ease), background var(--d-dur-fast) var(--d-ease);
 }
 .doku-row-link:hover {
   color: var(--k-text);
+  background: color-mix(in srgb, var(--k-text) 4%, transparent);
 }
 .doku-row-link.is-active {
   /* ห้ามยื่นซ้ายด้วย margin ลบ — tree เป็น scroll container แล้ว กล่องถูก clip ที่ padding box
@@ -268,6 +270,7 @@
      ให้เท่าเดิมเป๊ะ: 24(ขอบ) − 1 + 2(border) + 12(pad) = 37 → 24 + 2 + 11 = 37 (docs/08 ข้อ 84) */
   padding-inline-start: calc(var(--d-space-3) - 1px);
   border-inline-start: 2px solid var(--d-accent);
+  background: var(--d-accent-tint);
   color: var(--d-accent);
   font-weight: 500;
 }
@@ -650,6 +653,12 @@
 .doku-inline-editor .cm-editor.cm-focused {
   outline: none;
 }
+/* ลากไฟล์มาวาง = บอกพื้นที่รับ (media upload) */
+.doku-inline-editor.is-media-target {
+  outline: 2px dashed var(--d-accent);
+  outline-offset: 4px;
+  border-radius: var(--d-radius-sm);
+}
 /* fallback เมื่อยังไม่ build editor.js (docs/08 ข้อ 37) */
 .doku-inline-textarea {
   width: 100%;
@@ -952,6 +961,132 @@ html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
 }
 .doku-toast[data-kind="ok"] {
   border-color: color-mix(in srgb, var(--k-success) 40%, var(--d-border));
+}
+
+/* ── rail: ตัวกรองแผนผัง ─────────────────────────────────────────────── */
+.doku-rail-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--d-space-2);
+  padding: 0 0.5rem;
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-sm);
+  background: var(--k-bg);
+  color: var(--d-text-subtle);
+  transition: border-color var(--d-dur-fast) var(--d-ease);
+}
+.doku-rail-filter:focus-within {
+  border-color: var(--d-border-strong);
+}
+.doku-rail-filter input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--d-text-sm);
+  color: var(--k-text);
+}
+.doku-rail-filter input::placeholder {
+  color: var(--d-text-subtle);
+}
+/* แถวที่ถูกกรองออก — ซ่อนแบบไม่ต้องรื้อ DOM (client ตั้ง hidden) */
+.doku-row[hidden],
+.doku-row-folder[hidden] {
+  display: none;
+}
+
+.doku-folder-summary:hover {
+  background: color-mix(in srgb, var(--k-text) 4%, transparent);
+  border-radius: var(--d-radius-sm);
+}
+
+/* ── กลับขึ้นบน ───────────────────────────────────────────────────────── */
+.doku-to-top {
+  position: fixed;
+  inset-block-end: var(--d-space-5);
+  inset-inline-end: var(--d-space-5);
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--d-border);
+  border-radius: 999px;
+  background: var(--k-bg);
+  color: var(--d-text-muted);
+  box-shadow: var(--k-shadow-md);
+  cursor: pointer;
+  transition: color var(--d-dur-fast) var(--d-ease), border-color var(--d-dur-fast) var(--d-ease);
+}
+.doku-to-top[hidden] {
+  display: none;
+}
+.doku-to-top:hover {
+  color: var(--k-text);
+  border-color: var(--d-border-strong);
+}
+/* ลูกศรชี้ขึ้น (ใช้ chevron-down ที่ vendor ไว้ — ประหยัดไอคอน) */
+.doku-to-top svg {
+  transform: rotate(180deg);
+}
+
+/* ── ถามข้อความ (แทน window.prompt) ──────────────────────────────────── */
+.doku-ask {
+  width: min(30rem, 92vw);
+  gap: var(--d-space-3);
+}
+.doku-ask .doku-field {
+  margin-block: var(--d-space-2);
+}
+.doku-ask .doku-field input {
+  font-family: var(--d-font-mono);
+  font-size: var(--d-text-sm);
+}
+
+/* ── คีย์ลัด ──────────────────────────────────────────────────────────── */
+.doku-keys {
+  width: min(34rem, 92vw);
+}
+.doku-keys-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-space-2);
+  margin: 0;
+  padding: var(--d-space-2) 0 0;
+}
+.doku-keys-list > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--d-space-4);
+  padding-block: 0.25rem;
+  border-bottom: 1px solid var(--d-border);
+}
+.doku-keys-list dt {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0;
+  font-family: var(--d-font-mono);
+  font-size: var(--d-text-xs);
+  color: var(--d-text-muted);
+  white-space: nowrap;
+}
+.doku-keys-list dd {
+  margin: 0;
+  font-size: var(--d-text-sm);
+  color: var(--k-text);
+  text-align: end;
+}
+.doku-keys-list kbd {
+  padding: 0.1rem 0.3rem;
+  border: 1px solid var(--d-border);
+  border-radius: var(--d-radius-sm);
+  background: var(--k-bg);
+  font-family: inherit;
 }
 
 /* ── trash ── */

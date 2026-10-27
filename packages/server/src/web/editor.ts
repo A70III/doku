@@ -30,6 +30,10 @@ import {
 export interface DokuEditorHandle {
   getDoc(): string
   setDoc(text: string): void
+  /** แทรกที่カー — `|` ในข้อความ = ตำแหน่งカーหลังแทรก (ใช้กับ paste/drop asset) */
+  insert(text: string): void
+  /** แทรกเป็น block ของตัวเอง — ต่อท้ายย่อหน้าที่カーอยู่ (รูปไม่ผ่ากลางประโยค) */
+  insertBlock(text: string): void
   focus(): void
   destroy(): void
   /** แก้ attribute ของ directive ที่カーอยู่ (ค่าที่เขียนกลับเป็นข้อความ markdown) */
@@ -587,6 +591,44 @@ function create(parent: HTMLElement, options: DokuEditorOptions): DokuEditorHand
     getDoc: () => view.state.doc.toString(),
     setDoc: (text) => {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } })
+    },
+    /** แทรกที่カー (paste/drop asset) — `|` ในข้อความ = ตำแหน่งカーหลังแทรก */
+    insert: (text) => {
+      const marker = text.indexOf("|")
+      const plain = marker === -1 ? text : text.slice(0, marker) + text.slice(marker + 1)
+      const selection = view.state.selection.main
+      const anchor = selection.from + (marker === -1 ? plain.length : marker)
+      view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: plain },
+        selection: EditorSelection.cursor(anchor),
+        scrollIntoView: true,
+      })
+      view.focus()
+    },
+    insertBlock: (text) => {
+      const doc = view.state.doc
+      const head = view.state.selection.main.head
+      const line = doc.lineAt(head)
+      // ขยายไปจนจบย่อหน้า (บรรทัดว่างถัดไป) — วาง block ต่อท้าย ไม่ผ่ากลางประโยค
+      let end = line.to
+      let number = line.number
+      while (number < doc.lines) {
+        const next = doc.line(number + 1)
+        if (next.text.trim() === "") break
+        end = next.to
+        number += 1
+      }
+      // กลืนบรรทัดว่างเดิมหลังย่อหน้า แล้วเขียนชุดใหม่ให้มีระยะเท่ากันเสมอ
+      const rest = doc.sliceString(end, doc.length)
+      const gap = /^\n*/.exec(rest)
+      const to = end + (gap ? gap[0].length : 0)
+      const insert = "\n\n" + text + "\n\n"
+      view.dispatch({
+        changes: { from: end, to, insert },
+        selection: EditorSelection.cursor(end + insert.length),
+        scrollIntoView: true,
+      })
+      view.focus()
     },
     focus: () => view.focus(),
     destroy: () => view.destroy(),

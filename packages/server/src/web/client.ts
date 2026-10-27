@@ -39,6 +39,75 @@ ${INTERACTIONS_JS}
     });
   }
 
+  // ── ตัวกรองแผนผัง (client-side) — พิมพ์เพื่อกรองชื่อเอกสาร/โฟลเดอร์ ──
+  const treeFilterEl = document.getElementById("doku-tree-filter");
+
+  function applyTreeFilter(query) {
+    const tree = document.querySelector(".doku-tree");
+    if (!tree) return;
+    const needle = query.trim().toLowerCase();
+    for (const row of tree.querySelectorAll("li.doku-row")) row.hidden = false;
+
+    if (!needle) {
+      // คืนสถานะพับ/เปิดเดิมของผู้ใช้
+      for (const details of tree.querySelectorAll("details[data-tree]")) {
+        const path = details.getAttribute("data-tree");
+        details.open = path in saved ? saved[path] : details.open;
+      }
+      return;
+    }
+
+    for (const details of tree.querySelectorAll("details[data-tree]")) details.open = true;
+
+    // เอกสาร: เหลือเฉพาะที่ชื่อหรือ path ตรง
+    for (const row of tree.querySelectorAll("li.doku-row[data-doc-id]")) {
+      const label = ((row.getAttribute("data-doc-id") || "") + " " + (row.textContent || "")).toLowerCase();
+      row.hidden = label.indexOf(needle) === -1;
+    }
+
+    // โฟลเดอร์: ซ่อนเมื่อตัวเองไม่ตรงและไม่มีลูกที่เห็น (ไล่จากลึกไปตื้น)
+    const folders = Array.from(tree.querySelectorAll("li.doku-row-folder")).reverse();
+    for (const folder of folders) {
+      const summary = folder.querySelector(":scope > details > summary");
+      const own = ((summary && summary.textContent) || "").toLowerCase().indexOf(needle) !== -1;
+      if (own) {
+        for (const row of folder.querySelectorAll("li.doku-row")) row.hidden = false;
+      }
+      const visibleChild = !!folder.querySelector("li.doku-row:not([hidden])");
+      folder.hidden = !(own || visibleChild);
+    }
+  }
+
+  if (treeFilterEl) {
+    treeFilterEl.addEventListener("input", () => applyTreeFilter(treeFilterEl.value));
+    treeFilterEl.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && treeFilterEl.value) {
+        event.stopPropagation();
+        treeFilterEl.value = "";
+        applyTreeFilter("");
+        treeFilterEl.blur();
+      }
+    });
+  }
+
+  // เอกสารที่เปิดอยู่ถูกซ่อนในโฟลเดอร์ที่พับ → เปิดให้เห็น (ถ้าผู้ใช้เห็นอยู่แล้วไม่แตะ)
+  const activeRow = document.querySelector(".doku-row-link.is-active");
+  if (activeRow) {
+    if (activeRow.offsetParent === null) {
+      let node = activeRow.parentElement;
+      while (node) {
+        if (node.tagName === "DETAILS") {
+          node.open = true;
+          const path = node.getAttribute("data-tree");
+          if (path) saved[path] = true;
+        }
+        node = node.parentElement;
+      }
+      persist();
+    }
+    if (activeRow.scrollIntoView) activeRow.scrollIntoView({ block: "nearest" });
+  }
+
   // ── live reload ผ่าน SSE (docs/01: watcher → SSE) ──
   // ระหว่างแก้ไข (data-editing) ห้าม reload — จะทับงานที่ยังไม่บันทึก
   const source = new EventSource("/sse");
@@ -72,6 +141,15 @@ ${INTERACTIONS_JS}
   const embeddedEl = $("#doku-doc-md");
   const docStatusEl = $("#doku-doc-status");
   const tocSheetEl = $("#doku-toc-sheet");
+  const askEl = $("#doku-ask");
+  const askForm = $("#doku-ask-form");
+  const askInput = $("#doku-ask-input");
+  const askTitle = $("#doku-ask-title");
+  const askHint = $("#doku-ask-hint");
+  const askLabel = $("#doku-ask-label");
+  const askSubmit = $("#doku-ask-submit");
+  const keysEl = $("#doku-keys");
+  const toTopEl = $(".doku-to-top");
 
   /* ── helpers ─────────────────────────────────────────────────────────── */
 
@@ -121,6 +199,59 @@ ${INTERACTIONS_JS}
     toast(error.message + fields, "error");
   }
 
+  /* ── ถามข้อความสั้น ๆ (แทน window.prompt) ───────────────────────────── */
+
+  let askResolve = null;
+
+  /** คืน string ที่ผู้ใช้กรอก หรือ null (ยกเลิก) · ไม่มี DOM = fallback เป็น prompt เดิม */
+  function askText(options) {
+    if (!askEl || !askForm || !askInput) {
+      return Promise.resolve(window.prompt(options.title, options.value || ""));
+    }
+    if (askResolve) {
+      const previous = askResolve;
+      askResolve = null;
+      previous(null);
+    }
+    askTitle.textContent = options.title || "";
+    askHint.textContent = options.hint || "";
+    askHint.hidden = !options.hint;
+    askLabel.textContent = options.label || "path";
+    askInput.value = options.value || "";
+    askSubmit.textContent = options.confirm || "ตกลง";
+    askEl.hidden = false;
+    return new Promise((resolve) => {
+      askResolve = resolve;
+      window.setTimeout(() => {
+        askInput.focus();
+        askInput.select();
+      }, 0);
+    });
+  }
+
+  function settleAsk(value) {
+    if (!askResolve) return;
+    const resolve = askResolve;
+    askResolve = null;
+    askEl.hidden = true;
+    resolve(value);
+  }
+
+  if (askForm) {
+    askForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const value = askInput ? askInput.value.trim() : "";
+      settleAsk(value || null);
+    });
+    const cancel = askForm.querySelector("[data-ask='cancel']");
+    if (cancel) cancel.addEventListener("click", () => settleAsk(null));
+    if (askEl) {
+      askEl.addEventListener("click", (event) => {
+        if (event.target === askEl) settleAsk(null);
+      });
+    }
+  }
+
   function basename(path) {
     const index = path.lastIndexOf("/");
     return index === -1 ? path : path.slice(index + 1);
@@ -133,6 +264,110 @@ ${INTERACTIONS_JS}
 
   function joinPath(dir, name) {
     return dir ? dir + "/" + name : name;
+  }
+
+  /* ── media: แปะ/ลากไฟล์ → อัปโหลดเข้า assets ของโฟลเดอร์เอกสาร + แทรก ─── */
+
+  const MEDIA_EXT = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "image/avif": "avif",
+  };
+
+  /** ชื่อไฟล์ปลายทาง — clipboard ไม่มีชื่อ จึงสร้างจากเวลา (charset ที่ API ยอมรับ) */
+  function mediaFilename(file, index) {
+    if (file.name && file.name.indexOf(".") !== -1) return file.name;
+    const ext = MEDIA_EXT[file.type] || "bin";
+    return "paste-" + Date.now().toString(36) + "-" + index + "." + ext;
+  }
+
+  function mediaMarkdown(name, mime) {
+    const rel = "assets/" + name;
+    if ((mime || "").indexOf("image/") === 0) return "![](" + rel + ")";
+    const base = name.indexOf("/") === -1 ? name : name.slice(name.lastIndexOf("/") + 1);
+    return "[" + base + "](" + rel + ")";
+  }
+
+  async function uploadMedia(path, entries) {
+    const form = new FormData();
+    for (const entry of entries) form.append("file", entry.file, entry.name);
+    const response = await fetch("/api/docs/" + encodePath(path) + "/assets", {
+      method: "POST",
+      body: form,
+    });
+    let body = null;
+    try {
+      body = await response.json();
+    } catch {}
+    if (!response.ok) {
+      const message = body && body.error && body.error.message;
+      throw new Error(message || "อัปโหลดไม่สำเร็จ (HTTP " + response.status + ")");
+    }
+    return (body && body.assets) || [];
+  }
+
+  /** แทรกเป็น block ต่อท้ายบรรทัดที่カーอยู่ (fallback textarea) */
+  function insertBlockIntoTextarea(textarea, text) {
+    const pos = textarea.selectionStart == null ? textarea.value.length : textarea.selectionStart;
+    const lineEnd = textarea.value.indexOf("\\n", pos);
+    const at = lineEnd === -1 ? textarea.value.length : lineEnd;
+    const block = "\\n\\n" + text + "\\n";
+    textarea.value = textarea.value.slice(0, at) + block + textarea.value.slice(at);
+    textarea.selectionStart = textarea.selectionEnd = at + block.length;
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  /** ผูก paste/drop ไฟล์กับพื้นที่เขียน — ทำงานเฉพาะตอนอยู่ในโหมดเขียน */
+  function bindMediaDrop(target, path, insert) {
+    const pick = (list) => Array.from(list || []).filter((file) => file && file.size > 0);
+
+    const send = async (files) => {
+      const entries = files.map((file, index) => ({ file, name: mediaFilename(file, index) }));
+      setDocStatus("dirty", "กำลังอัปโหลด " + entries.length + " ไฟล์…");
+      try {
+        const assets = await uploadMedia(path, entries);
+        const blocks = assets.map((asset, index) => {
+          const entry = entries[index];
+          return mediaMarkdown(entry ? entry.name : asset.path, asset.content_type);
+        });
+        if (blocks.length) insert(blocks.join("\\n\\n"));
+        toast("แทรก " + assets.length + " ไฟล์แล้ว", "ok");
+        writing.dirty = true;
+        scheduleSave();
+      } catch (error) {
+        setDocStatus("dirty", "อัปโหลดไม่สำเร็จ");
+        fail(error);
+      }
+    };
+
+    target.addEventListener("paste", (event) => {
+      if (!writing.editing) return;
+      const files = pick(event.clipboardData && event.clipboardData.files);
+      if (!files.length) return;
+      event.preventDefault();
+      void send(files);
+    });
+
+    target.addEventListener("dragover", (event) => {
+      if (!writing.editing) return;
+      const types = Array.from((event.dataTransfer && event.dataTransfer.types) || []);
+      if (types.indexOf("Files") === -1) return;
+      event.preventDefault();
+      target.classList.add("is-media-target");
+    });
+
+    target.addEventListener("dragleave", () => target.classList.remove("is-media-target"));
+
+    target.addEventListener("drop", (event) => {
+      target.classList.remove("is-media-target");
+      if (!writing.editing) return;
+      const files = pick(event.dataTransfer && event.dataTransfer.files);
+      if (!files.length) return;
+      event.preventDefault();
+      void send(files);
+    });
   }
 
   function currentDocPath() {
@@ -360,7 +595,13 @@ ${INTERACTIONS_JS}
 
   async function newDoc(dir) {
     const suggestion = dir ? dir + "/" : "";
-    const input = window.prompt("path ของเอกสารใหม่ (relative จาก vault, ไม่ต้องมี .md)", suggestion);
+    const input = await askText({
+      title: "เอกสารใหม่",
+      hint: "path relative จาก vault — ไม่ต้องใส่ .md",
+      label: "path",
+      value: suggestion,
+      confirm: "สร้าง",
+    });
     if (!input) return;
     const path = input.trim().replace(/^\\.?\\//, "").replace(/\\.md$/, "");
     if (!path) return;
@@ -374,7 +615,13 @@ ${INTERACTIONS_JS}
 
   async function newFolder(dir) {
     const suggestion = dir ? dir + "/" : "";
-    const input = window.prompt("path ของโฟลเดอร์ใหม่", suggestion);
+    const input = await askText({
+      title: "โฟลเดอร์ใหม่",
+      hint: "path relative จาก vault (ซ้อนได้ด้วย /)",
+      label: "path",
+      value: suggestion,
+      confirm: "สร้าง",
+    });
     if (!input) return;
     const path = input.trim();
     if (!path) return;
@@ -387,7 +634,15 @@ ${INTERACTIONS_JS}
   }
 
   async function moveDoc(id, presetTarget) {
-    const target = presetTarget || window.prompt("ย้ายไปที่ (path ใหม่)", id);
+    const target =
+      presetTarget ||
+      (await askText({
+        title: "ย้ายเอกสาร",
+        hint: "path ปลายทาง (relative จาก vault)",
+        label: "ไปที่",
+        value: id,
+        confirm: "ย้าย",
+      }));
     if (!target || target === id) return;
     try {
       await jsonRequest("POST", "/api/docs/" + encodePath(id) + "/move", { to: target.trim() });
@@ -488,7 +743,15 @@ ${INTERACTIONS_JS}
   }
 
   async function moveFolder(path, presetTarget) {
-    const target = presetTarget || window.prompt("ย้ายโฟลเดอร์ไปที่", path);
+    const target =
+      presetTarget ||
+      (await askText({
+        title: "ย้ายโฟลเดอร์",
+        hint: "path ปลายทาง (relative จาก vault)",
+        label: "ไปที่",
+        value: path,
+        confirm: "ย้าย",
+      }));
     if (!target || target === path) return;
     try {
       await jsonRequest("POST", "/api/folders/" + encodePath(path) + "/move", { to: target.trim() });
@@ -945,6 +1208,9 @@ ${INTERACTIONS_JS}
       });
       // ให้カーอยู่ในเอกสารจริง ๆ หลัง click default action ของเบราว์เซอร์ทำงานจบ
       // (ไม่ผูกการออกกับ blur: คลิกนอกเอกสาร/Esc ดูแล — เหมือน Notion, autosave ทำงานตลอด)
+      bindMediaDrop(host, writing.path, (text) => {
+        if (writing.handle) writing.handle.insertBlock(text);
+      });
       window.setTimeout(() => writing.handle && writing.handle.focus(), 0);
       return;
     }
@@ -961,6 +1227,7 @@ ${INTERACTIONS_JS}
     });
     host.appendChild(textarea);
     writing.textarea = textarea;
+    bindMediaDrop(textarea, writing.path, (text) => insertBlockIntoTextarea(textarea, text));
     window.setTimeout(() => textarea.focus(), 0);
   }
 
@@ -1705,6 +1972,7 @@ ${INTERACTIONS_JS}
       { label: "โฟลเดอร์ใหม่…", hint: "folder", run: () => newFolder(currentDirForNew()) },
       { label: "สลับ zen mode", hint: "zen", run: toggleZen },
       { label: "สลับธีม", hint: "theme", run: cycleTheme },
+      { label: "คีย์ลัดทั้งหมด", hint: "keys", run: () => { if (keysEl) keysEl.hidden = false; } },
       { label: "ไปที่ trash", hint: "trash", run: () => (window.location.href = "/trash") },
       { label: "ไปที่ styleguide", hint: "styleguide", run: () => (window.location.href = "/styleguide") },
       { label: "หน้าแรก", hint: "home", run: () => (window.location.href = "/") },
@@ -2145,6 +2413,15 @@ ${INTERACTIONS_JS}
       case "folder-close":
         folderOverlay.hidden = true;
         break;
+      case "keys-close":
+        if (keysEl) keysEl.hidden = true;
+        break;
+      case "to-top":
+        window.scrollTo({
+          top: 0,
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        });
+        break;
 
       case "restore":
         restoreTrash(trigger.getAttribute("data-trash-id"));
@@ -2158,12 +2435,74 @@ ${INTERACTIONS_JS}
   });
 
   // คลิกพื้นหลัง = ปิด (เหมือน overlay อื่น) — รวมแผ่น TOC ของจอแคบ
-  for (const overlay of [folderOverlay, tocSheetEl]) {
+  for (const overlay of [folderOverlay, tocSheetEl, keysEl]) {
     if (!overlay) continue;
     overlay.addEventListener("click", (event) => {
       if (event.target === overlay) overlay.hidden = true;
     });
   }
+
+  /* ── จำตำแหน่งอ่าน + กลับขึ้นบน ──────────────────────────────────────── */
+
+  const POS_KEY = "doku.read-position";
+  const POS_MAX = 300;
+
+  function readPositions() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(POS_KEY) || "{}");
+      return raw && typeof raw === "object" ? raw : {};
+    } catch {
+      return {};
+    }
+  }
+
+  if (articleEl) {
+    const docId = articleEl.getAttribute("data-doc-id");
+    const savedPosition = docId ? readPositions()[docId] : 0;
+    if (savedPosition > 200 && !window.location.hash) {
+      // เบราว์เซอร์ restitution ตำแหน่งเองตอน reload — ปิด เพื่อให้เราเป็นคนกำหนด
+      if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+      const restore = () => window.scrollTo(0, savedPosition);
+      requestAnimationFrame(restore);
+      // รูป/ฟอนต์โหลดเสร็จแล้วความสูงเปลี่ยน — ปรับอีกรอบถ้าตำแหน่งเพี้ยน
+      window.addEventListener(
+        "load",
+        () => {
+          if (Math.abs(window.scrollY - savedPosition) > 40) restore();
+        },
+        { once: true },
+      );
+    }
+  }
+
+  let positionTimer = 0;
+
+  function rememberPosition() {
+    if (!articleEl || docEl.hasAttribute("data-editing")) return;
+    const docId = articleEl.getAttribute("data-doc-id");
+    if (!docId) return;
+    const map = readPositions();
+    map[docId] = Math.round(window.scrollY);
+    const keys = Object.keys(map);
+    if (keys.length > POS_MAX) {
+      for (const key of keys.slice(0, keys.length - POS_MAX)) delete map[key];
+    }
+    try {
+      localStorage.setItem(POS_KEY, JSON.stringify(map));
+    } catch {}
+  }
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (toTopEl) toTopEl.hidden = window.scrollY < 600;
+      clearTimeout(positionTimer);
+      positionTimer = setTimeout(rememberPosition, 250);
+    },
+    { passive: true },
+  );
+
+  if (toTopEl) toTopEl.hidden = window.scrollY < 600;
 
   /* ── keyboard ────────────────────────────────────────────────────────── */
 
@@ -2173,6 +2512,21 @@ ${INTERACTIONS_JS}
       event.preventDefault();
       if (paletteEl.hidden) openPalette();
       else closePalette();
+      return;
+    }
+    if (meta && event.key.toLowerCase() === "n") {
+      if (!writing.editing) {
+        event.preventDefault();
+        newDoc(currentDirForNew());
+      }
+      return;
+    }
+    if (!meta && !event.altKey && event.key === "?") {
+      const tag = (event.target && event.target.tagName) || "";
+      if (!writing.editing && tag !== "INPUT" && tag !== "TEXTAREA" && keysEl) {
+        event.preventDefault();
+        keysEl.hidden = !keysEl.hidden;
+      }
       return;
     }
     if (meta && event.key.toLowerCase() === "e") {
@@ -2195,6 +2549,8 @@ ${INTERACTIONS_JS}
       else if (!paletteEl.hidden) closePalette();
       else if (metaPanel && !metaPanel.hidden) metaPanel.hidden = true;
       else if (!folderOverlay.hidden) folderOverlay.hidden = true;
+      else if (keysEl && !keysEl.hidden) keysEl.hidden = true;
+      else if (askEl && !askEl.hidden) settleAsk(null);
       else if (writing.editing) exitWriting();
     }
   });

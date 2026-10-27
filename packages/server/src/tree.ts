@@ -283,7 +283,28 @@ async function finalize(
     folder.collapsed = meta.collapsed
   }
   sortFolder(root)
-  return root.children
+  return pruneMediaFolders(root.children)
+}
+
+/**
+ * ซ่อนโฟลเดอร์ `assets` ที่ไม่มีเอกสารข้างในออกจาก tree (sidebar + folder page)
+ *
+ * asset ที่อัปโหลดผ่าน UI ไปอยู่ที่ `<โฟลเดอร์ของเอกสาร>/assets/` — ไม่ควรกินพื้นที่แผนผัง
+ * (ไฟล์ยังอยู่ใน vault ตาม invariant 1 · เปิดตรงด้วย URL ได้ถ้าจำเป็น)
+ * โฟลเดอร์ชื่อ `assets` ที่มีเอกสารอยู่ข้างในยังแสดงตามปกติ (ไม่ใช่ที่เก็บ media)
+ */
+function hasDoc(node: TreeNode): boolean {
+  return node.type === "doc" || node.children.some(hasDoc)
+}
+
+function pruneMediaFolders(nodes: TreeNode[]): TreeNode[] {
+  return nodes
+    .filter(
+      (node) => !(node.type === "folder" && node.name === "assets" && !node.children.some(hasDoc)),
+    )
+    .map((node) =>
+      node.type === "folder" ? { ...node, children: pruneMediaFolders(node.children) } : node,
+    )
 }
 
 function sortFolder(folder: MutableFolder): void {
