@@ -135,7 +135,7 @@ optional: d2 (binary, ยังไม่ใส่)   kroki (service, ตอน�
 
 - `docker-compose.yml` + `Dockerfile` วางไว้ในเรพ แต่**ยังไม่ build**
 - volume: `./vault:/app/vault`, `./var:/app/var`, `./config:/app/config`
-- env: `DOKU_VAULT`, `DOKU_PORT=7667`, `DOKU_HOST=0.0.0.0`
+- env: `DOKU_VAULT`, `DOKU_PORT=7667`, `DOKU_HOST=0.0.0.0`, `DOKU_NAME=doku` (ชื่อบนหัว sidebar/แท็บ)
 - dev บนเครื่องก่อน: `bun run dev` → `localhost:7667`
 - อนาคตค่อยต่อ nginx-proxy-manager (ไม่ต้องมี auth เพราะ LAN)
 
