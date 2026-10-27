@@ -16,6 +16,7 @@ import type { Child, FC } from "hono/jsx"
 import type { CachedDoc } from "../../cache.ts"
 import type { DocSummary, TreeNode } from "../../tree.ts"
 import { groupDocsByDate, parseSort, type SortKey, sortDocs } from "../listing.ts"
+import { getSiteName } from "../site.ts"
 import { Layout } from "./layout.tsx"
 import { formatBytes, formatDate, formatDateTime, Icon } from "./shared.tsx"
 import { Sidebar } from "./sidebar.tsx"
@@ -153,7 +154,6 @@ export const DocPage: FC<{
   doc: CachedDoc
   path: string
   tree: TreeNode[]
-  vaultName: string
   trashCount?: number
   mtimeMs?: number
   words?: number
@@ -162,7 +162,7 @@ export const DocPage: FC<{
   etag?: string
   /** backlinks (M5 S4) — เอกสารที่อ้างอิงเอกสารนี้ · ไม่ส่ง = ไม่โชว์ section */
   backlinks?: { path: string; title: string }[]
-}> = ({ doc, path, tree, vaultName, trashCount, mtimeMs, words, markdown, etag, backlinks }) => {
+}> = ({ doc, path, tree, trashCount, mtimeMs, words, markdown, etag, backlinks }) => {
   const meta = doc.meta
   const toc = meta.render.toc ? doc.toc : []
   // `<` ต้อง escape ไม่งั้น `</script>` ใน markdown จะปิด tag ก่อนเวลา
@@ -171,9 +171,13 @@ export const DocPage: FC<{
       ? null
       : JSON.stringify({ md: markdown, etag: etag ?? "" }).replaceAll("</", "<\\/")
   return (
-    <Layout title={meta.title ?? "doku"} theme={meta.theme} math={doc.fragment.includes("katex")}>
+    <Layout
+      title={meta.title ?? getSiteName()}
+      theme={meta.theme}
+      math={doc.fragment.includes("katex")}
+    >
       <div class="doku-shell">
-        <Sidebar tree={tree} activeId={path} vaultName={vaultName} trashCount={trashCount} />
+        <Sidebar tree={tree} activeId={path} trashCount={trashCount} />
         <main class="doku-main">
           <article
             class="doku-article"

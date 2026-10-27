@@ -219,7 +219,6 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
         docs={docs}
         tag={tag}
         sort={context.req.query("sort")}
-        vaultName={deps.vaultName}
         trashCount={await trashCount()}
       />,
     )
@@ -233,7 +232,6 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
         tree={tree}
         blocks={blocks}
         palette={buildPalette()}
-        vaultName={deps.vaultName}
         trashCount={await trashCount()}
       />,
     )
@@ -243,9 +241,7 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     if (!deps.trash) return context.notFound()
     const { tree } = await deps.state.get()
     const items = await deps.trash.list()
-    return context.html(
-      <TrashPage tree={tree} vaultName={deps.vaultName} items={items} trashCount={items.length} />,
-    )
+    return context.html(<TrashPage tree={tree} items={items} trashCount={items.length} />)
   })
 
   app.get("/d/*", async (context) => {
@@ -257,13 +253,7 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
     } catch (error) {
       if (error instanceof PathError) {
         return context.html(
-          <NotFoundPage
-            tree={tree}
-            kind="doc"
-            path={raw}
-            vaultName={deps.vaultName}
-            trashCount={await trashCount()}
-          />,
+          <NotFoundPage tree={tree} kind="doc" path={raw} trashCount={await trashCount()} />,
           404,
         )
       }
@@ -291,7 +281,6 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
           backlinks={backlinks}
           path={docId}
           tree={tree}
-          vaultName={deps.vaultName}
           trashCount={await trashCount()}
           mtimeMs={summary?.mtimeMs}
           words={words}
@@ -312,19 +301,12 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
               docs={docs}
               tree={tree}
               sort={parseSort(context.req.query("sort"))}
-              vaultName={deps.vaultName}
               trashCount={await trashCount()}
             />,
           )
         }
         return context.html(
-          <NotFoundPage
-            tree={tree}
-            kind="doc"
-            path={docId}
-            vaultName={deps.vaultName}
-            trashCount={await trashCount()}
-          />,
+          <NotFoundPage tree={tree} kind="doc" path={docId} trashCount={await trashCount()} />,
           404,
         )
       }
@@ -397,12 +379,7 @@ export function createDokuApp(deps: DokuAppDeps): Hono {
   app.notFound(async (context) => {
     const { tree } = await deps.state.get()
     return context.html(
-      <NotFoundPage
-        tree={tree}
-        kind="route"
-        vaultName={deps.vaultName}
-        trashCount={await trashCount()}
-      />,
+      <NotFoundPage tree={tree} kind="route" trashCount={await trashCount()} />,
       404,
     )
   })

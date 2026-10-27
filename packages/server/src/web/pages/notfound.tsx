@@ -22,11 +22,10 @@ import { Sidebar } from "./sidebar.tsx"
 
 export const NotFoundPage: FC<{
   tree: TreeNode[]
-  vaultName: string
   kind: "doc" | "asset" | "route"
   path?: string
   trashCount?: number
-}> = ({ tree, vaultName, kind, path, trashCount }) => {
+}> = ({ tree, kind, path, trashCount }) => {
   const message =
     kind === "doc"
       ? `ไม่พบเอกสาร${path ? `: ${path}` : ""}`
@@ -36,7 +35,7 @@ export const NotFoundPage: FC<{
   return (
     <Layout title="404 — doku">
       <div class="doku-shell">
-        <Sidebar tree={tree} vaultName={vaultName} trashCount={trashCount} />
+        <Sidebar tree={tree} trashCount={trashCount} />
         <main class="doku-main">
           <div class="max-w-[var(--k-measure)]">
             <p class="font-(family-name:--d-font-mono) text-sm text-(--d-text-subtle)">404</p>

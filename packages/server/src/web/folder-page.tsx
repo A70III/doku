@@ -23,6 +23,7 @@ import type { Child, FC } from "hono/jsx"
 import type { DocSummary, TreeFolder, TreeNode } from "../tree.ts"
 import { groupDocsByDate, type SortKey, sortDocs } from "./listing.ts"
 import { Icon, Layout, Sidebar } from "./pages.tsx"
+import { getSiteName } from "./site.ts"
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 
@@ -119,7 +120,7 @@ const SubfolderRow: FC<{ node: TreeFolder; docs: DocSummary[] }> = ({ node, docs
 /* ── breadcrumb + sort control ───────────────────────────────────────── */
 
 /** breadcrumb: root (หน้าแรก) → บรรพบุรุษเป็นลิงก์ `/d/…` → ชื่อปัจจุบันเป็นข้อความเปล่า */
-const Breadcrumb: FC<{ path: string; vaultName: string }> = ({ path, vaultName }) => {
+const Breadcrumb: FC<{ path: string }> = ({ path }) => {
   const segments = path.split("/")
   const current = segments[segments.length - 1] ?? path
   const crumbs: Child[] = [
@@ -128,7 +129,7 @@ const Breadcrumb: FC<{ path: string; vaultName: string }> = ({ path, vaultName }
       href="/"
       class="text-(--d-text-subtle) no-underline transition-colors hover:text-(--d-accent)"
     >
-      {vaultName || "doku"}
+      {getSiteName()}
     </a>,
   ]
   for (let index = 0; index < segments.length - 1; index += 1) {
@@ -198,9 +199,8 @@ export const FolderPage: FC<{
   docs: DocSummary[]
   tree: TreeNode[]
   sort: SortKey
-  vaultName: string
   trashCount?: number
-}> = ({ folder, docs, tree, sort, vaultName, trashCount }) => {
+}> = ({ folder, docs, tree, sort, trashCount }) => {
   const path = folder.path
   const title = folder.title ?? folder.name
   // เอกสาร/โฟลเดอร์ย่อย = ลูกโดยตรง (นับตรงกับที่โชว์ในหน้า — ไม่รวมลึกกว่านั้น)
@@ -223,11 +223,11 @@ export const FolderPage: FC<{
   return (
     <Layout title={`${title} — doku`}>
       <div class="doku-shell">
-        <Sidebar tree={tree} vaultName={vaultName} trashCount={trashCount} />
+        <Sidebar tree={tree} trashCount={trashCount} />
         <main class="doku-main">
           {/* masthead: breadcrumb + title + สถิติ — ไม่มีปุ่ม action (ticket 06 ข้อ 8b) */}
           <header class="mb-10 border-b border-(--d-border) pb-6">
-            <Breadcrumb path={path} vaultName={vaultName} />
+            <Breadcrumb path={path} />
             <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
               <h1 class="min-w-0 text-2xl font-semibold tracking-tight break-words text-(--k-text)">
                 {title}

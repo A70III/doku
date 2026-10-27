@@ -45,9 +45,7 @@ const TAGGED: DocSummary[] = [
 ]
 
 function html(props: { tree?: TreeNode[]; docs?: DocSummary[]; tag?: string }): string {
-  return String(
-    HomePage({ tree: props.tree ?? [], docs: props.docs ?? TAGGED, ...props, vaultName: "vault" }),
-  )
+  return String(HomePage({ tree: props.tree ?? [], docs: props.docs ?? TAGGED, ...props }))
 }
 
 describe("หน้าแรก — ปุ่มเปิด/ปิดแท็ก (SSR)", () => {
@@ -114,7 +112,6 @@ describe("หน้าแรก — ปุ่มเปิด/ปิดแท็�
         },
         path: "x",
         tree: [],
-        vaultName: "vault",
       }),
     )
     expect(docPage).toContain("data-doc-tag")

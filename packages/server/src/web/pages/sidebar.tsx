@@ -16,6 +16,7 @@ import type { Child, FC } from "hono/jsx"
 import type { CachedDoc } from "../../cache.ts"
 import type { DocSummary, TreeNode } from "../../tree.ts"
 import { groupDocsByDate, parseSort, type SortKey, sortDocs } from "../listing.ts"
+import { getSiteName } from "../site.ts"
 
 import { Icon } from "./shared.tsx"
 
@@ -123,15 +124,16 @@ const TreeFolder: FC<{
 export const Sidebar: FC<{
   tree: TreeNode[]
   activeId?: string
-  vaultName: string
   trashCount?: number
-}> = ({ tree, activeId, vaultName, trashCount = 0 }) => (
+}> = ({ tree, activeId, trashCount = 0 }) => (
   <aside class="doku-rail">
     <div class="doku-rail-head">
       <a href="/" class="block no-underline">
-        <span class="block text-sm font-semibold tracking-tight text-(--k-text)">doku</span>
+        <span class="block text-sm font-semibold tracking-tight text-(--k-text)">
+          {getSiteName()}
+        </span>
         <span class="mt-0.5 block truncate font-(family-name:--d-font-mono) text-xs text-(--d-text-subtle)">
-          {vaultName}
+          {countDocs({ children: tree })} เอกสาร
         </span>
       </a>
       <div class="doku-rail-actions">
@@ -169,8 +171,8 @@ export const Sidebar: FC<{
       <input
         id="doku-tree-filter"
         type="search"
-        placeholder="กรองในแผนผัง"
-        aria-label="กรองเอกสารในแผนผัง"
+        placeholder="ค้นหาในสารบัญ…"
+        aria-label="ค้นหาเอกสารในสารบัญ"
         autocomplete="off"
         spellcheck={false}
       />

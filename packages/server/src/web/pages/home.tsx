@@ -16,6 +16,7 @@ import type { Child, FC } from "hono/jsx"
 import type { CachedDoc } from "../../cache.ts"
 import type { DocSummary, TreeNode } from "../../tree.ts"
 import { groupDocsByDate, parseSort, type SortKey, sortDocs } from "../listing.ts"
+import { getSiteName } from "../site.ts"
 import { Layout } from "./layout.tsx"
 import { formatBytes, formatDate, Icon } from "./shared.tsx"
 import { Sidebar } from "./sidebar.tsx"
@@ -194,9 +195,8 @@ export const HomePage: FC<{
   tag?: string
   /** `?sort=` ดิบจาก query string — whitelist ผ่าน `parseSort` (ค่าอื่น/ไม่ส่ง = `mtime`) */
   sort?: string
-  vaultName: string
   trashCount?: number
-}> = ({ tree, docs, tag, sort, vaultName, trashCount }) => {
+}> = ({ tree, docs, tag, sort, trashCount }) => {
   const tagCounts = new Map<string, number>()
   for (const doc of docs) {
     for (const item of doc.tags) tagCounts.set(item, (tagCounts.get(item) ?? 0) + 1)
@@ -250,13 +250,13 @@ export const HomePage: FC<{
     return `/?${params.toString()}`
   }
 
-  const heading = tag ? `#${tag}` : vaultName
+  const heading = tag ? `#${tag}` : "ทุกเอกสาร"
   const stats = tag ? `${filtered.length} เอกสาร` : `${docs.length} เอกสาร · ${allTags.length} แท็ก`
 
   return (
-    <Layout title={tag ? `doku · #${tag}` : "doku"}>
+    <Layout title={tag ? `${getSiteName()} · #${tag}` : getSiteName()}>
       <div class="doku-shell">
-        <Sidebar tree={tree} vaultName={vaultName} trashCount={trashCount} />
+        <Sidebar tree={tree} trashCount={trashCount} />
         <main class="doku-main">
           <header class="mb-10 border-b border-(--d-border) pb-6">
             <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">

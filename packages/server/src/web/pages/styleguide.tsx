@@ -102,19 +102,13 @@ const PaletteReport: FC<{ reports: StyleGuideThemeReport[] }> = ({ reports }) =>
 
 export const StyleGuidePage: FC<{
   tree: TreeNode[]
-  vaultName: string
   blocks: StyleGuideSection[]
   palette?: StyleGuideThemeReport[]
   trashCount?: number
-}> = ({ tree, vaultName, blocks, palette, trashCount }) => (
+}> = ({ tree, blocks, palette, trashCount }) => (
   <Layout title="styleguide — doku">
     <div class="doku-shell">
-      <Sidebar
-        tree={tree}
-        activeId="__styleguide__"
-        vaultName={vaultName}
-        trashCount={trashCount}
-      />
+      <Sidebar tree={tree} activeId="__styleguide__" trashCount={trashCount} />
       <main class="doku-main">
         <header class="mb-6 border-b border-(--d-border) pb-5">
           <h1 class="text-2xl font-semibold tracking-tight text-(--k-text)">Styleguide</h1>

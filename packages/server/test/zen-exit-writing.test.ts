@@ -24,7 +24,7 @@ import { CLIENT_JS } from "../src/web/client.ts"
 /** ดึงซอร์สของ function ที่ขึ้นต้นด้วย signature ที่กำหนด (นับวงเล็บปีกกาจับคู่) */
 function extractFunction(source: string, signature: string): string {
   const start = source.indexOf(signature)
-  if (start === -1) throw new Error("ไม่เจอ function: " + signature)
+  if (start === -1) throw new Error(`ไม่เจอ function: ${signature}`)
   const open = source.indexOf("{", start)
   let depth = 0
   for (let i = open; i < source.length; i += 1) {
@@ -35,7 +35,7 @@ function extractFunction(source: string, signature: string): string {
       if (depth === 0) return source.slice(start, i + 1)
     }
   }
-  throw new Error("function ไม่ปิด block: " + signature)
+  throw new Error(`function ไม่ปิด block: ${signature}`)
 }
 
 /**

@@ -22,13 +22,12 @@ import { Sidebar } from "./sidebar.tsx"
 
 export const TrashPage: FC<{
   tree: TreeNode[]
-  vaultName: string
   items: TrashItem[]
   trashCount?: number
-}> = ({ tree, vaultName, items, trashCount }) => (
+}> = ({ tree, items, trashCount }) => (
   <Layout title="trash — doku">
     <div class="doku-shell">
-      <Sidebar tree={tree} activeId="__trash__" vaultName={vaultName} trashCount={trashCount} />
+      <Sidebar tree={tree} activeId="__trash__" trashCount={trashCount} />
       <main class="doku-main">
         <header class="mb-6 border-b border-(--d-border) pb-5">
           <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">

@@ -5,6 +5,7 @@
  * env: DOKU_VAULT (default `vault`) · DOKU_PORT (7667) · DOKU_HOST (0.0.0.0)
  *      DOKU_VAR (default `var`) · DOKU_CACHE=off (dev ปิด disk cache — docs/01)
  *      DOKU_RESCAN_MS (60000 — rescan fallback ของ index · 0 = ปิด พึ่ง watcher อย่างเดียว)
+ *      DOKU_NAME (doku — ชื่อที่แสดงบนหัว sidebar และชื่อแท็บ)
  */
 
 import { basename, resolve as resolvePath } from "node:path"
@@ -17,7 +18,9 @@ import { createSearchIndex } from "./index-db.ts"
 import { SseHub } from "./sse.ts"
 import { VaultState } from "./tree.ts"
 import { createVaultWatcher } from "./watch.ts"
+import { setSiteName } from "./web/site.ts"
 
+setSiteName(process.env.DOKU_NAME)
 const vaultRoot = resolvePath(process.env.DOKU_VAULT ?? "vault")
 const varDir = resolvePath(process.env.DOKU_VAR ?? "var")
 const port = Number(process.env.DOKU_PORT ?? 7667)

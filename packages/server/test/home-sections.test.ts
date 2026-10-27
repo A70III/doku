@@ -39,8 +39,8 @@ function treeDoc(id: string, pinned = false): TreeNode {
 }
 
 /** render HomePage → ตัดเฉพาะ `<main>` (กัน sidebar ที่โชว์ทั้ง tree) */
-function main(props: Omit<HomeProps, "vaultName"> & { vaultName?: string }): string {
-  const html = String(HomePage({ ...props, vaultName: props.vaultName ?? "vault" }))
+function main(props: HomeProps): string {
+  const html = String(HomePage(props))
   const start = html.indexOf('<main class="doku-main">')
   const end = html.indexOf("</main>", start)
   return html.slice(start, end)
