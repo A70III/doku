@@ -172,6 +172,47 @@ describe("search index (var/index.db)", () => {
   })
 })
 
+describe("stat-first rescan (sync ราคาถูก — ไม่เปลี่ยน = ไม่อ่านไฟล์)", () => {
+  test("รอบสองไม่อ่าน md/meta เลย · เนื้อหาหรือ meta เปลี่ยน = อ่านและ index ใหม่", async () => {
+    const base = await vaultWith({
+      "a.md": "# A\n\nbody\n",
+      "b.md": "# B\n\nbody\n",
+      "b.meta.json": JSON.stringify({ tags: ["x"] }),
+    })
+    let reads = 0
+    const counting = {
+      ...base,
+      async readText(rel: string) {
+        reads += 1
+        return base.readText(rel)
+      },
+    }
+
+    store = createSearchIndexStore(varDir)
+    const first = await store.syncFull(counting)
+    expect(first).toEqual({ scanned: 2, updated: 2, skipped: 0, removed: 0 })
+    const readsAfterFirst = reads
+    expect(readsAfterFirst).toBeGreaterThan(0)
+
+    // รอบสอง: stat (mtime+size) เท่าเดิม → 0 readText (เดิมอ่าน vault ทั้งก้อนทุก 60s)
+    const second = await store.syncFull(counting)
+    expect(second).toEqual({ scanned: 2, updated: 0, skipped: 2, removed: 0 })
+    expect(reads).toBe(readsAfterFirst)
+
+    // เนื้อหาเปลี่ยน (ขนาดต่างกัน — ไม่พึ่งความละเอียดของ mtime) → index ใหม่เฉพาะไฟล์นั้น
+    await base.writeText("a.md", "# A\n\nเนื้อหาใหม่ยาวขึ้นกว่าเดิม\n")
+    const third = await store.syncFull(counting)
+    expect(third.updated).toBe(1)
+    expect(third.skipped).toBe(1)
+
+    // meta เปลี่ยนแต่ md เดิม → ต้อง re-index (stamp ครอบ meta sidecar ด้วย)
+    await base.writeText("b.meta.json", JSON.stringify({ tags: ["y", "z"] }))
+    const fourth = await store.syncFull(counting)
+    expect(fourth.updated).toBe(1)
+    expect(store.search("body", { tag: "z" }).map((hit) => hit.path)).toEqual(["b"])
+  })
+})
+
 describe("backlinks (M5 S4 — ตาราง links ใน index)", () => {
   test("wiki/relative/`/d` ทุกแบบ resolve → backlinks · self-link ไม่นับ · แก้/ลบไฟล์ = ตามทัน", async () => {
     const fs = await vaultWith({

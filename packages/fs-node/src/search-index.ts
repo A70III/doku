@@ -34,8 +34,8 @@ import { eq, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
-/** schema version — เปลี่ยน = ทิ้ง DB แล้วสร้างใหม่ (index disposable: docs/01) · v2 = เพิ่มตาราง links (M5 S4) */
-const SCHEMA_VERSION = 2
+/** schema version — เปลี่ยน = ทิ้ง DB แล้วสร้างใหม่ (index disposable: docs/01) · v2 = เพิ่มตาราง links (M5 S4) · v3 = stamp (stat-first sync) */
+const SCHEMA_VERSION = 3
 
 /** FTS5 trigram ต้องการ query ≥ 3 อักขระ (สั้นกว่านั้น = 0 แถวเสมอ — ใช้ LIKE fallback) */
 const TRIGRAM_MIN = 3
@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS docs (
   status TEXT NOT NULL,
   mtime_ms INTEGER NOT NULL,
   bytes INTEGER NOT NULL,
-  hash TEXT NOT NULL
+  hash TEXT NOT NULL,
+  stamp TEXT NOT NULL
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS docs_fts USING fts5(
   title, body, tags,
@@ -72,6 +73,8 @@ export const docsTable = sqliteTable("docs", {
   bytes: integer("bytes").notNull(),
   /** sha256(md + space + meta raw) — ไม่เปลี่ยน = ข้ามตอน sync */
   hash: text("hash").notNull(),
+  /** stat signature ของ md + meta (`mtime:size|mtime:size`) — ใช้ข้ามการอ่านไฟล์ตอน rescan */
+  stamp: text("stamp").notNull(),
 })
 
 /** แถว outgoing link 1 เส้น (M5 S4) — `kind`: wiki | doc (relative .md) | dpath (`/d/…`) */
@@ -217,13 +220,13 @@ export function createSearchIndexStore(varDir: string): SearchIndexStore {
 
   const db = drizzle(sqlite)
 
-  const existingRow = (id: string): { rowid: number; hash: string } | undefined => {
+  const existingRow = (id: string): { rowid: number; hash: string; stamp: string } | undefined => {
     const row = db
-      .select({ rowid: sql<number>`rowid`, hash: docsTable.hash })
+      .select({ rowid: sql<number>`rowid`, hash: docsTable.hash, stamp: docsTable.stamp })
       .from(docsTable)
       .where(eq(docsTable.id, id))
       .get()
-    return row ? { rowid: row.rowid, hash: row.hash } : undefined
+    return row ? { rowid: row.rowid, hash: row.hash, stamp: row.stamp } : undefined
   }
 
   /** แถวต้องมีอยู่ก่อนเรียก (caller เช็ค existing แล้ว) — คืน true เสมอหลังลบ */
@@ -234,13 +237,37 @@ export function createSearchIndexStore(varDir: string): SearchIndexStore {
     return true
   }
 
-  /** อ่านไฟล์ + hash → ข้ามถ้าเดิม · ไม่มีไฟล์ = ลบ · ไม่ใช่ = upsert docs + FTS ใน transaction เดียว */
+  /** stat signature ของ md + meta — ไม่มี stat (adapter ไม่รองรับ) หรือ mtime 0 = ใช้ไม่ได้ */
+  const stampOf = (
+    mdStat: { mtimeMs: number; size: number },
+    metaStat: { mtimeMs: number; size: number } | null,
+  ): string | null => {
+    if (!Number.isFinite(mdStat.mtimeMs) || mdStat.mtimeMs <= 0) return null
+    const md = `${Math.trunc(mdStat.mtimeMs)}:${mdStat.size}`
+    const meta =
+      metaStat && metaStat.mtimeMs > 0 ? `${Math.trunc(metaStat.mtimeMs)}:${metaStat.size}` : "-"
+    return `${md}|${meta}`
+  }
+
+  /**
+   * อ่านไฟล์ + hash → ข้ามถ้าเดิม · ไม่มีไฟล์ = ลบ · ไม่ใช่ = upsert docs + FTS ใน transaction เดียว
+   *
+   * stat-first: mtime+size ของ md/meta เท่าเดิม = ไม่ต้องอ่าน/hash เลย (rescan 60s อ่าน vault ทั้งก้อน
+   * ทุกนาทีจน CPU/GC บวม — ไฟล์ของ doku เขียนแบบ atomic rename → mtime เปลี่ยนทุกครั้งที่เขียนจริง)
+   */
   const indexOne = async (
     fs: VaultFs,
     id: string,
   ): Promise<"indexed" | "removed" | "unchanged"> => {
-    const md = await fs.readText(`${id}.md`)
+    const mdStat = (await fs.stat?.(`${id}.md`)) ?? null
+    const metaStat = (await fs.stat?.(`${id}.meta.json`)) ?? null
     const existing = existingRow(id)
+    if (mdStat && existing) {
+      const stamp = stampOf(mdStat, metaStat)
+      if (stamp !== null && existing.stamp === stamp) return "unchanged"
+    }
+
+    const md = await fs.readText(`${id}.md`)
     if (md === null) {
       if (!existing) return "unchanged"
       deleteDoc(id, existing.rowid)
@@ -253,7 +280,9 @@ export function createSearchIndexStore(varDir: string): SearchIndexStore {
 
     const { data: frontmatter, body } = splitFrontmatter(md)
     const { meta } = await loadMeta(fs, id, frontmatter)
-    const stat = await fs.stat?.(`${id}.md`)
+    // stat ใหม่หลังอ่าน (ไฟล์อาจถูกเขียนระหว่างทาง) — stamp ที่ไม่ตรง = รอบหน้าอ่านซ้ำ ปลอดภัยกว่าเก็บ stamp ผิด
+    const stat = (await fs.stat?.(`${id}.md`)) ?? mdStat
+    const metaStatAfter = (await fs.stat?.(`${id}.meta.json`)) ?? metaStat
     const values = {
       id,
       title: meta.title || id.slice(id.lastIndexOf("/") + 1),
@@ -262,6 +291,7 @@ export function createSearchIndexStore(varDir: string): SearchIndexStore {
       mtimeMs: Math.trunc(stat?.mtimeMs ?? 0),
       bytes: new TextEncoder().encode(md).byteLength,
       hash,
+      stamp: (stat && stampOf(stat, metaStatAfter)) ?? "",
     }
 
     sqlite.exec("BEGIN IMMEDIATE")
