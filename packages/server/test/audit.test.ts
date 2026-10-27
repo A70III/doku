@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
@@ -324,21 +324,30 @@ describe("append-only — ไม่มีทาง truncate/ล้าง log ไ
     expect(entries[4]?.path).toBe("audit/x")
   })
 
-  test("api.ts แตะ audit เฉพาะผ่าน auditLog(...) — ไม่เขียน/ลบไฟล์เอง", () => {
-    const source = readFileSync(new URL("../src/api.ts", import.meta.url), "utf8")
-    const touched = source
-      .split("\n")
+  test("api แตะ audit เฉพาะผ่าน auditLog(...) — ไม่เขียน/ลบไฟล์เอง", () => {
+    // api.ts = barrel · ตัวจริงอยู่ใน src/api/*.ts → ตรวจทั้งชุด (ไฟล์เดียวจะไม่เห็น hook แล้ว)
+    const apiDir = new URL("../src/api/", import.meta.url)
+    const files = [
+      new URL("../src/api.ts", import.meta.url),
+      ...readdirSync(apiDir)
+        .filter((name) => name.endsWith(".ts"))
+        .map((name) => new URL(name, apiDir)),
+    ]
+    const sources = files.map((file) => readFileSync(file, "utf8"))
+    const joined = sources.join("\n")
+    const touched = sources
+      .flatMap((source) => source.split("\n"))
       .map((line, index) => (line.toLowerCase().includes("audit") ? `${index + 1}: ${line}` : null))
       .filter((line): line is string => line !== null)
     // มีทั้ง import + hook call — ทุกบรรที่ต้องเป็น import ของ audit หรือเรียก `auditLog(context` เท่านั้น
     expect(touched.length).toBeGreaterThanOrEqual(12)
     for (const line of touched) {
       const code = line.slice(line.indexOf(":") + 1).trim()
-      expect(code).toMatch(/^(import \{ auditLog \} from "\.\/audit\.ts")|auditLog\(context/)
+      expect(code).toMatch(/^(import \{ auditLog \} from "\.\.\/audit\.ts")|auditLog\(context/)
     }
-    // ไม่มีชื่อไฟล์/การเขียนไฟล์ audit ตรง ๆ ใน api.ts
-    expect(source).not.toContain("audit.log")
-    for (const line of source.split("\n")) {
+    // ไม่มีชื่อไฟล์/การเขียนไฟล์ audit ตรง ๆ ใน API layer
+    expect(joined).not.toContain("audit.log")
+    for (const line of joined.split("\n")) {
       if (!line.includes("auditLog(")) continue
       expect(line).not.toMatch(
         /(unlink|truncate|writeFileSync|appendFileSync|remove|writeText)\s*\(/,
