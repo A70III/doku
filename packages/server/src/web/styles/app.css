@@ -972,40 +972,6 @@ html[data-title-in-body][data-editing] .doku-doc-header .doku-doc-title {
   border-color: color-mix(in srgb, var(--k-success) 40%, var(--d-border));
 }
 
-/* ── rail: ตัวกรองแผนผัง ─────────────────────────────────────────────── */
-.doku-rail-filter {
-  display: flex;
-  align-items: center;
-  gap: var(--d-space-2);
-  padding: 0 0.75rem;
-  border: 0;
-  border-radius: var(--d-radius-pill);
-  background: color-mix(in srgb, var(--k-text) 4%, transparent);
-  color: var(--d-text-subtle);
-  transition: border-color var(--d-dur-fast) var(--d-ease);
-}
-.doku-rail-filter:focus-within {
-  border-color: var(--d-border-strong);
-}
-.doku-rail-filter input {
-  flex: 1;
-  min-width: 0;
-  height: 30px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font: inherit;
-  font-size: var(--d-text-sm);
-  color: var(--k-text);
-}
-.doku-rail-filter input::placeholder {
-  color: var(--d-text-subtle);
-}
-/* แถวที่ถูกกรองออก — ซ่อนแบบไม่ต้องรื้อ DOM (client ตั้ง hidden) */
-.doku-row[hidden],
-.doku-row-folder[hidden] {
-  display: none;
-}
 
 .doku-folder-summary:hover {
   background: color-mix(in srgb, var(--k-text) 4%, transparent);

@@ -34,56 +34,6 @@ ${INTERACTIONS_JS}
     });
   }
 
-  // ── ตัวกรองแผนผัง (client-side) — พิมพ์เพื่อกรองชื่อเอกสาร/โฟลเดอร์ ──
-  const treeFilterEl = document.getElementById("doku-tree-filter");
-
-  function applyTreeFilter(query) {
-    const tree = document.querySelector(".doku-tree");
-    if (!tree) return;
-    const needle = query.trim().toLowerCase();
-    for (const row of tree.querySelectorAll("li.doku-row")) row.hidden = false;
-
-    if (!needle) {
-      // คืนสถานะพับ/เปิดเดิมของผู้ใช้
-      for (const details of tree.querySelectorAll("details[data-tree]")) {
-        const path = details.getAttribute("data-tree");
-        details.open = path in saved ? saved[path] : details.open;
-      }
-      return;
-    }
-
-    for (const details of tree.querySelectorAll("details[data-tree]")) details.open = true;
-
-    // เอกสาร: เหลือเฉพาะที่ชื่อหรือ path ตรง
-    for (const row of tree.querySelectorAll("li.doku-row[data-doc-id]")) {
-      const label = ((row.getAttribute("data-doc-id") || "") + " " + (row.textContent || "")).toLowerCase();
-      row.hidden = label.indexOf(needle) === -1;
-    }
-
-    // โฟลเดอร์: ซ่อนเมื่อตัวเองไม่ตรงและไม่มีลูกที่เห็น (ไล่จากลึกไปตื้น)
-    const folders = Array.from(tree.querySelectorAll("li.doku-row-folder")).reverse();
-    for (const folder of folders) {
-      const summary = folder.querySelector(":scope > details > summary");
-      const own = ((summary && summary.textContent) || "").toLowerCase().indexOf(needle) !== -1;
-      if (own) {
-        for (const row of folder.querySelectorAll("li.doku-row")) row.hidden = false;
-      }
-      const visibleChild = !!folder.querySelector("li.doku-row:not([hidden])");
-      folder.hidden = !(own || visibleChild);
-    }
-  }
-
-  if (treeFilterEl) {
-    treeFilterEl.addEventListener("input", () => applyTreeFilter(treeFilterEl.value));
-    treeFilterEl.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && treeFilterEl.value) {
-        event.stopPropagation();
-        treeFilterEl.value = "";
-        applyTreeFilter("");
-        treeFilterEl.blur();
-      }
-    });
-  }
 
   // เอกสารที่เปิดอยู่ถูกซ่อนในโฟลเดอร์ที่พับ → เปิดให้เห็น (ถ้าผู้ใช้เห็นอยู่แล้วไม่แตะ)
   const activeRow = document.querySelector(".doku-row-link.is-active");

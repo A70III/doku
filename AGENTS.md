@@ -156,6 +156,7 @@ examples/          vault ตัวอย่าง (commit เป็น fixture)
   · markdown อ้าง `/media/<hash>.<ext>` · upload/MCP asset_put เขียน media store (dedupe) · **ไม่มีโฟลเดอร์ assets ใหม่**
   · ของเก่าย้ายด้วย `bun run media:migrate --vault <dir> --apply` (dry-run ก่อนเสมอ · backup ก่อน)
   · คำที่ผู้ใช้เห็น: แบรนด์จาก `DOKU_NAME` (default `doku`) ผ่าน `web/site.ts` · H1 หน้าแรก = "ทุกเอกสาร" · rail = "<n> เอกสาร" (ห้ามเอาชื่อโฟลเดอร์มาโชว์)
+  · ช่องค้นหามีช่องเดียว: palette (Ctrl K) — ห้ามเพิ่ม input กรองในแผนผังอีก · ผลลัพธ์โชว์ path เป็น hint
 - Soft Paper (ข้อ 89): **ผิว 3 ชั้น canvas → กระดาษ (radius-xl + shadow-paper) → เนื้อหา** · chrome ไม่มีเส้น (rail/search/filter/panel/colophon ใช้ระยะ/พื้น/เงา) · body 18px/1.82, h1 34–42 · แถว active = การ์ดขาว ไม่มีแถบ accent · `bun run shot` ต้องผ่าน a11y ทุกหน้า
 - ล็อกเพิ่มตอนเพิ่มปุ่มเปิด/ปิดแท็ก: **state คือ preference ไม่ใช่ query** — `?tag=` = กรองผลลัพธ์
   (แชร์ URL ได้) · ปุ่ม = "อยากเห็นแท็กในหน้าจอไหม" (localStorage) ไม่ใช่คู่กัน · ปุ่มอยู่หน้าแรก

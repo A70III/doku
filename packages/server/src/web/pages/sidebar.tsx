@@ -1,21 +1,8 @@
 /** rail + tree + row menu — แยกจาก pages.tsx (ไม่เปลี่ยนพฤติกรรม) */
 
-import {
-  docUrl,
-  encodeVaultUrl,
-  HEX_COLOR_PATTERN,
-  hasIcon,
-  ICON_NAMES,
-  iconSvg,
-  type LucideIconName,
-  type Meta,
-  type TocEntry,
-  type TrashItem,
-} from "@doku/core"
-import type { Child, FC } from "hono/jsx"
-import type { CachedDoc } from "../../cache.ts"
-import type { DocSummary, TreeNode } from "../../tree.ts"
-import { groupDocsByDate, parseSort, type SortKey, sortDocs } from "../listing.ts"
+import { docUrl, HEX_COLOR_PATTERN, hasIcon, type LucideIconName } from "@doku/core"
+import type { FC } from "hono/jsx"
+import type { TreeNode } from "../../tree.ts"
 import { getSiteName } from "../site.ts"
 
 import { Icon } from "./shared.tsx"
@@ -165,18 +152,6 @@ export const Sidebar: FC<{
       <span>ค้นหา / คำสั่ง</span>
       <kbd>Ctrl K</kbd>
     </button>
-
-    <label class="doku-rail-filter">
-      <Icon name="list" size={13} />
-      <input
-        id="doku-tree-filter"
-        type="search"
-        placeholder="ค้นหาในสารบัญ…"
-        aria-label="ค้นหาเอกสารในสารบัญ"
-        autocomplete="off"
-        spellcheck={false}
-      />
-    </label>
 
     <nav aria-label="แผนผังเอกสาร" class="doku-rail-tree">
       {tree.length === 0 ? (

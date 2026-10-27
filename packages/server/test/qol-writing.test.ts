@@ -54,10 +54,11 @@ describe("QoL — แผนผังและสื่อ", () => {
     expect(html).toContain('data-folder-path="assets"')
   })
 
-  test("แผนผังมีช่องกรอง + จำนวนเอกสารต่อโฟลเดอร์", async () => {
+  test("ช่องค้นหามีช่องเดียว (palette) — ไม่มีช่องกรองแผนผังแยก + จำนวนเอกสารต่อโฟลเดอร์", async () => {
     const { app } = setup({ "notes/a.md": DOC, "notes/b.md": DOC, "notes/deep/c.md": DOC })
     const html = await (await app.request("/")).text()
-    expect(html).toContain('id="doku-tree-filter"')
+    expect(html).not.toContain('id="doku-tree-filter"')
+    expect(html).toContain('data-action="palette"')
     expect(html).toContain("doku-rail-count")
     // notes มี 3 เอกสาร (นับรวม subfolder)
     expect(html).toMatch(/data-folder-path="notes"[\s\S]{0,900}?doku-rail-count[^>]*>\s*3\s*</)
